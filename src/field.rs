@@ -2,13 +2,12 @@ use std::{borrow::Cow, fmt, iter, ops::*};
 
 pub trait FieldTrait: Clone + fmt::Debug {
     type Sample: FieldTrait;
-    type Squared: FieldTrait;
     fn uniform(f: Self::Sample) -> Self;
     fn sample(&self, x: f32) -> Cow<Self::Sample>;
     fn range(&self) -> Option<RangeInclusive<f32>>;
     fn un_op(self, op: UnOp) -> Self;
     fn zip(self, op: BinOp, other: Self) -> Self;
-    fn square(self, op: BinOp, other: Self) -> Self::Squared;
+    fn try_square_sample(op: BinOp, a: Self::Sample, b: Field1) -> Result<Self, Field1>;
     fn superuniform(x: f32) -> Self {
         Self::uniform(Self::Sample::superuniform(x))
     }
@@ -58,7 +57,7 @@ where
     Offset(Box<Self>, f32),
     Un(Box<Self>, UnOp),
     Zip(BinOp, Box<Self>, Box<Self>),
-    Square(BinOp, S, S),
+    Square(BinOp, S, Box<Field1>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -106,11 +105,11 @@ impl BinOp {
             (op, a, b) => Field::Zip(op, a.into(), b.into()),
         }
     }
-    pub fn square<F>(self, a: F, b: F) -> Field<F>
+    pub fn square<F>(self, a: F, b: Field1) -> Field<F>
     where
         F: FieldTrait,
     {
-        Field::Square(self, a, b)
+        Field::Square(self, a, b.into())
     }
     pub fn operate(&self, a: f32, b: f32) -> f32 {
         match self {
@@ -126,7 +125,6 @@ impl BinOp {
 
 impl FieldTrait for f32 {
     type Sample = f32;
-    type Squared = Field1;
     fn uniform(x: f32) -> Self {
         x
     }
@@ -142,8 +140,8 @@ impl FieldTrait for f32 {
     fn zip(self, op: BinOp, other: Self) -> Self {
         op.operate(self, other)
     }
-    fn square(self, op: BinOp, other: Self) -> Self::Squared {
-        Field1::Uniform(op.operate(self, other))
+    fn try_square_sample(op: BinOp, a: Self::Sample, b: Field1) -> Result<Self, Field1> {
+        Err(op.zip(Field::Uniform(a), b))
     }
     fn superuniform(x: f32) -> Self {
         x
@@ -155,7 +153,6 @@ where
     S: FieldTrait + Clone,
 {
     type Sample = S;
-    type Squared = Field<Self>;
     fn uniform(f: Self::Sample) -> Self {
         Field::Uniform(f)
     }
@@ -172,9 +169,12 @@ where
             Field::Zip(op, a, b) => {
                 Cow::Owned(a.sample(x).into_owned().zip(*op, b.sample(x).into_owned()))
             }
-            Field::Square(op, a, b) => {
-                Cow::Owned(S::uniform(a.sample(x).into_owned()).zip(*op, b.clone()))
-            }
+            Field::Square(op, a, b) => Cow::Owned(
+                match S::try_square_sample(*op, a.sample(x).into_owned(), (**b).clone()) {
+                    Ok(field) => field,
+                    Err(field1) => S::superuniform(*field1.sample(x)),
+                },
+            ),
         }
     }
     fn range(&self) -> Option<RangeInclusive<f32>> {
@@ -200,8 +200,8 @@ where
     fn zip(self, op: BinOp, other: Self) -> Self {
         op.zip(self, other)
     }
-    fn square(self, op: BinOp, other: Self) -> Self::Squared {
-        Field::Square(op, self, other)
+    fn try_square_sample(op: BinOp, a: Self::Sample, b: Field1) -> Result<Self, Field1> {
+        Ok(Field::Square(op, a, b.into()))
     }
 }
 
@@ -211,6 +211,9 @@ where
 {
     pub fn list(items: impl IntoIterator<Item = S>) -> Self {
         Field::List(items.into_iter().collect())
+    }
+    pub fn square(self, op: BinOp, other: Field1) -> Field<Self> {
+        Field::Square(op, self, other.into())
     }
 }
 
