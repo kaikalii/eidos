@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt, iter, ops::*};
+use std::{borrow::Cow, fmt, iter, mem::swap, ops::*};
 
 pub trait FieldTrait: Clone + fmt::Debug {
     type Sample: FieldTrait;
@@ -54,7 +54,7 @@ where
     Identity,
     Uniform(S),
     List(Vec<S>),
-    Offset(Box<Self>, f32),
+    Resample(Box<Self>, Resampler, f32),
     Un(Box<Self>, UnOp),
     Zip(BinOp, Box<Self>, Box<Self>),
     Square(BinOp, S, Box<Field1>),
@@ -123,6 +123,36 @@ impl BinOp {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Resampler {
+    Offset,
+    Scale,
+    Flip,
+}
+
+impl Resampler {
+    pub fn sample_value(&self, x: f32, factor: f32) -> f32 {
+        match self {
+            Resampler::Offset => x - factor,
+            Resampler::Scale => x / factor,
+            Resampler::Flip => 2.0 * factor - x,
+        }
+    }
+    pub fn range_value(&self, range: RangeInclusive<f32>, factor: f32) -> RangeInclusive<f32> {
+        let start = *range.start();
+        let end = *range.end();
+        let (mut start, mut end) = match self {
+            Resampler::Offset => (start + factor, end + factor),
+            Resampler::Scale => (start * factor, end * factor),
+            Resampler::Flip => (2.0 * factor - end, 2.0 * factor - start),
+        };
+        if end < start {
+            swap(&mut start, &mut end);
+        }
+        start..=end
+    }
+}
+
 impl FieldTrait for f32 {
     type Sample = f32;
     fn uniform(x: f32) -> Self {
@@ -164,7 +194,7 @@ where
                 .get(x.round() as usize)
                 .map(Cow::Borrowed)
                 .unwrap_or_else(|| Cow::Owned(S::superuniform(0.0))),
-            Field::Offset(field, by) => field.sample(x + *by),
+            Field::Resample(field, r, factor) => field.sample(r.sample_value(x, *factor)),
             Field::Un(field, op) => Cow::Owned(field.sample(x).into_owned().un_op(*op)),
             Field::Zip(op, a, b) => {
                 Cow::Owned(a.sample(x).into_owned().zip(*op, b.sample(x).into_owned()))
@@ -182,9 +212,9 @@ where
             Field::Identity => None,
             Field::Uniform(_) => Some(0.0..=0.0),
             Field::List(list) => Some(0.0..=(list.len() - 1) as f32),
-            Field::Offset(field, by) => field
-                .range()
-                .map(|range| (*range.start() + *by..=*range.end() + *by)),
+            Field::Resample(field, r, factor) => {
+                field.range().map(|range| r.range_value(range, *factor))
+            }
             Field::Un(field, _) => field.range(),
             Field::Zip(_, a, b) => match (a.range(), b.range()) {
                 (None, None) => None,
@@ -214,6 +244,18 @@ where
     }
     pub fn square(self, op: BinOp, other: Field1) -> Field<Self> {
         Field::Square(op, self, other.into())
+    }
+    pub fn resample(self, resampler: Resampler, factor: f32) -> Self {
+        Field::Resample(self.into(), resampler, factor)
+    }
+    pub fn offset(self, by: f32) -> Self {
+        self.resample(Resampler::Offset, by)
+    }
+    pub fn scale(self, by: f32) -> Self {
+        self.resample(Resampler::Scale, by)
+    }
+    pub fn flip(self, around: f32) -> Self {
+        self.resample(Resampler::Flip, around)
     }
 }
 
