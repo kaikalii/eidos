@@ -64,6 +64,9 @@ where
 pub enum UnOp {
     Neg,
     Abs,
+    Sin,
+    Cos,
+    Tan,
 }
 
 impl UnOp {
@@ -81,6 +84,9 @@ impl UnOp {
         match self {
             UnOp::Neg => -x,
             UnOp::Abs => x.abs(),
+            UnOp::Sin => x.sin(),
+            UnOp::Cos => x.cos(),
+            UnOp::Tan => x.tan(),
         }
     }
 }
