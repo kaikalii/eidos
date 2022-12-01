@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use eidos::*;
 
 fn main() {
@@ -14,4 +16,21 @@ fn main() {
         print!("{s:<4}");
     }
     println!();
+    println!();
+    for s in Field1::Identity
+        .square(BinOp::Mul, Field1::Identity)
+        .sample_range(0.0..=4.0, 0.25)
+    {
+        for s in s.sample_range(0.0..=4.0, 0.25) {
+            print!("{}", sample_char(*s, 0.0..=16.0));
+        }
+        println!();
+    }
+}
+
+const CHARS: &str = "⬛🟥🟧🟨🟩🟦🟪⬜";
+
+fn sample_char(s: f32, range: RangeInclusive<f32>) -> char {
+    let t = (s - *range.start()) / (*range.end() - *range.start());
+    CHARS.chars().nth((t.min(0.9999) * 8.0) as usize).unwrap()
 }
