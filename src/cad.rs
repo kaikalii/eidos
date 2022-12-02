@@ -12,7 +12,6 @@ struct Insertion {
     line: usize,
     position: usize,
     instr: Instr,
-    new: bool,
     finish: bool,
 }
 
@@ -22,7 +21,6 @@ impl Insertion {
             line,
             position,
             instr: Instr::Number(0.0),
-            new: true,
             finish: false,
         }
     }
@@ -53,6 +51,7 @@ impl Default for Cad {
 impl Cad {
     pub fn ui(&mut self, ui: &mut Ui) {
         let mut edit_position = None;
+        // Function for insertion ui
         let insertion_at = |ui: &mut Ui, insertion: &mut Option<Insertion>, i: usize, j: usize| {
             // Insertion prompt
             if let Some(ins) = insertion
@@ -63,33 +62,43 @@ impl Cad {
                     ui.separator();
                 }
                 // Type and value
-                CollapsingHeader::new(ins.instr.to_string())
-                    .open(ins.new.then_some(true))
-                    .show(ui, |ui| match &mut ins.instr {
+                let mut number_choice = true;
+                ui.vertical(|ui| {
+                    match &mut ins.instr {
                         Instr::Number(f) => {
                             DragValue::new(f).ui(ui);
+                            number_choice = false;
                         }
-                    });
+                    }
+                    if number_choice && ui.selectable_label(false, "Number").clicked() {
+                        ins.instr = Instr::Number(0.0);
+                    }
+                });
                 // Submit and cancel
-                if ui.small_button("✔").clicked() {
+                let (finished, cancelled) = ui
+                    .vertical(|ui| {
+                        (
+                            ui.small_button("✔").clicked() || ui.input().key_pressed(Key::Enter),
+                            ui.small_button("❌").clicked(),
+                        )
+                    })
+                    .inner;
+                if finished {
                     ins.finish = true;
                 }
-                if ui.small_button("❌").clicked() {
+                if cancelled {
                     *insertion = None;
                 }
-                true
-            } else {
-                false
+            } else if SeparatorButton::default().ui(ui).clicked() {
+                *insertion = Some(Insertion::new(i, j))
             }
         };
+        // Main ui and execution loop
         for (i, line) in self.lines.iter_mut().enumerate() {
             ui.group(|ui| {
                 ui.horizontal_wrapped(|ui| {
-                    if !insertion_at(ui, &mut self.insertion, i, 0)
-                        && SeparatorButton::default().ui(ui).clicked()
-                    {
-                        self.insertion = Some(Insertion::new(i, 0))
-                    }
+                    // Insertion at start
+                    insertion_at(ui, &mut self.insertion, i, 0);
                     for (j, instr) in line.iter_mut().enumerate() {
                         // This instruction
                         match instr {
@@ -99,12 +108,8 @@ impl Cad {
                                 }
                             }
                         }
-                        // Insertion button
-                        if !insertion_at(ui, &mut self.insertion, i, j + 1)
-                            && SeparatorButton::default().ui(ui).clicked()
-                        {
-                            self.insertion = Some(Insertion::new(i, j + 1))
-                        }
+                        // Insertion after this instruction
+                        insertion_at(ui, &mut self.insertion, i, j + 1);
                     }
                 });
             });

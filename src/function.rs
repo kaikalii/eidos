@@ -1,6 +1,8 @@
+use enum_iterator::Sequence;
+
 use crate::{BinOp, Type, UnOp, Value};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Function {
     Un(UnOp),
     Bin(BinOp),

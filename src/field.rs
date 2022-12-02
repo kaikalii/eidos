@@ -1,5 +1,7 @@
 use std::{borrow::Cow, fmt, iter, mem::swap, ops::*};
 
+use enum_iterator::Sequence;
+
 pub trait FieldTrait: Clone + fmt::Debug {
     type Sample: FieldTrait;
     fn uniform(f: Self::Sample) -> Self;
@@ -60,7 +62,7 @@ where
     Square(BinOp, S, Box<Field1>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum UnOp {
     Neg,
     Abs,
@@ -94,7 +96,7 @@ impl UnOp {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum BinOp {
     Add,
     Sub,
