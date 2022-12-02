@@ -1,6 +1,7 @@
 use std::fmt;
 
 use eframe::egui::*;
+use eidos::Function;
 
 /// The Casting Assistant Device
 pub struct Cad {
@@ -29,12 +30,14 @@ impl Insertion {
 #[derive(Debug)]
 pub enum Instr {
     Number(f32),
+    Function(Function),
 }
 
 impl fmt::Display for Instr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Instr::Number(n) => n.fmt(f),
+            Instr::Function(function) => function.fmt(f),
         }
     }
 }
@@ -63,11 +66,16 @@ impl Cad {
                 }
                 // Type and value
                 let mut number_choice = true;
+                let mut selected_function = None;
                 ui.vertical(|ui| {
                     match &mut ins.instr {
                         Instr::Number(f) => {
                             DragValue::new(f).ui(ui);
                             number_choice = false;
+                        }
+                        Instr::Function(f) => {
+                            ui.label(f.to_string());
+                            selected_function = Some(f.clone());
                         }
                     }
                     if number_choice && ui.selectable_label(false, "Number").clicked() {
@@ -101,12 +109,8 @@ impl Cad {
                     insertion_at(ui, &mut self.insertion, i, 0);
                     for (j, instr) in line.iter_mut().enumerate() {
                         // This instruction
-                        match instr {
-                            Instr::Number(f) => {
-                                if ui.selectable_label(false, f.to_string()).clicked() {
-                                    edit_position = Some((i, j));
-                                }
-                            }
+                        if ui.selectable_label(false, instr.to_string()).clicked() {
+                            edit_position = Some((i, j));
                         }
                         // Insertion after this instruction
                         insertion_at(ui, &mut self.insertion, i, j + 1);

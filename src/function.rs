@@ -1,3 +1,5 @@
+use std::fmt;
+
 use enum_iterator::Sequence;
 
 use crate::{BinOp, Type, UnOp, Value};
@@ -17,5 +19,14 @@ impl Function {
             }
             _ => return None,
         })
+    }
+}
+
+impl fmt::Display for Function {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Function::Un(op) => write!(f, "{op:?}"),
+            Function::Bin(op) => write!(f, "{op:?}"),
+        }
     }
 }
