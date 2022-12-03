@@ -1,16 +1,35 @@
 use std::fmt;
 
-use enum_iterator::Sequence;
+use enum_iterator::{all, Sequence};
 
 use crate::{BinOp, EidosError, Resampler, Type, UnOp, Value};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Function {
     Identity,
     Zip(BinOp),
     Square(BinOp),
     Un(UnOp),
     Resample(Resampler),
+}
+
+#[derive(Debug, Sequence)]
+pub enum FunctionCategory {
+    Zip,
+    Square,
+    Unary,
+    Resample,
+}
+
+impl FunctionCategory {
+    pub fn functions(&self) -> Box<dyn Iterator<Item = Function>> {
+        match self {
+            FunctionCategory::Zip => Box::new(all::<BinOp>().map(Function::Zip)),
+            FunctionCategory::Square => Box::new(all::<BinOp>().map(Function::Square)),
+            FunctionCategory::Unary => Box::new(all::<UnOp>().map(Function::Un)),
+            FunctionCategory::Resample => Box::new(all::<Resampler>().map(Function::Resample)),
+        }
+    }
 }
 
 impl Function {

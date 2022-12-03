@@ -1,5 +1,5 @@
 use eframe::{egui::*, epaint::color::Hsva};
-use eidos::{EidosError, Field, Function, Instr, Runtime, Value};
+use eidos::{EidosError, Field, Function, FunctionCategory, Instr, Runtime, Value};
 use enum_iterator::all;
 
 use itertools::Itertools;
@@ -25,6 +25,7 @@ struct CadInstr {
     instr: Instr,
     editing: bool,
     buffer: Option<String>,
+    header_open: Option<bool>,
 }
 
 impl Default for CadInstr {
@@ -33,6 +34,7 @@ impl Default for CadInstr {
             instr: Instr::Number(0.0),
             editing: true,
             buffer: None,
+            header_open: None,
         }
     }
 }
@@ -102,50 +104,90 @@ impl Cad {
                                     }
                                 }
                                 // Allow simple selections
-                                if number_choice && ui.button("Number").clicked() {
+                                if number_choice && ui.selectable_label(false, "Number").clicked() {
                                     ci.instr = Instr::Number(0.0);
                                 }
-                                if list_choice && ui.button("List").clicked() {
+                                if list_choice && ui.selectable_label(false, "List").clicked() {
                                     ci.instr = Instr::List(Vec::new())
                                 }
                                 // Sort functions
-                                let mut any_available = false;
-                                let mut functions: Vec<(Function, Option<EidosError>)> =
-                                    all::<Function>()
-                                        .map(|function| {
-                                            let error = rt.function_ret_type(&function).err();
-                                            any_available |= error.is_none();
-                                            (function, error)
+                                type CategoryFunctions = Vec<(Function, Option<EidosError>)>;
+                                let mut functions: Vec<(String, CategoryFunctions)> =
+                                    all::<FunctionCategory>()
+                                        .map(|category| {
+                                            let mut functions: Vec<_> = category
+                                                .functions()
+                                                .map(|function| {
+                                                    let error =
+                                                        rt.function_ret_type(&function).err();
+                                                    (function, error)
+                                                })
+                                                .collect();
+                                            functions.sort_by_key(|(_, error)| error.is_some());
+                                            (format!("{category:?}"), functions)
                                         })
                                         .collect();
-                                functions.sort_by_key(|(_, error)| error.is_some());
+                                functions.sort_by_key(|(_, functions)| {
+                                    functions.iter().filter(|(_, e)| e.is_some()).count()
+                                });
                                 // Show all functions
-                                ui.add_enabled_ui(any_available, |ui| {
-                                    ComboBox::new((i, j), "")
-                                        .selected_text("Functions")
-                                        .show_ui(ui, |ui| {
-                                            for (function, error) in functions {
-                                                let resp = ui.add_enabled(
-                                                    error.is_none(),
-                                                    SelectableLabel::new(
-                                                        selected_function.as_ref()
-                                                            == Some(&function),
-                                                        function.to_string(),
-                                                    ),
-                                                );
-                                                if resp.clicked() {
-                                                    ci.instr = Instr::Function(function);
-                                                }
-                                                if let Some(e) = error {
-                                                    resp.on_disabled_hover_text(
-                                                        e.to_string().as_str().replace(". ", "\n"),
-                                                    );
-                                                }
+                                CollapsingHeader::new("Functions")
+                                    .id_source((i, j))
+                                    .open(ci.header_open.take())
+                                    .show(ui, |ui| {
+                                        #[allow(clippy::single_element_loop)]
+                                        for function in [Function::Identity] {
+                                            let selected =
+                                                selected_function.as_ref() == Some(&function);
+                                            if ui
+                                                .selectable_label(selected, function.to_string())
+                                                .clicked()
+                                            {
+                                                ci.instr = Instr::Function(function);
+                                                ci.header_open = Some(false);
                                             }
-                                        });
-                                })
-                                .response
-                                .on_hover_text("No functions are available");
+                                        }
+                                        for (k, (name, functions)) in
+                                            functions.into_iter().enumerate()
+                                        {
+                                            let enabled =
+                                                functions.iter().any(|(_, e)| e.is_none());
+                                            ui.add_enabled_ui(enabled, |ui| {
+                                                ComboBox::new((i, j, k), "")
+                                                    .selected_text(&name)
+                                                    .show_ui(ui, |ui| {
+                                                        for (function, error) in functions {
+                                                            let selected = selected_function
+                                                                .as_ref()
+                                                                == Some(&function);
+                                                            let resp = ui.add_enabled(
+                                                                error.is_none(),
+                                                                SelectableLabel::new(
+                                                                    selected,
+                                                                    function.to_string(),
+                                                                ),
+                                                            );
+                                                            if resp.clicked() {
+                                                                ci.instr =
+                                                                    Instr::Function(function);
+                                                                ci.header_open = Some(false);
+                                                            }
+                                                            if let Some(e) = error {
+                                                                resp.on_disabled_hover_text(
+                                                                    e.to_string()
+                                                                        .as_str()
+                                                                        .replace(". ", "\n"),
+                                                                );
+                                                            }
+                                                        }
+                                                    });
+                                            })
+                                            .response
+                                            .on_hover_text(format!(
+                                                "No {name:?} functions are available"
+                                            ));
+                                        }
+                                    });
                             });
                             // Submit and cancel
                             let (do_next, finished, cancelled) = ui
