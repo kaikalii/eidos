@@ -453,7 +453,6 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "enum-iterator",
- "thiserror",
 ]
 
 [[package]]

@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::{Field1, Field2, Function};
 
 #[derive(Debug, Clone)]
@@ -20,6 +22,18 @@ impl Type {
     }
     pub fn is_function(&self) -> bool {
         matches!(self, Type::Function(_))
+    }
+}
+
+impl fmt::Display for Type {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Type::Field(rank) => match rank {
+                0 => "Scalar".fmt(f),
+                n => write!(f, "{n}D Field"),
+            },
+            Type::Function(function) => function.fmt(f),
+        }
     }
 }
 

@@ -1,7 +1,5 @@
-use std::fmt;
-
 use eframe::egui::*;
-use eidos::Function;
+use eidos::{Function, Instr, Runtime, Value};
 use enum_iterator::all;
 
 /// The Casting Assistant Device
@@ -28,21 +26,6 @@ impl Insertion {
     }
 }
 
-#[derive(Debug)]
-pub enum Instr {
-    Number(f32),
-    Function(Function),
-}
-
-impl fmt::Display for Instr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Instr::Number(n) => n.fmt(f),
-            Instr::Function(function) => function.fmt(f),
-        }
-    }
-}
-
 impl Default for Cad {
     fn default() -> Self {
         Cad {
@@ -55,89 +38,40 @@ impl Default for Cad {
 impl Cad {
     pub fn ui(&mut self, ui: &mut Ui) {
         let mut edit_position = None;
-        // Function for insertion ui
-        let insertion_at = |ui: &mut Ui, insertion: &mut Option<Insertion>, i: usize, j: usize| {
-            // Insertion prompt
-            if let Some(ins) = insertion
-                .as_mut()
-                .filter(|ins| ins.line == i && ins.position == j)
-            {
-                if j > 0 {
-                    ui.separator();
-                }
-                // Type and value
-                let mut number_choice = true;
-                let mut selected_function = None;
-                ui.vertical(|ui| {
-                    match &mut ins.instr {
-                        Instr::Number(f) => {
-                            ui.horizontal(|ui| {
-                                ui.small("Number:");
-                                DragValue::new(f).ui(ui);
-                            });
-                            number_choice = false;
-                        }
-                        Instr::Function(f) => {
-                            ui.horizontal(|ui| {
-                                ui.small("Function:");
-                                ui.label(f.to_string());
-                            });
-                            selected_function = Some(f.clone());
-                        }
-                    }
-                    if number_choice && ui.button("Number").clicked() {
-                        ins.instr = Instr::Number(0.0);
-                    }
-                    ComboBox::new("functions", "")
-                        .selected_text("Functions")
-                        .show_ui(ui, |ui| {
-                            for function in all::<Function>() {
-                                if ui
-                                    .selectable_label(
-                                        selected_function.as_ref() == Some(&function),
-                                        function.to_string(),
-                                    )
-                                    .clicked()
-                                {
-                                    ins.instr = Instr::Function(function)
-                                }
-                            }
-                        });
-                });
-                // Submit and cancel
-                let (finished, cancelled) = ui
-                    .vertical(|ui| {
-                        (
-                            ui.small_button("✔").clicked() || ui.input().key_pressed(Key::Enter),
-                            ui.small_button("❌").clicked(),
-                        )
-                    })
-                    .inner;
-                if finished {
-                    ins.finish = true;
-                }
-                if cancelled {
-                    *insertion = None;
-                }
-            } else if SeparatorButton::default().ui(ui).clicked() {
-                *insertion = Some(Insertion::new(i, j))
-            }
-        };
+        // Initialize runtime
+        let mut rt = Runtime::default();
         // Main ui and execution loop
-        for (i, line) in self.lines.iter_mut().enumerate() {
+        for i in 0..self.lines.len() {
             ui.group(|ui| {
                 ui.horizontal_wrapped(|ui| {
                     // Insertion at start
-                    insertion_at(ui, &mut self.insertion, i, 0);
-                    for (j, instr) in line.iter_mut().enumerate() {
-                        // This instruction
+                    self.insertion_at(ui, &mut rt, i, 0);
+                    for j in 0..self.lines[i].len() {
+                        let instr = &self.lines[i][j];
+                        // Execute this instruction
+                        rt.do_instr(instr);
+                        // Show this instruction
                         if ui.selectable_label(false, instr.to_string()).clicked() {
                             edit_position = Some((i, j));
                         }
                         // Insertion after this instruction
-                        insertion_at(ui, &mut self.insertion, i, j + 1);
+                        self.insertion_at(ui, &mut rt, i, j + 1);
                     }
                 });
+                if !rt.stack.is_empty() {
+                    ui.separator();
+                    ui.horizontal_wrapped(|ui| {
+                        for value in &rt.stack {
+                            ui.separator();
+                            match value {
+                                Value::Atom(f) => ui.label(f.to_string()),
+                                Value::F1(_) => todo!(),
+                                Value::F2(_) => todo!(),
+                                Value::Function(f) => ui.label(f.to_string()),
+                            };
+                        }
+                    });
+                }
             });
         }
         // Add insertion
@@ -153,6 +87,95 @@ impl Cad {
             let mut insertion = Insertion::new(i, j);
             insertion.instr = instr;
             self.insertion = Some(insertion);
+        }
+    }
+    fn insertion_at(&mut self, ui: &mut Ui, rt: &mut Runtime, i: usize, j: usize) {
+        if let Some(ins) = &mut self
+            .insertion
+            .as_mut()
+            .filter(|ins| ins.line == i && ins.position == j)
+        {
+            if j > 0 {
+                ui.separator();
+            }
+            // Type and value
+            let mut number_choice = true;
+            let mut selected_function = None;
+            ui.vertical(|ui| {
+                match &mut ins.instr {
+                    Instr::Number(f) => {
+                        ui.horizontal(|ui| {
+                            ui.small("Number:");
+                            DragValue::new(f).ui(ui);
+                        });
+                        number_choice = false;
+                    }
+                    Instr::Function(f) => {
+                        ui.horizontal(|ui| {
+                            ui.small("Function:");
+                            ui.label(f.to_string());
+                        });
+                        selected_function = Some(f.clone());
+                    }
+                }
+                if number_choice && ui.button("Number").clicked() {
+                    ins.instr = Instr::Number(0.0);
+                }
+                let mut available = Vec::new();
+                let mut unavailable = Vec::new();
+                for function in all::<Function>() {
+                    match rt.function_ret_type(&function) {
+                        Ok(_) => available.push(function),
+                        Err(e) => unavailable.push((function, e)),
+                    }
+                }
+                ui.add_enabled_ui(!available.is_empty(), |ui| {
+                    ComboBox::new("functions", "")
+                        .selected_text("Functions")
+                        .show_ui(ui, |ui| {
+                            for function in available {
+                                if ui
+                                    .selectable_label(
+                                        selected_function.as_ref() == Some(&function),
+                                        function.to_string(),
+                                    )
+                                    .clicked()
+                                {
+                                    ins.instr = Instr::Function(function)
+                                }
+                            }
+                            for (function, e) in unavailable {
+                                ui.add_enabled(
+                                    false,
+                                    SelectableLabel::new(
+                                        selected_function.as_ref() == Some(&function),
+                                        function.to_string(),
+                                    ),
+                                )
+                                .on_disabled_hover_text(e.to_string().as_str().replace(". ", "\n"));
+                            }
+                        });
+                })
+                .response
+                .on_hover_text("No functions are available");
+            });
+            // Submit and cancel
+            let (finished, cancelled) = ui
+                .vertical(|ui| {
+                    (
+                        ui.small_button("✔").clicked() || ui.input().key_pressed(Key::Enter),
+                        ui.small_button("❌").clicked(),
+                    )
+                })
+                .inner;
+            if finished {
+                ins.finish = true;
+            }
+            if cancelled {
+                self.insertion = None;
+            }
+        } else if SeparatorButton::default().ui(ui).clicked() {
+            self.insertion = Some(Insertion::new(i, j))
         }
     }
 }
