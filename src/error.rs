@@ -51,8 +51,12 @@ impl fmt::Display for EidosError {
             } => write!(
                 f,
                 "Not enough arguments to {function}. It expects {expected}, \
-                but the stack only has {stack_size} {}.",
-                plural("value", *stack_size)
+                but the stack {}.",
+                match stack_size {
+                    0 => "is empty".into(),
+                    1 => "only has 1 value".into(),
+                    n => format!("only has {n} values"),
+                }
             ),
         }
     }
@@ -60,7 +64,7 @@ impl fmt::Display for EidosError {
 
 impl Error for EidosError {}
 
-fn plural(s: &str, n: usize) -> Cow<str> {
+fn _plural(s: &str, n: usize) -> Cow<str> {
     if n == 1 {
         Cow::Borrowed(s)
     } else {

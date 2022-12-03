@@ -1,4 +1,5 @@
 mod cad;
+mod controls;
 mod render;
 
 use cad::Cad;

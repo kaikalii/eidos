@@ -10,6 +10,12 @@ pub enum Value {
     Function(Function),
 }
 
+impl Default for Value {
+    fn default() -> Self {
+        Value::Atom(0.0)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Type {
     Field(u8),
