@@ -32,16 +32,19 @@ struct CadInstr {
 
 impl Default for CadInstr {
     fn default() -> Self {
+        CadInstr::new(Instr::Number(0.0))
+    }
+}
+
+impl CadInstr {
+    fn new(instr: Instr) -> Self {
         CadInstr {
-            instr: Instr::Number(0.0),
+            instr,
             editing: true,
             buffer: None,
             header_open: None,
         }
     }
-}
-
-impl CadInstr {
     fn set_instr(&mut self, instr: impl Into<Instr>) {
         self.instr = instr.into();
         self.header_open = Some(false);
@@ -326,30 +329,76 @@ fn plot(ui: &mut Ui, field: &Field, i: usize, j: usize) {
             });
         }
         2 => {
-            let mut plot = Plot::new((i, j)).width(200.0).height(100.0);
+            let field_clone = field.clone();
+            let range = field.default_range().unwrap_or(0.0..=10.0);
+            let start = range.start().min(0.0);
+            let end = range.end().max(0.0);
+            let mut plot = Plot::new((i, j))
+                .width(200.0)
+                .height(100.0)
+                .include_x(start)
+                .include_x(end)
+                .include_y(-1.0)
+                .include_y(1.0)
+                .data_aspect(1.0)
+                .label_formatter(move |_, point| {
+                    let z = field_clone
+                        .sample(point.x as f32)
+                        .sample(point.y as f32)
+                        .as_scalar()
+                        .unwrap();
+                    format!("({:.2} {:.2} {:.2})", point.x, point.y, z)
+                });
             if let Some((min, max)) = field.min_max() {
                 plot = plot.include_y(min).include_y(max);
             }
             plot.show(ui, |plot_ui| {
+                const WIDTH: usize = 80;
+                const HEIGHT: usize = 40;
+                const Z_BUCKETS: usize = 99;
                 let field = field.clone();
-                let range = field.default_range().unwrap_or(0.0..=10.0);
-                const LINES: usize = 10;
-                for (k, subfield) in field.sample_range_count(range, LINES).enumerate() {
-                    let range = subfield.default_range();
-                    let get_point = move |x| subfield.sample(x as f32).as_scalar().unwrap() as f64;
-                    let plot_points = if let Some(range) = range {
-                        let range = *range.start() as f64..=*range.end() as f64;
-                        PlotPoints::from_explicit_callback(get_point, range, 131)
-                    } else {
-                        PlotPoints::from_explicit_callback(get_point, .., 131)
-                    };
-                    plot_ui.line(Line::new(plot_points).color(Hsva::new(
-                        k as f32 / LINES as f32,
-                        1.0,
-                        1.0,
-                        1.0,
-                    )))
+                let bounds = plot_ui.plot_bounds();
+                let [min_x, min_y] = bounds.min().map(|d| d as f32);
+                let [max_x, max_y] = bounds.max().map(|d| d as f32);
+                let step_x = (max_x - min_x) / WIDTH as f32;
+                let mut points = Vec::with_capacity(WIDTH * HEIGHT);
+                for k in 0..WIDTH {
+                    let x = k as f32 * step_x + min_x;
+                    let step_y = (max_y - min_y) / HEIGHT as f32;
+                    for l in 0..HEIGHT {
+                        let y = l as f32 * step_y + min_y;
+                        let z = field.sample(x).sample(y).as_scalar().unwrap();
+                        points.push((x, y, z));
+                    }
                 }
+                let (min_z, max_z) = points
+                    .iter()
+                    .map(|(_, _, z)| *z)
+                    .minmax()
+                    .into_option()
+                    .unwrap();
+                let max_abs_z = min_z.abs().max(max_z.abs());
+                let mut grouped_points = vec![Vec::new(); Z_BUCKETS];
+                for (x, y, z) in points {
+                    let group = ((z / max_abs_z * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
+                        .max(0.0)
+                        .round() as usize)
+                        .min(Z_BUCKETS - 1);
+                    grouped_points[group].push(PlotPoint::new(x, y));
+                }
+                for (k, points) in grouped_points.into_iter().enumerate() {
+                    let h = 0.9 * (1.0 - k as f32 / Z_BUCKETS as f32);
+                    let v = (2.0 * k as f32 / Z_BUCKETS as f32 - 1.0).abs();
+                    let s = v.powf(0.5);
+                    plot_ui.points(
+                        Points::new(PlotPoints::Owned(points))
+                            .shape(MarkerShape::Circle)
+                            .radius(2.5)
+                            .color(Hsva::new(h, s, v, 1.0)),
+                    );
+                }
+                plot_ui.vline(VLine::new(0.0));
+                plot_ui.hline(HLine::new(0.0));
             });
         }
         _ => {

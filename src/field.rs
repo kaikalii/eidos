@@ -136,7 +136,7 @@ impl Field {
                 let index = if x.is_nan() || x.is_infinite() {
                     0
                 } else {
-                    x.round() as usize
+                    x.round().max(0.0) as usize
                 };
                 if shape.is_empty() {
                     return self.clone();
@@ -168,8 +168,10 @@ impl Field {
                     } else {
                         Field::uniform(a).zip(*op, b)
                     }
+                } else if let Some(b) = b.as_scalar() {
+                    a.sample(x).zip(*op, Field::uniform(b))
                 } else {
-                    Field::Square(*op, a.sample(x).into(), b.clone())
+                    a.sample(x).square(*op, (**b).clone())
                 }
             }
             Field::Resample(field, resampler, factor) => {
