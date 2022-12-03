@@ -132,15 +132,14 @@ impl Field {
         match self {
             Field::Identity => Field::uniform(x),
             Field::Array { data, shape } => {
-                let x = x.round();
-                let index = if x.is_nan() || x.is_infinite() {
-                    0
-                } else {
-                    x.round().max(0.0) as usize
-                };
                 if shape.is_empty() {
                     return self.clone();
                 }
+                let x = x.round();
+                if x.is_nan() || x.is_infinite() || x < 0.0 || x >= shape[0] as f32 {
+                    return Field::uniform(0.0);
+                }
+                let index = x as usize;
                 let subshape = shape[1..].to_vec();
                 let frame_size: usize = subshape.iter().product();
                 let start = index * frame_size;

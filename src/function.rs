@@ -114,7 +114,7 @@ impl fmt::Display for Function {
             Function::Combinator(com) => write!(f, "{com:?}"),
             Function::Un(op) => write!(f, "{op:?}"),
             Function::Zip(op) => write!(f, "{op:?}"),
-            Function::Square(op) => write!(f, "{op:?}"),
+            Function::Square(op) => write!(f, "square {op:?}"),
             Function::Resample(res) => write!(f, "{res:?}"),
         }
     }
