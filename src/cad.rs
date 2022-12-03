@@ -37,7 +37,9 @@ impl Cad {
                     self.insertion_at(ui, i, 0);
                     // Show the instructions
                     for j in 0..self.lines[i].len() {
-                        let ci = &mut self.lines[i][j];
+                        let Some(ci) = self.lines[i].get_mut(j) else {
+                            continue;
+                        };
                         // Editing
                         if ci.editing {
                             let mut number_choice = true;
@@ -202,6 +204,14 @@ impl Cad {
                 }
                 self.lines[i].insert(j, ci);
             }
+        } else {
+            sep_resp.context_menu(|ui| {
+                if ui.selectable_label(false, "split line").clicked() {
+                    ui.close_menu();
+                    let new_line = self.lines[i].split_off(j);
+                    self.lines.insert(i + 1, new_line);
+                }
+            });
         }
     }
     fn clear_editing_other_than(&mut self, i: usize, j: usize) {
