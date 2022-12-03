@@ -2,6 +2,7 @@ use std::fmt;
 
 use eframe::egui::*;
 use eidos::Function;
+use enum_iterator::all;
 
 /// The Casting Assistant Device
 pub struct Cad {
@@ -70,17 +71,38 @@ impl Cad {
                 ui.vertical(|ui| {
                     match &mut ins.instr {
                         Instr::Number(f) => {
-                            DragValue::new(f).ui(ui);
+                            ui.horizontal(|ui| {
+                                ui.small("Number:");
+                                DragValue::new(f).ui(ui);
+                            });
                             number_choice = false;
                         }
                         Instr::Function(f) => {
-                            ui.label(f.to_string());
+                            ui.horizontal(|ui| {
+                                ui.small("Function:");
+                                ui.label(f.to_string());
+                            });
                             selected_function = Some(f.clone());
                         }
                     }
-                    if number_choice && ui.selectable_label(false, "Number").clicked() {
+                    if number_choice && ui.button("Number").clicked() {
                         ins.instr = Instr::Number(0.0);
                     }
+                    ComboBox::new("functions", "")
+                        .selected_text("Functions")
+                        .show_ui(ui, |ui| {
+                            for function in all::<Function>() {
+                                if ui
+                                    .selectable_label(
+                                        selected_function.as_ref() == Some(&function),
+                                        function.to_string(),
+                                    )
+                                    .clicked()
+                                {
+                                    ins.instr = Instr::Function(function)
+                                }
+                            }
+                        });
                 });
                 // Submit and cancel
                 let (finished, cancelled) = ui
