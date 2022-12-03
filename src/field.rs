@@ -49,7 +49,7 @@ impl BinOp {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Resampler {
     Offset,
     Scale,
@@ -149,14 +149,7 @@ impl Field {
                     shape: subshape,
                 }
             }
-            Field::Un(op, field) => {
-                let field = field.sample(x);
-                if let Some(s) = field.as_scalar() {
-                    Field::uniform(s)
-                } else {
-                    Field::Un(*op, field.sample(x).into())
-                }
-            }
+            Field::Un(op, field) => field.sample(x).un(*op),
             Field::Zip(op, a, b) => {
                 let a = a.sample(x);
                 let b = b.sample(x);
@@ -181,7 +174,11 @@ impl Field {
         }
     }
     pub fn un(self, op: UnOp) -> Self {
-        Field::Un(op, self.into())
+        if let Some(a) = self.as_scalar() {
+            Field::uniform(op.operate(a))
+        } else {
+            Field::Un(op, self.into())
+        }
     }
     pub fn zip(self, op: BinOp, other: Self) -> Self {
         if let (Some(a), Some(b)) = (self.as_scalar(), other.as_scalar()) {
@@ -195,6 +192,13 @@ impl Field {
             Field::uniform(op.operate(a, b))
         } else {
             Field::Square(op, self.into(), other.into())
+        }
+    }
+    pub fn resample(self, resampler: Resampler, factor: f32) -> Self {
+        if self.as_scalar().is_some() {
+            self
+        } else {
+            Field::Resample(self.into(), resampler, factor)
         }
     }
     pub fn sample_range(

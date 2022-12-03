@@ -2,12 +2,13 @@ use std::fmt;
 
 use enum_iterator::Sequence;
 
-use crate::{BinOp, EidosError, Type, UnOp, Value};
+use crate::{BinOp, EidosError, Resampler, Type, UnOp, Value};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Function {
-    Un(UnOp),
     Bin(BinOp),
+    Un(UnOp),
+    Resample(Resampler),
 }
 
 impl Function {
@@ -31,6 +32,18 @@ impl Function {
                 Ok(a.ty().max(b.ty()))
             }
             (Function::Bin(_), _) => Err(EidosError::not_enough_arguments(self, 2, stack.len())),
+            (Function::Resample(_), [.., a, b]) => {
+                if !a.ty().is_field() {
+                    return Err(EidosError::invalid_argument(self, 1, a.ty()));
+                }
+                if b.ty() != Type::Field(0) {
+                    return Err(EidosError::invalid_argument(self, 2, b.ty()));
+                }
+                Ok(a.ty())
+            }
+            (Function::Resample(_), _) => {
+                Err(EidosError::not_enough_arguments(self, 2, stack.len()))
+            }
         }
     }
 }
@@ -40,6 +53,7 @@ impl fmt::Display for Function {
         match self {
             Function::Un(op) => write!(f, "{op:?}"),
             Function::Bin(op) => write!(f, "{op:?}"),
+            Function::Resample(res) => write!(f, "{res:?}"),
         }
     }
 }

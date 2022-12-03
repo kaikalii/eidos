@@ -61,6 +61,16 @@ impl Runtime {
                             _ => unreachable!(),
                         });
                     }
+                    Function::Resample(res) => {
+                        let b = self.stack.pop().unwrap();
+                        let a = self.stack.pop().unwrap();
+                        self.stack.push(match (a, b) {
+                            (Value::Field(a), Value::Field(b)) => {
+                                a.resample(*res, b.as_scalar().unwrap()).into()
+                            }
+                            _ => unreachable!(),
+                        });
+                    }
                 }
             }
         }
