@@ -6,6 +6,7 @@ use crate::{BinOp, EidosError, Resampler, Type, UnOp, Value};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Function {
+    Identity,
     Bin(BinOp),
     Un(UnOp),
     Resample(Resampler),
@@ -14,6 +15,7 @@ pub enum Function {
 impl Function {
     pub fn ret_type(&self, stack: &[Value]) -> Result<Type, EidosError> {
         match (self, stack) {
+            (Function::Identity, _) => Ok(Type::Field(1)),
             (Function::Un(_), [.., f]) => {
                 if f.ty().is_field() {
                     Ok(f.ty())
@@ -51,6 +53,7 @@ impl Function {
 impl fmt::Display for Function {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Function::Identity => write!(f, "Identity"),
             Function::Un(op) => write!(f, "{op:?}"),
             Function::Bin(op) => write!(f, "{op:?}"),
             Function::Resample(res) => write!(f, "{res:?}"),

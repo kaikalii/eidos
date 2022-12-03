@@ -46,6 +46,7 @@ impl Runtime {
             Instr::Function(function) => {
                 self.function_ret_type(function)?;
                 match function {
+                    Function::Identity => self.stack.push(Field::Identity.into()),
                     Function::Un(op) => {
                         let value = self.stack.pop().unwrap();
                         self.stack.push(match value {

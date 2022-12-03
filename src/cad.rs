@@ -101,11 +101,10 @@ impl Cad {
                                         selected_function = Some(f.clone());
                                     }
                                 }
-                                // Allow number selection
+                                // Allow simple selections
                                 if number_choice && ui.button("Number").clicked() {
                                     ci.instr = Instr::Number(0.0);
                                 }
-                                // Allow list selection
                                 if list_choice && ui.button("List").clicked() {
                                     ci.instr = Instr::List(Vec::new())
                                 }
@@ -218,11 +217,45 @@ impl Cad {
                 if !rt.stack.is_empty() {
                     ui.separator();
                     ui.horizontal_wrapped(|ui| {
-                        for value in &rt.stack {
+                        for (j, value) in rt.stack.iter().enumerate() {
                             ui.separator();
                             match value {
-                                Value::Field(f) => ui.label(f.to_string()),
-                                Value::Function(f) => ui.label(f.to_string()),
+                                Value::Field(f) => match f.rank() {
+                                    1 => {
+                                        use plot::*;
+                                        let mut plot = Plot::new((i, j)).width(200.0).height(100.0);
+                                        if let Some((min, max)) = f.min_max() {
+                                            plot = plot.include_y(min).include_y(max);
+                                        }
+                                        plot.show(ui, |plot_ui| {
+                                            let f = f.clone();
+                                            let range = f.default_range();
+                                            let get_point = move |x| {
+                                                f.sample(x as f32).as_scalar().unwrap() as f64
+                                            };
+                                            let plot_points = if let Some(range) = range {
+                                                let range =
+                                                    *range.start() as f64..=*range.end() as f64;
+                                                PlotPoints::from_explicit_callback(
+                                                    get_point, range, 100,
+                                                )
+                                            } else {
+                                                PlotPoints::from_explicit_callback(
+                                                    get_point,
+                                                    ..,
+                                                    100,
+                                                )
+                                            };
+                                            plot_ui.line(Line::new(plot_points))
+                                        });
+                                    }
+                                    _ => {
+                                        ui.label(f.to_string());
+                                    }
+                                },
+                                Value::Function(f) => {
+                                    ui.label(f.to_string());
+                                }
                             };
                         }
                     });

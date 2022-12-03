@@ -60,7 +60,7 @@ impl Resampler {
     pub fn sample_value(&self, x: f32, factor: f32) -> f32 {
         match self {
             Resampler::Offset => x - factor,
-            Resampler::Scale => x / factor,
+            Resampler::Scale => x * factor,
             Resampler::Flip => 2.0 * factor - x,
         }
     }
@@ -69,7 +69,7 @@ impl Resampler {
         let end = *range.end();
         let (mut start, mut end) = match self {
             Resampler::Offset => (start + factor, end + factor),
-            Resampler::Scale => (start * factor, end * factor),
+            Resampler::Scale => (start / factor, end / factor),
             Resampler::Flip => (2.0 * factor - end, 2.0 * factor - start),
         };
         if end < start {
@@ -132,7 +132,12 @@ impl Field {
         match self {
             Field::Identity => Field::uniform(x),
             Field::Array { data, shape } => {
-                let index = x.round() as usize;
+                let x = x.round();
+                let index = if x.is_nan() || x.is_infinite() {
+                    0
+                } else {
+                    x.round() as usize
+                };
                 if shape.is_empty() {
                     return self.clone();
                 }
@@ -200,6 +205,58 @@ impl Field {
         } else {
             Field::Resample(self.into(), resampler, factor)
         }
+    }
+    pub fn default_range(&self) -> Option<RangeInclusive<f32>> {
+        match self {
+            Field::Array { data, shape } => {
+                if shape.is_empty() {
+                    None
+                } else {
+                    Some(0.0..=((data.len() as f32 / shape.len() as f32 - 1.0).max(1.0)))
+                }
+            }
+            Field::Identity => None,
+            Field::Un(_, field) => field.default_range(),
+            Field::Zip(_, a, b) => {
+                let a = a.default_range();
+                let b = b.default_range();
+                match (a, b) {
+                    (Some(a), Some(b)) => Some(a.start().min(*b.start())..=(a.end().max(*b.end()))),
+                    (Some(a), None) => Some(a),
+                    (None, Some(b)) => Some(b),
+                    (None, None) => None,
+                }
+            }
+            Field::Square(_, a, _) => a.default_range(),
+            Field::Resample(field, res, factor) => {
+                let range = field.default_range()?;
+                let a = res.sample_value(*range.start(), *factor);
+                let b = res.sample_value(*range.end(), *factor);
+                Some(a.min(b)..=a.max(b))
+            }
+        }
+    }
+    pub fn min_max(&self) -> Option<(f32, f32)> {
+        Some(match self {
+            Field::Array { data, shape } if shape.is_empty() => (data[0].abs(), data[0].abs()),
+            Field::Array { data, shape } if shape.len() == 1 => {
+                let min = *data
+                    .iter()
+                    .filter(|f| !f.is_nan())
+                    .min_by(|a, b| a.partial_cmp(b).unwrap())?;
+                let max = *data
+                    .iter()
+                    .filter(|f| !f.is_nan())
+                    .max_by(|a, b| a.partial_cmp(b).unwrap())?;
+                (min, max)
+            }
+            Field::Un(UnOp::Sin | UnOp::Cos, _) => (-1.0, 1.0),
+            Field::Un(UnOp::Neg, field) => {
+                let (min, max) = field.min_max()?;
+                (-max, -min)
+            }
+            _ => return None,
+        })
     }
     pub fn sample_range(
         &self,
