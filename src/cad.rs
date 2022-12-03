@@ -41,6 +41,13 @@ impl Default for CadInstr {
     }
 }
 
+impl CadInstr {
+    fn set_instr(&mut self, instr: impl Into<Instr>) {
+        self.instr = instr.into();
+        self.header_open = Some(false);
+    }
+}
+
 impl Cad {
     pub fn ui(&mut self, ui: &mut Ui) {
         // Initialize runtime
@@ -127,10 +134,10 @@ impl Cad {
                         }
                         // Allow simple selections
                         if number_choice && ui.selectable_label(false, "Number").clicked() {
-                            ci.instr = Instr::Number(0.0);
+                            ci.set_instr(Instr::Number(0.0));
                         }
                         if list_choice && ui.selectable_label(false, "List").clicked() {
-                            ci.instr = Instr::List(Vec::new())
+                            ci.set_instr(Instr::List(Vec::new()));
                         }
                         // Sort functions
                         type CategoryFunctions = Vec<(Function, Option<EidosError>)>;
@@ -163,16 +170,16 @@ impl Cad {
                                         .selectable_label(selected, function.to_string())
                                         .clicked()
                                     {
-                                        ci.instr = Instr::Function(function);
-                                        ci.header_open = Some(false);
+                                        ci.set_instr(Instr::Function(function));
                                     }
                                 }
                                 for (k, (name, functions)) in functions.into_iter().enumerate() {
                                     let enabled = functions.iter().any(|(_, e)| e.is_none());
                                     ui.add_enabled_ui(enabled, |ui| {
-                                        ComboBox::new((i, j, k), "").selected_text(&name).show_ui(
-                                            ui,
-                                            |ui| {
+                                        ComboBox::new((i, j, k), "")
+                                            .width(89.0)
+                                            .selected_text(&name)
+                                            .show_ui(ui, |ui| {
                                                 for (function, error) in functions {
                                                     let selected = selected_function.as_ref()
                                                         == Some(&function);
@@ -184,8 +191,7 @@ impl Cad {
                                                         ),
                                                     );
                                                     if resp.clicked() {
-                                                        ci.instr = Instr::Function(function);
-                                                        ci.header_open = Some(false);
+                                                        ci.set_instr(Instr::Function(function));
                                                     }
                                                     if let Some(e) = error {
                                                         resp.on_disabled_hover_text(
@@ -195,8 +201,7 @@ impl Cad {
                                                         );
                                                     }
                                                 }
-                                            },
-                                        );
+                                            });
                                     })
                                     .response
                                     .on_hover_text(format!("No {name:?} functions are available"));
