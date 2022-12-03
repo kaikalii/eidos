@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{EidosError, Field, Function, Type, Value};
+use crate::{Combinator, Combinator2, EidosError, Field, Function, Value};
 
 pub type Stack = Vec<Value>;
 
@@ -36,17 +36,36 @@ impl fmt::Display for Instr {
 }
 
 impl Runtime {
-    pub fn function_ret_type(&self, function: &Function) -> Result<Type, EidosError> {
-        function.ret_type(&self.stack)
+    pub fn validate_function_use(&self, function: &Function) -> Result<(), EidosError> {
+        function.validate_use(&self.stack)
     }
     pub fn do_instr(&mut self, instr: &Instr) -> Result<(), EidosError> {
         match instr {
             Instr::Number(f) => self.stack.push((*f).into()),
             Instr::List(nums) => self.stack.push(Field::list(nums.clone()).into()),
             Instr::Function(function) => {
-                self.function_ret_type(function)?;
+                self.validate_function_use(function)?;
                 match function {
                     Function::Identity => self.stack.push(Field::Identity.into()),
+                    Function::Combinator(Combinator::Duplicate) => {
+                        let value = self.stack.last().unwrap().clone();
+                        self.stack.push(value);
+                    }
+                    Function::Combinator(Combinator::Combinator2(com2)) => {
+                        let b = self.stack.pop().unwrap();
+                        let a = self.stack.pop().unwrap();
+                        match com2 {
+                            Combinator2::Swap => {
+                                self.stack.push(b);
+                                self.stack.push(a);
+                            }
+                            Combinator2::Over => {
+                                self.stack.push(a.clone());
+                                self.stack.push(b);
+                                self.stack.push(a);
+                            }
+                        }
+                    }
                     Function::Un(op) => {
                         let value = self.stack.pop().unwrap();
                         self.stack.push(match value {

@@ -119,7 +119,7 @@ impl Cad {
                                                 .functions()
                                                 .map(|function| {
                                                     let error =
-                                                        rt.function_ret_type(&function).err();
+                                                        rt.validate_function_use(&function).err();
                                                     (function, error)
                                                 })
                                                 .collect();
