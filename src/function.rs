@@ -25,7 +25,7 @@ impl Function {
                 if !a.ty().is_field() {
                     return Err(EidosError::invalid_argument(self, 1, a.ty()));
                 }
-                if b.ty() != a.ty() {
+                if !b.ty().is_field() {
                     return Err(EidosError::invalid_argument(self, 2, b.ty()));
                 }
                 Ok(a.ty().max(b.ty()))

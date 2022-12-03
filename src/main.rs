@@ -1,3 +1,5 @@
+#![allow(unstable_name_collisions)]
+
 mod cad;
 mod controls;
 mod render;
@@ -15,7 +17,7 @@ fn main() {
                 cad: Cad::default(),
             })
         }),
-    )
+    );
 }
 
 struct Game {

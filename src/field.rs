@@ -1,66 +1,6 @@
-use std::{borrow::Cow, fmt, iter, mem::swap, ops::*};
+use std::{fmt, iter, mem::swap, ops::*};
 
 use enum_iterator::Sequence;
-
-pub trait FieldTrait: Clone + fmt::Debug {
-    type Sample: FieldTrait;
-    fn uniform(f: Self::Sample) -> Self;
-    fn sample(&self, x: f32) -> Cow<Self::Sample>;
-    fn range(&self) -> Option<RangeInclusive<f32>>;
-    fn un_op(self, op: UnOp) -> Self;
-    fn zip(self, op: BinOp, other: Self) -> Self;
-    fn try_square_sample(op: BinOp, a: Self::Sample, b: Field1) -> Result<Self, Field1>;
-    fn superuniform(x: f32) -> Self {
-        Self::uniform(Self::Sample::superuniform(x))
-    }
-    fn sample_range(
-        &self,
-        range: impl RangeBounds<f32> + 'static,
-        step: f32,
-    ) -> Box<dyn Iterator<Item = Cow<Self::Sample>> + '_> {
-        let mut i = match range.start_bound() {
-            Bound::Included(start) => *start,
-            Bound::Excluded(start) => *start + step,
-            Bound::Unbounded => 0.0,
-        };
-        Box::new(iter::from_fn(move || {
-            let ret = match range.end_bound() {
-                Bound::Included(end) => &i <= end,
-                Bound::Excluded(end) => &i < end,
-                Bound::Unbounded => true,
-            };
-            if !ret {
-                return None;
-            }
-            let value = self.sample(i);
-            i += step;
-            Some(value)
-        }))
-    }
-}
-
-pub type Field1 = Field<f32>;
-pub type Field2 = Field<Field1>;
-
-impl From<f32> for Field1 {
-    fn from(f: f32) -> Self {
-        Field1::Uniform(f)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum Field<S>
-where
-    S: FieldTrait,
-{
-    Identity,
-    Uniform(S),
-    List(Vec<S>),
-    Resample(Box<Self>, Resampler, f32),
-    Un(Box<Self>, UnOp),
-    Zip(BinOp, Box<Self>, Box<Self>),
-    Square(BinOp, S, Box<Field1>),
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum UnOp {
@@ -73,16 +13,6 @@ pub enum UnOp {
 }
 
 impl UnOp {
-    pub fn on<F>(self, field: Field<F>) -> Field<F>
-    where
-        F: FieldTrait,
-    {
-        match (self, field) {
-            (op, Field::Uniform(f)) => Field::Uniform(f.un_op(op)),
-            (UnOp::Neg, Field::Un(field, UnOp::Neg)) => *field,
-            (op, field) => Field::Un(field.into(), op),
-        }
-    }
     pub fn operate(&self, x: f32) -> f32 {
         match self {
             UnOp::Neg => -x,
@@ -107,21 +37,6 @@ pub enum BinOp {
 }
 
 impl BinOp {
-    pub fn zip<F>(self, a: Field<F>, b: Field<F>) -> Field<F>
-    where
-        F: FieldTrait,
-    {
-        match (self, a, b) {
-            (op, Field::Uniform(a), Field::Uniform(b)) => Field::Uniform(a.zip(op, b)),
-            (op, a, b) => Field::Zip(op, a.into(), b.into()),
-        }
-    }
-    pub fn square<F>(self, a: F, b: Field1) -> Field<F>
-    where
-        F: FieldTrait,
-    {
-        Field::Square(self, a, b.into())
-    }
     pub fn operate(&self, a: f32, b: f32) -> f32 {
         match self {
             BinOp::Add => a + b,
@@ -164,141 +79,170 @@ impl Resampler {
     }
 }
 
-impl FieldTrait for f32 {
-    type Sample = f32;
-    fn uniform(x: f32) -> Self {
-        x
-    }
-    fn sample(&self, _x: f32) -> Cow<Self::Sample> {
-        Cow::Owned(*self)
-    }
-    fn range(&self) -> Option<RangeInclusive<f32>> {
-        Some(0.0..=0.0)
-    }
-    fn un_op(self, op: UnOp) -> Self {
-        op.operate(self)
-    }
-    fn zip(self, op: BinOp, other: Self) -> Self {
-        op.operate(self, other)
-    }
-    fn try_square_sample(op: BinOp, a: Self::Sample, b: Field1) -> Result<Self, Field1> {
-        Err(op.zip(Field::Uniform(a), b))
-    }
-    fn superuniform(x: f32) -> Self {
-        x
-    }
+#[derive(Debug, Clone)]
+pub enum Field {
+    Array { data: Vec<f32>, shape: Vec<usize> },
+    Identity,
+    Un(UnOp, Box<Self>),
+    Zip(BinOp, Box<Self>, Box<Self>),
+    Square(BinOp, Box<Self>, Box<Self>),
+    Resample(Box<Self>, Resampler, f32),
 }
 
-impl<S> FieldTrait for Field<S>
-where
-    S: FieldTrait + Clone,
-{
-    type Sample = S;
-    fn uniform(f: Self::Sample) -> Self {
-        Field::Uniform(f)
+impl Field {
+    fn from_array_data(
+        data: impl IntoIterator<Item = f32>,
+        shape: impl IntoIterator<Item = usize>,
+    ) -> Self {
+        Field::Array {
+            data: data.into_iter().collect(),
+            shape: shape.into_iter().collect(),
+        }
     }
-    fn sample(&self, x: f32) -> Cow<Self::Sample> {
+    pub fn uniform(f: f32) -> Self {
+        Field::from_array_data([f], [])
+    }
+    pub fn list(items: impl IntoIterator<Item = impl Into<f32>>) -> Self {
+        let data: Vec<f32> = items.into_iter().map(Into::into).collect();
+        let shape = [data.len()];
+        Field::from_array_data(data, shape)
+    }
+    pub fn array2d<const N: usize>(columns: impl IntoIterator<Item = [impl Into<f32>; N]>) -> Self {
+        let data: Vec<f32> = columns.into_iter().flatten().map(Into::into).collect();
+        let shape = [data.len() / N, N];
+        Field::from_array_data(data, shape)
+    }
+    pub fn as_scalar(&self) -> Option<f32> {
         match self {
-            Field::Identity => Cow::Owned(S::superuniform(x)),
-            Field::Uniform(f) => Cow::Borrowed(f),
-            Field::List(list) => list
-                .get(x.round() as usize)
-                .map(Cow::Borrowed)
-                .unwrap_or_else(|| Cow::Owned(S::superuniform(0.0))),
-            Field::Resample(field, r, factor) => field.sample(r.sample_value(x, *factor)),
-            Field::Un(field, op) => Cow::Owned(field.sample(x).into_owned().un_op(*op)),
+            Field::Array { data, shape } if shape.is_empty() => Some(data[0]),
+            _ => None,
+        }
+    }
+    pub fn rank(&self) -> usize {
+        match self {
+            Field::Array { shape, .. } => shape.len(),
+            Field::Identity => 1,
+            Field::Un(_, field) => field.rank(),
+            Field::Zip(_, a, b) => a.rank().max(b.rank()),
+            Field::Square(_, a, b) => a.rank() + b.rank(),
+            Field::Resample(field, _, _) => field.rank(),
+        }
+    }
+    pub fn sample(&self, x: f32) -> Field {
+        match self {
+            Field::Identity => Field::uniform(x),
+            Field::Array { data, shape } => {
+                let index = x.round() as usize;
+                if shape.is_empty() {
+                    return self.clone();
+                }
+                let subshape = shape[1..].to_vec();
+                let frame_size: usize = subshape.iter().product();
+                let start = index * frame_size;
+                let end = (index + 1) * frame_size;
+                let mut subdata = Vec::with_capacity(end - start);
+                for i in start..end {
+                    subdata.push(data.get(i).copied().unwrap_or(0.0));
+                }
+                Field::Array {
+                    data: subdata,
+                    shape: subshape,
+                }
+            }
+            Field::Un(op, field) => {
+                let field = field.sample(x);
+                if let Some(s) = field.as_scalar() {
+                    Field::uniform(s)
+                } else {
+                    Field::Un(*op, field.sample(x).into())
+                }
+            }
             Field::Zip(op, a, b) => {
-                Cow::Owned(a.sample(x).into_owned().zip(*op, b.sample(x).into_owned()))
+                let a = a.sample(x);
+                let b = b.sample(x);
+                a.zip(*op, b)
             }
-            Field::Square(op, a, b) => Cow::Owned(
-                match S::try_square_sample(*op, a.sample(x).into_owned(), (**b).clone()) {
-                    Ok(field) => field,
-                    Err(field1) => S::superuniform(*field1.sample(x)),
-                },
-            ),
+            Field::Square(op, a, b) => {
+                if let Some(a) = a.as_scalar() {
+                    let b = b.sample(x);
+                    if let Some(b) = b.as_scalar() {
+                        Field::uniform(op.operate(a, b))
+                    } else {
+                        Field::uniform(a).zip(*op, b)
+                    }
+                } else {
+                    Field::Square(*op, a.clone(), b.clone())
+                }
+            }
+            Field::Resample(field, resampler, factor) => {
+                let x = resampler.sample_value(x, *factor);
+                field.sample(x)
+            }
         }
     }
-    fn range(&self) -> Option<RangeInclusive<f32>> {
-        match self {
-            Field::Identity => None,
-            Field::Uniform(_) => Some(0.0..=0.0),
-            Field::List(list) => Some(0.0..=(list.len() - 1) as f32),
-            Field::Resample(field, r, factor) => {
-                field.range().map(|range| r.range_value(range, *factor))
-            }
-            Field::Un(field, _) => field.range(),
-            Field::Zip(_, a, b) => match (a.range(), b.range()) {
-                (None, None) => None,
-                (None, Some(range)) | (Some(range), None) => Some(range),
-                (Some(a), Some(b)) => Some(a.start().min(*b.start())..=a.end().max(*b.end())),
-            },
-            Field::Square(_, a, _) => a.range(),
+    pub fn un(self, op: UnOp) -> Self {
+        Field::Un(op, self.into())
+    }
+    pub fn zip(self, op: BinOp, other: Self) -> Self {
+        if let (Some(a), Some(b)) = (self.as_scalar(), other.as_scalar()) {
+            Field::uniform(op.operate(a, b))
+        } else {
+            Field::Zip(op, self.into(), other.into())
         }
     }
-    fn un_op(self, op: UnOp) -> Self {
-        op.on(self)
+    pub fn square(self, op: BinOp, other: Self) -> Self {
+        if let (Some(a), Some(b)) = (self.as_scalar(), other.as_scalar()) {
+            Field::uniform(op.operate(a, b))
+        } else {
+            Field::Square(op, self.into(), other.into())
+        }
     }
-    fn zip(self, op: BinOp, other: Self) -> Self {
-        op.zip(self, other)
-    }
-    fn try_square_sample(op: BinOp, a: Self::Sample, b: Field1) -> Result<Self, Field1> {
-        Ok(Field::Square(op, a, b.into()))
+    pub fn sample_range(
+        &self,
+        range: impl RangeBounds<f32> + 'static,
+        step: f32,
+    ) -> impl Iterator<Item = Field> + '_ {
+        let mut i = match range.start_bound() {
+            Bound::Included(start) => *start,
+            Bound::Excluded(start) => *start + step,
+            Bound::Unbounded => 0.0,
+        };
+        iter::from_fn(move || {
+            let ret = match range.end_bound() {
+                Bound::Included(end) => &i <= end,
+                Bound::Excluded(end) => &i < end,
+                Bound::Unbounded => true,
+            };
+            if !ret {
+                return None;
+            }
+            let value = self.sample(i);
+            i += step;
+            Some(value)
+        })
     }
 }
 
-impl<S> Field<S>
-where
-    S: FieldTrait,
-{
-    pub fn list(items: impl IntoIterator<Item = S>) -> Self {
-        Field::List(items.into_iter().collect())
-    }
-    pub fn square(self, op: BinOp, other: Field1) -> Field<Self> {
-        Field::Square(op, self, other.into())
-    }
-    pub fn resample(self, resampler: Resampler, factor: f32) -> Self {
-        Field::Resample(self.into(), resampler, factor)
-    }
-    pub fn offset(self, by: f32) -> Self {
-        self.resample(Resampler::Offset, by)
-    }
-    pub fn scale(self, by: f32) -> Self {
-        self.resample(Resampler::Scale, by)
-    }
-    pub fn flip(self, around: f32) -> Self {
-        self.resample(Resampler::Flip, around)
-    }
-}
-
-impl<S> Neg for Field<S>
-where
-    S: FieldTrait,
-{
+impl Neg for Field {
     type Output = Self;
     fn neg(self) -> Self::Output {
-        UnOp::Neg.on(self)
+        self.un(UnOp::Neg)
     }
 }
 
 macro_rules! bin_op {
     ($trait:ident, $method:ident) => {
-        impl<S> $trait for Field<S>
-        where
-            S: FieldTrait,
-        {
+        impl $trait for Field {
             type Output = Self;
             fn $method(self, other: Self) -> Self::Output {
-                BinOp::$trait.zip(self, other)
+                self.zip(BinOp::$trait, other)
             }
         }
 
-        impl<S> $trait<S> for Field<S>
-        where
-            S: FieldTrait,
-        {
+        impl $trait<f32> for Field {
             type Output = Self;
-            fn $method(self, other: S) -> Self::Output {
-                BinOp::$trait.zip(self, Field::Uniform(other))
+            fn $method(self, other: f32) -> Self::Output {
+                self.zip(BinOp::$trait, Field::uniform(other))
             }
         }
     };
@@ -308,3 +252,63 @@ bin_op!(Add, add);
 bin_op!(Sub, sub);
 bin_op!(Mul, mul);
 bin_op!(Div, div);
+
+impl fmt::Display for Field {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Field::Array { data, shape } => display_array(data, shape, f),
+            Field::Identity => "Identity".fmt(f),
+            Field::Un(op, field) => write!(f, "({op:?} {field})"),
+            Field::Zip(op, a, b) => write!(f, "({op:?} {a} {b})"),
+            Field::Square(op, a, b) => write!(f, "(square {op:?} {a} {b}"),
+            Field::Resample(field, res, factor) => write!(f, "({res:?} {factor} {field})"),
+        }
+    }
+}
+
+struct ArrayFormatter<'a> {
+    data: &'a [f32],
+    shape: &'a [usize],
+}
+
+impl<'a> fmt::Debug for ArrayFormatter<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.shape.is_empty() {
+            write!(f, "{}", self.data[0])
+        } else {
+            let subshape = &self.shape[1..];
+            let frame_size: usize = subshape.iter().product();
+            f.debug_list()
+                .entries((0..self.shape[0]).map(|i| {
+                    let start = i * frame_size;
+                    let end = (i + 1) * frame_size;
+                    let subdata = &self.data[start..end];
+                    ArrayFormatter {
+                        data: subdata,
+                        shape: subshape,
+                    }
+                }))
+                .finish()
+        }
+    }
+}
+
+fn display_array(data: &[f32], shape: &[usize], f: &mut fmt::Formatter) -> fmt::Result {
+    if shape.is_empty() {
+        write!(f, "{}", data[0])
+    } else {
+        let subshape = &shape[1..];
+        let frame_size: usize = subshape.iter().product();
+        write!(f, "[")?;
+        for i in 0..shape[0] {
+            if i > 0 {
+                write!(f, " ")?;
+            }
+            let start = i * frame_size;
+            let end = (i + 1) * frame_size;
+            let subdata = &data[start..end];
+            display_array(subdata, subshape, f)?;
+        }
+        write!(f, "]")
+    }
+}

@@ -1,24 +1,22 @@
 use std::fmt;
 
-use crate::{Field1, Field2, Function};
+use crate::{Field, Function};
 
 #[derive(Debug, Clone)]
 pub enum Value {
-    Atom(f32),
-    F1(Field1),
-    F2(Field2),
+    Field(Field),
     Function(Function),
 }
 
 impl Default for Value {
     fn default() -> Self {
-        Value::Atom(0.0)
+        0.0.into()
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Type {
-    Field(u8),
+    Field(usize),
     Function(Function),
 }
 
@@ -46,11 +44,15 @@ impl fmt::Display for Type {
 impl Value {
     pub fn ty(&self) -> Type {
         match self {
-            Value::Atom(_) => Type::Field(0),
-            Value::F1(_) => Type::Field(1),
-            Value::F2(_) => Type::Field(2),
+            Value::Field(f) => Type::Field(f.rank()),
             Value::Function(f) => Type::Function(f.clone()),
         }
+    }
+}
+
+impl From<f32> for Value {
+    fn from(f: f32) -> Self {
+        Field::uniform(f).into()
     }
 }
 
@@ -64,7 +66,5 @@ macro_rules! value_from {
     };
 }
 
-value_from!(Atom, f32);
-value_from!(F1, Field1);
-value_from!(F2, Field2);
+value_from!(Field, Field);
 value_from!(Function, Function);

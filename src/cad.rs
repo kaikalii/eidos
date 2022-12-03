@@ -2,6 +2,8 @@ use eframe::egui::*;
 use eidos::{Function, Instr, Runtime, Value};
 use enum_iterator::all;
 
+use itertools::Itertools;
+
 use crate::controls::SeparatorButton;
 
 /// The Casting Assistant Device
@@ -10,16 +12,27 @@ pub struct Cad {
     dragging: Option<(usize, usize)>,
 }
 
-struct CadInstr {
-    instr: Instr,
-    editing: bool,
-}
-
 impl Default for Cad {
     fn default() -> Self {
         Cad {
             lines: vec![vec![]],
             dragging: None,
+        }
+    }
+}
+
+struct CadInstr {
+    instr: Instr,
+    editing: bool,
+    buffer: Option<String>,
+}
+
+impl Default for CadInstr {
+    fn default() -> Self {
+        CadInstr {
+            instr: Instr::Number(0.0),
+            editing: true,
+            buffer: None,
         }
     }
 }
@@ -43,6 +56,7 @@ impl Cad {
                         // Editing
                         if ci.editing {
                             let mut number_choice = true;
+                            let mut list_choice = true;
                             let mut selected_function = None;
                             // Show the current value
                             ui.vertical(|ui| {
@@ -53,6 +67,31 @@ impl Cad {
                                             DragValue::new(f).ui(ui);
                                         });
                                         number_choice = false;
+                                    }
+                                    Instr::List(nums) => {
+                                        let buffer = ci.buffer.get_or_insert_with(|| {
+                                            nums.iter()
+                                                .map(f32::to_string)
+                                                .intersperse(" ".into())
+                                                .collect()
+                                        });
+                                        if TextEdit::singleline(buffer)
+                                            .desired_width(100.0)
+                                            .ui(ui)
+                                            .changed()
+                                        {
+                                            nums.clear();
+                                            for word in buffer
+                                                .split_whitespace()
+                                                .flat_map(|s| s.split(','))
+                                                .filter(|s| !s.is_empty())
+                                            {
+                                                if let Ok(num) = word.parse::<f64>() {
+                                                    nums.push(num as f32);
+                                                }
+                                            }
+                                        }
+                                        list_choice = false;
                                     }
                                     Instr::Function(f) => {
                                         ui.horizontal(|ui| {
@@ -65,6 +104,10 @@ impl Cad {
                                 // Allow number selection
                                 if number_choice && ui.button("Number").clicked() {
                                     ci.instr = Instr::Number(0.0);
+                                }
+                                // Allow list selection
+                                if list_choice && ui.button("List").clicked() {
+                                    ci.instr = Instr::List(Vec::new())
                                 }
                                 // Partition functions
                                 let mut available = Vec::new();
@@ -113,15 +156,21 @@ impl Cad {
                                 .on_hover_text("No functions are available");
                             });
                             // Submit and cancel
-                            let (finished, cancelled) = ui
+                            let (do_next, finished, cancelled) = ui
                                 .vertical(|ui| {
                                     (
-                                        ui.small_button("✔").clicked()
+                                        ui.small_button("➡").clicked()
                                             || ui.input().key_pressed(Key::Enter),
+                                        ui.small_button("✔").clicked(),
                                         ui.small_button("❌").clicked(),
                                     )
                                 })
                                 .inner;
+                            if do_next {
+                                ci.editing = false;
+                                self.lines[i].insert(j + 1, CadInstr::default());
+                                break;
+                            }
                             if finished {
                                 ci.editing = false;
                             }
@@ -172,9 +221,7 @@ impl Cad {
                         for value in &rt.stack {
                             ui.separator();
                             match value {
-                                Value::Atom(f) => ui.label(f.to_string()),
-                                Value::F1(_) => todo!(),
-                                Value::F2(_) => todo!(),
+                                Value::Field(f) => ui.label(f.to_string()),
                                 Value::Function(f) => ui.label(f.to_string()),
                             };
                         }
@@ -188,13 +235,7 @@ impl Cad {
             .hilight(self.dragging.is_some())
             .ui(ui);
         if sep_resp.clicked() {
-            self.lines[i].insert(
-                j,
-                CadInstr {
-                    instr: Instr::Number(0.0),
-                    editing: true,
-                },
-            );
+            self.lines[i].insert(j, CadInstr::default());
             self.clear_editing_other_than(i, j);
         } else if sep_resp.hovered() && ui.input().pointer.any_released() {
             if let Some((i2, j2)) = self.dragging.take() {
