@@ -6,12 +6,18 @@ use crate::{BinOp, EidosError, Resampler, Type, UnOp, Value};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Function {
-    Identity,
+    Misc(MiscFunction),
     Combinator(Combinator),
     Zip(BinOp),
     Square(BinOp),
     Un(UnOp),
     Resample(Resampler),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum MiscFunction {
+    Identity,
+    Resample,
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Sequence)]
@@ -37,6 +43,7 @@ pub enum Combinator2 {
 
 #[derive(Debug, Sequence)]
 pub enum FunctionCategory {
+    Misc,
     Combinator,
     Zip,
     Square,
@@ -47,6 +54,7 @@ pub enum FunctionCategory {
 impl FunctionCategory {
     pub fn functions(&self) -> Box<dyn Iterator<Item = Function>> {
         match self {
+            FunctionCategory::Misc => Box::new(all::<MiscFunction>().map(Function::Misc)),
             FunctionCategory::Combinator => Box::new(all::<Combinator>().map(Function::Combinator)),
             FunctionCategory::Zip => Box::new(all::<BinOp>().map(Function::Zip)),
             FunctionCategory::Square => Box::new(all::<BinOp>().map(Function::Square)),
@@ -59,7 +67,19 @@ impl FunctionCategory {
 impl Function {
     pub fn validate_use(&self, stack: &[Value]) -> Result<(), EidosError> {
         match (self, stack) {
-            (Function::Identity, _) => Ok(()),
+            (Function::Misc(MiscFunction::Identity), _) => Ok(()),
+            (Function::Misc(MiscFunction::Resample), [.., a, b]) => {
+                if !a.ty().is_field() {
+                    return Err(EidosError::invalid_argument(self, 1, a.ty()));
+                }
+                if !b.ty().is_field() {
+                    return Err(EidosError::invalid_argument(self, 2, b.ty()));
+                }
+                Ok(())
+            }
+            (Function::Misc(MiscFunction::Resample), _) => {
+                Err(EidosError::not_enough_arguments(self, 2, stack.len()))
+            }
             (Function::Combinator(com), stack) => {
                 let args = match com {
                     Combinator::Duplicate => 1,
@@ -110,7 +130,7 @@ impl Function {
 impl fmt::Display for Function {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Function::Identity => write!(f, "Identity"),
+            Function::Misc(function) => write!(f, "{function:?}"),
             Function::Combinator(com) => write!(f, "{com:?}"),
             Function::Un(op) => write!(f, "{op:?}"),
             Function::Zip(op) => write!(f, "{op:?}"),

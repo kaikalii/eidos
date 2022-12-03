@@ -166,16 +166,6 @@ impl Cad {
                             .id_source((i, j))
                             .open(ci.header_open.take())
                             .show(ui, |ui| {
-                                #[allow(clippy::single_element_loop)]
-                                for function in [Function::Identity] {
-                                    let selected = selected_function.as_ref() == Some(&function);
-                                    if ui
-                                        .selectable_label(selected, function.to_string())
-                                        .clicked()
-                                    {
-                                        ci.set_instr(Instr::Function(function));
-                                    }
-                                }
                                 for (k, (name, functions)) in functions.into_iter().enumerate() {
                                     let enabled = functions.iter().any(|(_, e)| e.is_none());
                                     ui.add_enabled_ui(enabled, |ui| {

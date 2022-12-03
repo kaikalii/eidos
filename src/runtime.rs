@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Combinator, Combinator2, EidosError, Field, Function, Value};
+use crate::{Combinator, Combinator2, EidosError, Field, Function, MiscFunction, Value};
 
 pub type Stack = Vec<Value>;
 
@@ -46,7 +46,19 @@ impl Runtime {
             Instr::Function(function) => {
                 self.validate_function_use(function)?;
                 match function {
-                    Function::Identity => self.stack.push(Field::Identity.into()),
+                    Function::Misc(MiscFunction::Identity) => {
+                        self.stack.push(Field::Identity.into())
+                    }
+                    Function::Misc(MiscFunction::Resample) => {
+                        let b = self.stack.pop().unwrap();
+                        let a = self.stack.pop().unwrap();
+                        match (a, b) {
+                            (Value::Field(a), Value::Field(b)) => {
+                                self.stack.push(a.sample_field(b).into())
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
                     Function::Combinator(Combinator::Duplicate) => {
                         let value = self.stack.last().unwrap().clone();
                         self.stack.push(value);

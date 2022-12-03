@@ -87,6 +87,7 @@ pub enum Field {
     Zip(BinOp, Box<Self>, Box<Self>),
     Square(BinOp, Box<Self>, Box<Self>),
     Resample(Box<Self>, Resampler, f32),
+    Sample(Box<Self>, Box<Self>),
 }
 
 impl Field {
@@ -126,6 +127,7 @@ impl Field {
             Field::Zip(_, a, b) => a.rank().max(b.rank()),
             Field::Square(_, a, b) => a.rank() + b.rank(),
             Field::Resample(field, _, _) => field.rank(),
+            Field::Sample(a, b) => (a.rank() + b.rank()).saturating_sub(1),
         }
     }
     pub fn sample(&self, x: f32) -> Field {
@@ -177,6 +179,14 @@ impl Field {
                 let x = resampler.sample_value(x, *factor);
                 field.sample(x)
             }
+            Field::Sample(sampler, field) => {
+                let sampler = sampler.sample(x);
+                if let Some(x) = sampler.as_scalar() {
+                    field.sample(x)
+                } else {
+                    Field::Sample(sampler.into(), field.clone())
+                }
+            }
         }
     }
     pub fn un(self, op: UnOp) -> Self {
@@ -207,6 +217,13 @@ impl Field {
             Field::Resample(self.into(), resampler, factor)
         }
     }
+    pub fn sample_field(self, field: Self) -> Self {
+        if let Some(x) = self.as_scalar() {
+            field.sample(x)
+        } else {
+            Field::Sample(self.into(), field.into())
+        }
+    }
     pub fn default_range(&self) -> Option<RangeInclusive<f32>> {
         match self {
             Field::Array { data, shape } => {
@@ -235,6 +252,7 @@ impl Field {
                 let b = res.sample_value(*range.end(), *factor);
                 Some(a.min(b)..=a.max(b))
             }
+            Field::Sample(sampler, _) => sampler.default_range(),
         }
     }
     pub fn min_max(&self) -> Option<(f32, f32)> {
@@ -334,6 +352,7 @@ impl fmt::Display for Field {
             Field::Zip(op, a, b) => write!(f, "({op:?} {a} {b})"),
             Field::Square(op, a, b) => write!(f, "(square {op:?} {a} {b})"),
             Field::Resample(field, res, factor) => write!(f, "({res:?} {factor} {field})"),
+            Field::Sample(sampler, field) => write!(f, "(sample {sampler} {field})"),
         }
     }
 }
