@@ -54,11 +54,19 @@ impl Runtime {
                             Value::Function(_) => unreachable!(),
                         })
                     }
-                    Function::Bin(op) => {
+                    Function::Zip(op) => {
                         let b = self.stack.pop().unwrap();
                         let a = self.stack.pop().unwrap();
                         self.stack.push(match (a, b) {
                             (Value::Field(a), Value::Field(b)) => a.zip(*op, b).into(),
+                            _ => unreachable!(),
+                        });
+                    }
+                    Function::Square(op) => {
+                        let b = self.stack.pop().unwrap();
+                        let a = self.stack.pop().unwrap();
+                        self.stack.push(match (a, b) {
+                            (Value::Field(a), Value::Field(b)) => a.square(*op, b).into(),
                             _ => unreachable!(),
                         });
                     }

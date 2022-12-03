@@ -1,5 +1,5 @@
-use eframe::egui::*;
-use eidos::{Function, Instr, Runtime, Value};
+use eframe::{egui::*, epaint::color::Hsva};
+use eidos::{EidosError, Field, Function, Instr, Runtime, Value};
 use enum_iterator::all;
 
 use itertools::Itertools;
@@ -108,46 +108,39 @@ impl Cad {
                                 if list_choice && ui.button("List").clicked() {
                                     ci.instr = Instr::List(Vec::new())
                                 }
-                                // Partition functions
-                                let mut available = Vec::new();
-                                let mut unavailable = Vec::new();
-                                for function in all::<Function>() {
-                                    match rt.function_ret_type(&function) {
-                                        Ok(_) => available.push(function),
-                                        Err(e) => unavailable.push((function, e)),
-                                    }
-                                }
+                                // Sort functions
+                                let mut any_available = false;
+                                let mut functions: Vec<(Function, Option<EidosError>)> =
+                                    all::<Function>()
+                                        .map(|function| {
+                                            let error = rt.function_ret_type(&function).err();
+                                            any_available |= error.is_none();
+                                            (function, error)
+                                        })
+                                        .collect();
+                                functions.sort_by_key(|(_, error)| error.is_some());
                                 // Show all functions
-                                ui.add_enabled_ui(!available.is_empty(), |ui| {
+                                ui.add_enabled_ui(any_available, |ui| {
                                     ComboBox::new((i, j), "")
                                         .selected_text("Functions")
                                         .show_ui(ui, |ui| {
-                                            // Show available functions
-                                            for function in available {
-                                                if ui
-                                                    .selectable_label(
-                                                        selected_function.as_ref()
-                                                            == Some(&function),
-                                                        function.to_string(),
-                                                    )
-                                                    .clicked()
-                                                {
-                                                    ci.instr = Instr::Function(function)
-                                                }
-                                            }
-                                            // Show unavailable functions
-                                            for (function, e) in unavailable {
-                                                ui.add_enabled(
-                                                    false,
+                                            for (function, error) in functions {
+                                                let resp = ui.add_enabled(
+                                                    error.is_none(),
                                                     SelectableLabel::new(
                                                         selected_function.as_ref()
                                                             == Some(&function),
                                                         function.to_string(),
                                                     ),
-                                                )
-                                                .on_disabled_hover_text(
-                                                    e.to_string().as_str().replace(". ", "\n"),
                                                 );
+                                                if resp.clicked() {
+                                                    ci.instr = Instr::Function(function);
+                                                }
+                                                if let Some(e) = error {
+                                                    resp.on_disabled_hover_text(
+                                                        e.to_string().as_str().replace(". ", "\n"),
+                                                    );
+                                                }
                                             }
                                         });
                                 })
@@ -220,39 +213,7 @@ impl Cad {
                         for (j, value) in rt.stack.iter().enumerate() {
                             ui.separator();
                             match value {
-                                Value::Field(f) => match f.rank() {
-                                    1 => {
-                                        use plot::*;
-                                        let mut plot = Plot::new((i, j)).width(200.0).height(100.0);
-                                        if let Some((min, max)) = f.min_max() {
-                                            plot = plot.include_y(min).include_y(max);
-                                        }
-                                        plot.show(ui, |plot_ui| {
-                                            let f = f.clone();
-                                            let range = f.default_range();
-                                            let get_point = move |x| {
-                                                f.sample(x as f32).as_scalar().unwrap() as f64
-                                            };
-                                            let plot_points = if let Some(range) = range {
-                                                let range =
-                                                    *range.start() as f64..=*range.end() as f64;
-                                                PlotPoints::from_explicit_callback(
-                                                    get_point, range, 100,
-                                                )
-                                            } else {
-                                                PlotPoints::from_explicit_callback(
-                                                    get_point,
-                                                    ..,
-                                                    100,
-                                                )
-                                            };
-                                            plot_ui.line(Line::new(plot_points))
-                                        });
-                                    }
-                                    _ => {
-                                        ui.label(f.to_string());
-                                    }
-                                },
+                                Value::Field(f) => plot(ui, f, i, j),
                                 Value::Function(f) => {
                                     ui.label(f.to_string());
                                 }
@@ -295,6 +256,60 @@ impl Cad {
                     ci.editing = false;
                 }
             }
+        }
+    }
+}
+
+fn plot(ui: &mut Ui, field: &Field, i: usize, j: usize) {
+    use plot::*;
+    match field.rank() {
+        1 => {
+            let mut plot = Plot::new((i, j)).width(200.0).height(100.0);
+            if let Some((min, max)) = field.min_max() {
+                plot = plot.include_y(min).include_y(max);
+            }
+            plot.show(ui, |plot_ui| {
+                let field = field.clone();
+                let range = field.default_range();
+                let get_point = move |x| field.sample(x as f32).as_scalar().unwrap() as f64;
+                let plot_points = if let Some(range) = range {
+                    let range = *range.start() as f64..=*range.end() as f64;
+                    PlotPoints::from_explicit_callback(get_point, range, 131)
+                } else {
+                    PlotPoints::from_explicit_callback(get_point, .., 131)
+                };
+                plot_ui.line(Line::new(plot_points))
+            });
+        }
+        2 => {
+            let mut plot = Plot::new((i, j)).width(200.0).height(100.0);
+            if let Some((min, max)) = field.min_max() {
+                plot = plot.include_y(min).include_y(max);
+            }
+            plot.show(ui, |plot_ui| {
+                let field = field.clone();
+                let range = field.default_range().unwrap_or(0.0..=10.0);
+                const LINES: usize = 10;
+                for (k, subfield) in field.sample_range_count(range, LINES).enumerate() {
+                    let range = subfield.default_range();
+                    let get_point = move |x| subfield.sample(x as f32).as_scalar().unwrap() as f64;
+                    let plot_points = if let Some(range) = range {
+                        let range = *range.start() as f64..=*range.end() as f64;
+                        PlotPoints::from_explicit_callback(get_point, range, 131)
+                    } else {
+                        PlotPoints::from_explicit_callback(get_point, .., 131)
+                    };
+                    plot_ui.line(Line::new(plot_points).color(Hsva::new(
+                        k as f32 / LINES as f32,
+                        1.0,
+                        1.0,
+                        1.0,
+                    )))
+                }
+            });
+        }
+        _ => {
+            ui.label(field.to_string());
         }
     }
 }

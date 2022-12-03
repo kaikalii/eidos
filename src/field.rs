@@ -169,7 +169,7 @@ impl Field {
                         Field::uniform(a).zip(*op, b)
                     }
                 } else {
-                    Field::Square(*op, a.clone(), b.clone())
+                    Field::Square(*op, a.sample(x).into(), b.clone())
                 }
             }
             Field::Resample(field, resampler, factor) => {
@@ -258,7 +258,7 @@ impl Field {
             _ => return None,
         })
     }
-    pub fn sample_range(
+    pub fn sample_range_step(
         &self,
         range: impl RangeBounds<f32> + 'static,
         step: f32,
@@ -281,6 +281,16 @@ impl Field {
             i += step;
             Some(value)
         })
+    }
+    pub fn sample_range_count(
+        &self,
+        range: RangeInclusive<f32>,
+        count: usize,
+    ) -> impl Iterator<Item = Field> + '_ {
+        let start = *range.start();
+        let end = *range.end();
+        let step = (end - start) / count as f32;
+        (0..count).map(move |i| self.sample(i as f32 * step))
     }
 }
 
@@ -321,7 +331,7 @@ impl fmt::Display for Field {
             Field::Identity => "Identity".fmt(f),
             Field::Un(op, field) => write!(f, "({op:?} {field})"),
             Field::Zip(op, a, b) => write!(f, "({op:?} {a} {b})"),
-            Field::Square(op, a, b) => write!(f, "(square {op:?} {a} {b}"),
+            Field::Square(op, a, b) => write!(f, "(square {op:?} {a} {b})"),
             Field::Resample(field, res, factor) => write!(f, "({res:?} {factor} {field})"),
         }
     }

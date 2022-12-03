@@ -7,7 +7,8 @@ use crate::{BinOp, EidosError, Resampler, Type, UnOp, Value};
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Function {
     Identity,
-    Bin(BinOp),
+    Zip(BinOp),
+    Square(BinOp),
     Un(UnOp),
     Resample(Resampler),
 }
@@ -24,7 +25,7 @@ impl Function {
                 }
             }
             (Function::Un(_), _) => Err(EidosError::not_enough_arguments(self, 1, stack.len())),
-            (Function::Bin(_), [.., a, b]) => {
+            (Function::Zip(_) | Function::Square(_), [.., a, b]) => {
                 if !a.ty().is_field() {
                     return Err(EidosError::invalid_argument(self, 1, a.ty()));
                 }
@@ -33,7 +34,9 @@ impl Function {
                 }
                 Ok(a.ty().max(b.ty()))
             }
-            (Function::Bin(_), _) => Err(EidosError::not_enough_arguments(self, 2, stack.len())),
+            (Function::Zip(_) | Function::Square(_), _) => {
+                Err(EidosError::not_enough_arguments(self, 2, stack.len()))
+            }
             (Function::Resample(_), [.., a, b]) => {
                 if !a.ty().is_field() {
                     return Err(EidosError::invalid_argument(self, 1, a.ty()));
@@ -55,7 +58,8 @@ impl fmt::Display for Function {
         match self {
             Function::Identity => write!(f, "Identity"),
             Function::Un(op) => write!(f, "{op:?}"),
-            Function::Bin(op) => write!(f, "{op:?}"),
+            Function::Zip(op) => write!(f, "{op:?}"),
+            Function::Square(op) => write!(f, "square {op:?}"),
             Function::Resample(res) => write!(f, "{res:?}"),
         }
     }
