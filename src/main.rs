@@ -1,10 +1,10 @@
 #![allow(unstable_name_collisions)]
 
-mod cad;
+mod sva;
 mod controls;
 mod render;
 
-use cad::Cad;
+use sva::Sva;
 use eframe::egui::*;
 
 fn main() {
@@ -17,18 +17,18 @@ fn main() {
         Box::new(|cc| {
             cc.egui_ctx.set_pixels_per_point(2.0);
             Box::new(Game {
-                cad: Cad::default(),
+                sva: Sva::default(),
             })
         }),
     );
 }
 
 struct Game {
-    cad: Cad,
+    sva: Sva,
 }
 
 impl eframe::App for Game {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        CentralPanel::default().show(ctx, |ui| self.cad.ui(ui));
+        CentralPanel::default().show(ctx, |ui| self.sva.ui(ui));
     }
 }

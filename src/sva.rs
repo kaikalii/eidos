@@ -11,16 +11,16 @@ use itertools::Itertools;
 
 use crate::controls::SeparatorButton;
 
-/// The Casting Assistant Device
-pub struct Cad {
-    lines: Vec<Vec<CadInstr>>,
+/// The Spell Verification Assistant
+pub struct Sva {
+    lines: Vec<Vec<SvaInstr>>,
     dragging: Option<(usize, usize)>,
     keep_evaluating: bool,
 }
 
-impl Default for Cad {
+impl Default for Sva {
     fn default() -> Self {
-        Cad {
+        Sva {
             lines: vec![vec![]],
             dragging: None,
             keep_evaluating: true,
@@ -28,22 +28,22 @@ impl Default for Cad {
     }
 }
 
-struct CadInstr {
+struct SvaInstr {
     instr: Instr,
     editing: bool,
     buffer: Option<String>,
     header_open: Option<bool>,
 }
 
-impl Default for CadInstr {
+impl Default for SvaInstr {
     fn default() -> Self {
-        CadInstr::new(Instr::Number(0.0))
+        SvaInstr::new(Instr::Number(0.0))
     }
 }
 
-impl CadInstr {
+impl SvaInstr {
     fn new(instr: Instr) -> Self {
-        CadInstr {
+        SvaInstr {
             instr,
             editing: true,
             buffer: None,
@@ -56,7 +56,7 @@ impl CadInstr {
     }
 }
 
-impl Cad {
+impl Sva {
     pub fn ui(&mut self, ui: &mut Ui) {
         // Initialize runtime
         let mut rt = Runtime::default();
@@ -219,7 +219,7 @@ impl Cad {
                         .inner;
                     if do_next {
                         ci.editing = false;
-                        self.lines[i].insert(j + 1, CadInstr::default());
+                        self.lines[i].insert(j + 1, SvaInstr::default());
                         break;
                     }
                     if finished {
@@ -271,7 +271,7 @@ impl Cad {
             .hilight(self.dragging.is_some())
             .ui(ui);
         if sep_resp.clicked() {
-            self.lines[i].insert(j, CadInstr::default());
+            self.lines[i].insert(j, SvaInstr::default());
             self.clear_editing_other_than(i, j);
         } else if sep_resp.hovered() && ui.input().pointer.any_released() {
             if let Some((i2, j2)) = self.dragging.take() {
