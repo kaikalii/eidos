@@ -1,4 +1,9 @@
-use eframe::{egui::*, epaint::color::Hsva};
+use std::f64;
+
+use eframe::{
+    egui::{plot::*, *},
+    epaint::color::Hsva,
+};
 use eidos::{EidosError, Field, Function, FunctionCategory, Instr, Runtime, Value};
 use enum_iterator::all;
 
@@ -67,7 +72,7 @@ impl Cad {
                         for (j, value) in rt.stack.iter().enumerate() {
                             ui.separator();
                             match value {
-                                Value::Field(f) => plot(ui, f, i, j),
+                                Value::Field(f) => plot_field(ui, f, i, j),
                                 Value::Function(f) => {
                                     ui.label(f.to_string());
                                 }
@@ -297,11 +302,101 @@ impl Cad {
     }
 }
 
-fn plot(ui: &mut Ui, field: &Field, i: usize, j: usize) {
-    use plot::*;
+fn plot_number(ui: &mut Ui, n: f32, i: usize, j: usize) {
+    Plot::new((i, j))
+        .width(50.0)
+        .height(50.0)
+        .show_axes([false; 2])
+        .allow_zoom(false)
+        .allow_drag(false)
+        .include_x(-2.0)
+        .include_x(2.0)
+        .include_y(-2.0)
+        .include_y(2.0)
+        .allow_scroll(false)
+        .show(ui, |plot_ui| {
+            const FLOWER_MAX: f32 = 10.0;
+            let frac = (n as f64) % 1.0;
+            let ones_part = ((n % FLOWER_MAX).abs().floor() * n.signum()) as f64;
+            let tens_part = ((n / FLOWER_MAX % FLOWER_MAX).abs().floor() * n.signum()) as f64;
+            let hundreds_part = ((n / (FLOWER_MAX * FLOWER_MAX)).abs().floor() * n.signum()) as f64;
+            // Fractional circle
+            plot_ui.line(
+                Line::new(PlotPoints::from_parametric_callback(
+                    |t| {
+                        let theta = t * 2.0 * f64::consts::PI;
+                        (theta.cos(), theta.sin())
+                    },
+                    0.0..=frac,
+                    100,
+                ))
+                .color(Color32::GREEN),
+            );
+            // Hundreds flower
+            if hundreds_part.abs() >= 1.0 {
+                plot_ui.line(
+                    Line::new(PlotPoints::from_parametric_callback(
+                        |t| {
+                            let theta = t * 2.0 * f64::consts::PI;
+                            let r = 1.0 + (theta * hundreds_part / 2.0).cos().powf(16.0);
+                            let x = r * theta.cos();
+                            let y = r * theta.sin();
+                            (x, y)
+                        },
+                        0.0..=1.0,
+                        100,
+                    ))
+                    .color(Color32::YELLOW),
+                );
+            }
+            // Tens flower
+            if tens_part.abs() >= 1.0 {
+                plot_ui.line(
+                    Line::new(PlotPoints::from_parametric_callback(
+                        |t| {
+                            let theta = t * 2.0 * f64::consts::PI;
+                            let r = 1.0 + (theta * tens_part * 0.5).cos().powf(2.0);
+                            let x = r * theta.cos();
+                            let y = r * theta.sin();
+                            (x, y)
+                        },
+                        0.0..=1.0,
+                        100,
+                    ))
+                    .color(Color32::from_rgb(0, 100, 255)),
+                );
+            }
+            // Ones flower
+            if n == 0.0 || ones_part.abs() >= 1.0 {
+                plot_ui.line(
+                    Line::new(PlotPoints::from_parametric_callback(
+                        |t| {
+                            let theta = t * 2.0 * f64::consts::PI;
+                            let r = 1.0 + (theta * ones_part).cos();
+                            let x = r * theta.cos();
+                            let y = r * theta.sin();
+                            (x, y)
+                        },
+                        0.0..=1.0,
+                        100,
+                    ))
+                    .color(Color32::RED),
+                );
+            }
+        });
+}
+
+fn plot_field(ui: &mut Ui, field: &Field, i: usize, j: usize) {
     match field.rank() {
+        0 => {
+            let n = field.as_scalar().unwrap();
+            plot_number(ui, n, i, j);
+        }
         1 => {
-            let mut plot = Plot::new((i, j)).width(200.0).height(100.0);
+            let mut plot = Plot::new((i, j))
+                .width(200.0)
+                .height(100.0)
+                .allow_scroll(false);
             if let Some((min, max)) = field.min_max() {
                 plot = plot.include_y(min).include_y(max);
             }
@@ -331,6 +426,7 @@ fn plot(ui: &mut Ui, field: &Field, i: usize, j: usize) {
                 .include_y(-1.0)
                 .include_y(1.0)
                 .data_aspect(1.0)
+                .allow_scroll(false)
                 .label_formatter(move |_, point| {
                     let z = field_clone
                         .sample(point.x as f32)
