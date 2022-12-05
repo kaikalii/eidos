@@ -23,6 +23,7 @@ pub trait FieldPlot {
 }
 
 pub trait PartitionAndPlottable: Sized {
+    const SCALE: f32;
     fn partition_and_plot(
         plot_ui: &mut PlotUi,
         field_plot: &impl FieldPlot<Value = Self>,
@@ -102,9 +103,10 @@ impl MapPlot {
                 .unwrap()
                 .as_secs_f64();
             let mut rng = SmallRng::seed_from_u64(0);
-            let point_radius = self.width / self.resolution as f32;
-            let step = 2.0 * self.range / self.resolution as f32;
-            let mut points = Vec::with_capacity(self.resolution * self.resolution);
+            let resolution = ((self.resolution as f32) / F::Value::SCALE) as usize;
+            let point_radius = self.width / resolution as f32;
+            let step = 2.0 * self.range / resolution as f32;
+            let mut points = Vec::with_capacity(self.resolution * resolution);
             for i in 0..self.resolution {
                 let x = (i as f32) * step + self.center.x - self.range;
                 for j in 0..self.resolution {
@@ -115,10 +117,12 @@ impl MapPlot {
                     let z = field_plot.get_z(x, y);
                     let dx = (t + rng.gen::<f64>() * 2.0 * f64::consts::PI).sin() as f32
                         * point_radius
-                        * 0.05;
+                        * 0.05
+                        / F::Value::SCALE;
                     let dy = (t + rng.gen::<f64>() * 2.0 * f64::consts::PI).sin() as f32
                         * point_radius
-                        * 0.05;
+                        * 0.05
+                        / F::Value::SCALE;
                     points.push((x + dx, y + dy, z));
                 }
             }
@@ -156,6 +160,7 @@ impl MapPlot {
 }
 
 impl PartitionAndPlottable for f32 {
+    const SCALE: f32 = 1.0;
     fn format(&self, round: fn(f32) -> f32) -> String {
         round(*self).to_string()
     }
@@ -200,6 +205,7 @@ impl PartitionAndPlottable for f32 {
 }
 
 impl PartitionAndPlottable for Vec2 {
+    const SCALE: f32 = 3.0;
     fn format(&self, round: fn(f32) -> f32) -> String {
         format!("({}, {})", round(self.x), round(self.y))
     }
@@ -251,11 +257,19 @@ impl PartitionAndPlottable for Vec2 {
                 if color.a() == 0 {
                     continue;
                 }
-                plot_ui.points(
-                    Points::new(PlotPoints::Owned(points))
-                        .shape(MarkerShape::Circle)
-                        .radius(point_radius)
-                        .color(color),
+                let t = (t - Vec2::splat(0.5)) * 2.0;
+                let arrow_length = point_radius * 0.1;
+                let tips = points
+                    .iter()
+                    .map(|p| {
+                        PlotPoint::new(
+                            p.x as f32 + t.x * arrow_length,
+                            p.y as f32 + t.y * arrow_length,
+                        )
+                    })
+                    .collect_vec();
+                plot_ui.arrows(
+                    Arrows::new(PlotPoints::Owned(points), PlotPoints::Owned(tips)).color(color),
                 );
             }
         }
