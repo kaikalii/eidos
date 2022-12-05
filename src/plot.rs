@@ -84,10 +84,10 @@ where
                         let z = (self.get_z)(x, y);
                         let dx = (t + rng.gen::<f64>() * 2.0 * f64::consts::PI).sin() as f32
                             * point_radius
-                            * 0.03;
+                            * 0.05;
                         let dy = (t + rng.gen::<f64>() * 2.0 * f64::consts::PI).sin() as f32
                             * point_radius
-                            * 0.03;
+                            * 0.05;
                         points.push((x + dx, y + dy, z));
                     }
                 }
