@@ -1,24 +1,22 @@
-use std::{mem::swap, ops::RangeInclusive};
+use std::{marker::PhantomData, ops::*};
 
 use derive_more::Display;
-use enum_iterator::{all, Sequence};
+use eframe::epaint::{vec2, Vec2};
+use enum_iterator::Sequence;
 
-use crate::{EidosError, Field, Type, Value};
+use crate::{CommonField, EidosError, ScalarField, Type, Value};
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Function {
     Nullary(Nullary),
-    Modifier(Modifier),
-    UnaryField(UnOp),
-    BinaryField(BinFieldFunction),
     Combinator1(Combinator1),
     Combinator2(Combinator2),
-    Resample(Resampler),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Nullary {
-    Identity,
+    X,
+    Y,
     Zero,
     One,
 }
@@ -26,30 +24,10 @@ pub enum Nullary {
 impl Nullary {
     pub fn value(&self) -> Value {
         match self {
-            Nullary::Identity => Value::Field(Field::Identity),
-            Nullary::Zero => Value::Field(Field::uniform(0.0)),
-            Nullary::One => Value::Field(Field::uniform(1.0)),
-        }
-    }
-}
-
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
-pub enum BinFieldFunction {
-    Op(BinOp),
-    Sample,
-}
-
-impl BinFieldFunction {
-    pub fn on_scalar_and_field(&self, a: f32, b: &Field) -> Field {
-        match self {
-            BinFieldFunction::Op(op) => {
-                if let Some(b) = b.as_scalar() {
-                    Field::uniform(op.operate(a, b))
-                } else {
-                    Field::Zip(*self, Field::uniform(a).into(), b.clone().into())
-                }
-            }
-            BinFieldFunction::Sample => b.sample(a),
+            Nullary::X => ScalarField::Common(CommonField::X).into(),
+            Nullary::Y => ScalarField::Common(CommonField::Y).into(),
+            Nullary::Zero => CommonField::Uniform(0.0).into(),
+            Nullary::One => CommonField::Uniform(1.0).into(),
         }
     }
 }
@@ -67,124 +45,219 @@ pub enum Combinator2 {
     Over,
 }
 
+pub trait UnOperator<T> {
+    type Output;
+    fn operate(&self, v: T) -> Self::Output;
+}
+
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
-pub enum UnOp {
+pub enum UnOp<T> {
+    Math(MathUnOp),
+    Typed(T),
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum GenericUnOp {
+    Scalar(ScalarUnOp),
+    VectorScalar(VectorUnScalarOp),
+    VectorVector(VectorUnVectorOp),
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum MathUnOp {
     Neg,
     Abs,
     Sign,
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum ScalarUnOp {
     Sin,
     Cos,
     Tan,
 }
 
-impl UnOp {
-    pub fn operate(&self, x: f32) -> f32 {
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum VectorUnScalarOp {
+    Length,
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum VectorUnVectorOp {
+    Unit,
+}
+
+impl<A, T> UnOperator<A> for UnOp<T>
+where
+    MathUnOp: UnOperator<A, Output = T::Output>,
+    T: UnOperator<A>,
+{
+    type Output = T::Output;
+    fn operate(&self, v: A) -> Self::Output {
         match self {
-            UnOp::Neg => -x,
-            UnOp::Abs => x.abs(),
-            UnOp::Sign if x == 0.0 => 0.0,
-            UnOp::Sign => x.signum(),
-            UnOp::Sin => x.sin(),
-            UnOp::Cos => x.cos(),
-            UnOp::Tan => x.tan(),
+            UnOp::Math(op) => op.operate(v),
+            UnOp::Typed(op) => op.operate(v),
         }
     }
 }
 
+impl UnOperator<f32> for MathUnOp {
+    type Output = f32;
+    fn operate(&self, v: f32) -> Self::Output {
+        match self {
+            MathUnOp::Neg => -v,
+            MathUnOp::Abs => v.abs(),
+            MathUnOp::Sign => v.signum(),
+        }
+    }
+}
+
+impl UnOperator<Vec2> for MathUnOp {
+    type Output = Vec2;
+    fn operate(&self, v: Vec2) -> Self::Output {
+        vec2(self.operate(v.x), self.operate(v.y))
+    }
+}
+
+impl UnOperator<f32> for ScalarUnOp {
+    type Output = f32;
+    fn operate(&self, v: f32) -> Self::Output {
+        match self {
+            ScalarUnOp::Sin => v.sin(),
+            ScalarUnOp::Cos => v.cos(),
+            ScalarUnOp::Tan => v.tan(),
+        }
+    }
+}
+
+impl UnOperator<Vec2> for VectorUnScalarOp {
+    type Output = f32;
+    fn operate(&self, v: Vec2) -> Self::Output {
+        match self {
+            VectorUnScalarOp::Length => v.length(),
+        }
+    }
+}
+
+impl UnOperator<Vec2> for VectorUnVectorOp {
+    type Output = Vec2;
+    fn operate(&self, v: Vec2) -> Self::Output {
+        match self {
+            VectorUnVectorOp::Unit => v.normalized(),
+        }
+    }
+}
+
+pub trait BinOperator<A, B> {
+    type Output;
+    fn operate(&self, a: A, b: B) -> Self::Output;
+}
+
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
-pub enum BinOp {
+pub enum BinOp<T> {
+    Math(MathBinOp),
+    Typed(T),
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum MathBinOp {
     Add,
     Sub,
     Mul,
     Div,
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum HomoBinOp {
     Min,
     Max,
 }
 
-impl BinOp {
-    pub fn operate(&self, a: f32, b: f32) -> f32 {
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub struct NoOp<T>(PhantomData<T>);
+
+impl<A, B, T> BinOperator<A, B> for BinOp<T>
+where
+    MathBinOp: BinOperator<A, B, Output = T::Output>,
+    T: BinOperator<A, B>,
+{
+    type Output = T::Output;
+    fn operate(&self, a: A, b: B) -> Self::Output {
         match self {
-            BinOp::Add => a + b,
-            BinOp::Sub => a - b,
-            BinOp::Mul => a * b,
-            BinOp::Div => a / b,
-            BinOp::Min => a.min(b),
-            BinOp::Max => a.max(b),
+            BinOp::Math(op) => op.operate(a, b),
+            BinOp::Typed(op) => op.operate(a, b),
         }
     }
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
-pub enum Resampler {
-    Offset,
-    Scale,
-    Flip,
-}
-
-impl Resampler {
-    pub fn sample_value(&self, x: f32, factor: f32) -> f32 {
-        match self {
-            Resampler::Offset => x - factor,
-            Resampler::Scale => x * factor,
-            Resampler::Flip => 2.0 * factor - x,
-        }
-    }
-    pub fn range_value(&self, range: RangeInclusive<f32>, factor: f32) -> RangeInclusive<f32> {
-        let start = *range.start();
-        let end = *range.end();
-        let (mut start, mut end) = match self {
-            Resampler::Offset => (start + factor, end + factor),
-            Resampler::Scale => (start / factor, end / factor),
-            Resampler::Flip => (2.0 * factor - end, 2.0 * factor - start),
-        };
-        if end < start {
-            swap(&mut start, &mut end);
-        }
-        start..=end
+impl<A, B, T> BinOperator<A, B> for NoOp<T> {
+    type Output = T;
+    fn operate(&self, _: A, _: B) -> Self::Output {
+        unreachable!()
     }
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
-pub enum Modifier {
-    UnUn(UnUnModifier),
-    UnBin(UnBinModifier),
+impl BinOperator<f32, f32> for MathBinOp {
+    type Output = f32;
+    fn operate(&self, a: f32, b: f32) -> Self::Output {
+        self.homo_operate(a, b)
+    }
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
-pub enum UnUnModifier {
-    Reduce,
+impl BinOperator<Vec2, Vec2> for MathBinOp {
+    type Output = Vec2;
+    fn operate(&self, a: Vec2, b: Vec2) -> Self::Output {
+        self.homo_operate(a, b)
+    }
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
-pub enum UnBinModifier {
-    Square,
+impl BinOperator<f32, Vec2> for MathBinOp {
+    type Output = Vec2;
+    fn operate(&self, a: f32, b: Vec2) -> Self::Output {
+        self.operate(Vec2::splat(a), b)
+    }
 }
 
-#[derive(Debug, Display, Sequence)]
-pub enum FunctionCategory {
-    Modifier,
-    Nullary,
-    Unary,
-    Binary,
-    Combinator,
-    Resample,
+impl BinOperator<Vec2, f32> for MathBinOp {
+    type Output = Vec2;
+    fn operate(&self, a: Vec2, b: f32) -> Self::Output {
+        self.operate(a, Vec2::splat(b))
+    }
 }
 
-impl FunctionCategory {
-    pub fn functions(&self) -> Box<dyn Iterator<Item = Function>> {
+impl MathBinOp {
+    fn homo_operate<T>(&self, a: T, b: T) -> T
+    where
+        T: Add<Output = T>,
+        T: Sub<Output = T>,
+        T: Mul<Output = T>,
+        T: Div<Output = T>,
+    {
         match self {
-            FunctionCategory::Modifier => Box::new(all::<Modifier>().map(Function::Modifier)),
-            FunctionCategory::Nullary => Box::new(all::<Nullary>().map(Function::Nullary)),
-            FunctionCategory::Unary => Box::new(all::<UnOp>().map(Function::UnaryField)),
-            FunctionCategory::Binary => {
-                Box::new(all::<BinFieldFunction>().map(Function::BinaryField))
-            }
-            FunctionCategory::Combinator => Box::new(
-                all::<Combinator1>()
-                    .map(Function::Combinator1)
-                    .chain(all::<Combinator2>().map(Function::Combinator2)),
-            ),
-            FunctionCategory::Resample => Box::new(all::<Resampler>().map(Function::Resample)),
+            MathBinOp::Add => a + b,
+            MathBinOp::Sub => a - b,
+            MathBinOp::Mul => a * b,
+            MathBinOp::Div => a / b,
+        }
+    }
+}
+
+impl BinOperator<f32, f32> for HomoBinOp {
+    type Output = f32;
+    fn operate(&self, a: f32, b: f32) -> Self::Output {
+        match self {
+            HomoBinOp::Min => a.min(b),
+            HomoBinOp::Max => a.max(b),
+        }
+    }
+}
+
+impl BinOperator<Vec2, Vec2> for HomoBinOp {
+    type Output = Vec2;
+    fn operate(&self, a: Vec2, b: Vec2) -> Vec2 {
+        match self {
+            HomoBinOp::Min => a.min(b),
+            HomoBinOp::Max => a.max(b),
         }
     }
 }
@@ -198,24 +271,12 @@ pub enum TypeConstraint {
 
 impl Function {
     pub fn validate_use(&self, stack: &[Value]) -> Result<(), EidosError> {
-        // Adjust for modifiers
-        if let Some(Value::Modifier(m)) = stack.last() {
-            return match m {
-                Modifier::UnUn(_) | Modifier::UnBin(_) => {
-                    self.validate_use(&stack[..stack.len() - 1])
-                }
-            };
-        }
         // Collect constraints
         use TypeConstraint::*;
         let constraints = match self {
-            Function::Modifier(_) => vec![],
             Function::Nullary(_) => vec![],
-            Function::UnaryField(_) => vec![Field],
-            Function::BinaryField(_) => vec![Field; 2],
             Function::Combinator1(_) => vec![Any],
             Function::Combinator2(_) => vec![Any; 2],
-            Function::Resample(_) => vec![Field, Exact(Type::Field(0))],
         };
         // Validate stack size
         if stack.len() < constraints.len() {

@@ -1,12 +1,20 @@
 use std::fmt;
 
-use crate::{Field, Function, Modifier};
+use derive_more::From;
+use eframe::epaint::Vec2;
 
-#[derive(Debug, Clone)]
+use crate::{CommonField, Function, GenericField, ScalarField, VectorField};
+
+#[derive(Debug, Clone, From)]
 pub enum Value {
-    Field(Field),
+    #[from]
+    Scalar(f32),
+    #[from]
+    Vector(Vec2),
+    #[from(types(ScalarField, VectorField, "CommonField<f32>", "CommonField<Vec2>"))]
+    Field(GenericField),
+    #[from]
     Function(Function),
-    Modifier(Modifier),
 }
 
 impl Default for Value {
@@ -16,10 +24,16 @@ impl Default for Value {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FieldType {
+    Scalar,
+    Vector,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Type {
-    Field(usize),
+    Value(FieldType),
+    Field(FieldType),
     Function(Function),
-    Modifier(Modifier),
 }
 
 impl Type {
@@ -34,12 +48,11 @@ impl Type {
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Type::Field(rank) => match rank {
-                0 => "Scalar".fmt(f),
-                n => write!(f, "{n}D Field"),
-            },
+            Type::Value(FieldType::Scalar) => "Scalar".fmt(f),
+            Type::Value(FieldType::Vector) => "Vector".fmt(f),
+            Type::Field(FieldType::Scalar) => "Scalar Field".fmt(f),
+            Type::Field(FieldType::Vector) => "Vector Field".fmt(f),
             Type::Function(function) => function.fmt(f),
-            Type::Modifier(modifier) => modifier.fmt(f),
         }
     }
 }
@@ -47,13 +60,15 @@ impl fmt::Display for Type {
 impl Value {
     pub fn ty(&self) -> Type {
         match self {
-            Value::Field(f) => Type::Field(f.rank()),
+            Value::Scalar(_) => Type::Value(FieldType::Scalar),
+            Value::Vector(_) => Type::Value(FieldType::Vector),
+            Value::Field(GenericField::Scalar(_)) => Type::Field(FieldType::Scalar),
+            Value::Field(GenericField::Vector(_)) => Type::Field(FieldType::Vector),
             Value::Function(f) => Type::Function(*f),
-            Value::Modifier(m) => Type::Modifier(*m),
         }
     }
     #[track_caller]
-    pub fn unwrap_field(self) -> Field {
+    pub fn unwrap_field(self) -> GenericField {
         if let Value::Field(field) = self {
             field
         } else {
@@ -61,23 +76,3 @@ impl Value {
         }
     }
 }
-
-impl From<f32> for Value {
-    fn from(f: f32) -> Self {
-        Field::uniform(f).into()
-    }
-}
-
-macro_rules! value_from {
-    ($variant:ident, $ty:ty) => {
-        impl From<$ty> for Value {
-            fn from(value: $ty) -> Self {
-                Value::$variant(value)
-            }
-        }
-    };
-}
-
-value_from!(Field, Field);
-value_from!(Function, Function);
-value_from!(Modifier, Modifier);
