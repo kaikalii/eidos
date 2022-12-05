@@ -1,11 +1,11 @@
 #![allow(unstable_name_collisions)]
 
-mod sva;
 mod controls;
 mod render;
+mod sva;
 
-use sva::Sva;
 use eframe::egui::*;
+use sva::Sva;
 
 fn main() {
     eframe::run_native(

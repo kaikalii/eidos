@@ -76,6 +76,9 @@ impl Sva {
                                 Value::Function(f) => {
                                     ui.label(f.to_string());
                                 }
+                                Value::Modifier(m) => {
+                                    ui.label(m.to_string());
+                                }
                             };
                         }
                     });
@@ -394,7 +397,9 @@ fn plot_number(ui: &mut Ui, n: f32, i: usize, j: usize) {
 fn plot_field(ui: &mut Ui, field: &Field, i: usize, j: usize) {
     match field.rank() {
         0 => {
-            let n = field.as_scalar().unwrap();
+            let n = field
+                .as_scalar()
+                .unwrap_or_else(|| panic!("field is not scalar: {field}"));
             plot_number(ui, n, i, j);
         }
         1 => {

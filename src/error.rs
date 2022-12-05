@@ -1,13 +1,14 @@
 use std::{borrow::Cow, error::Error, fmt};
 
-use crate::{Function, Type};
+use crate::{Function, Type, TypeConstraint};
 
 #[derive(Debug)]
 pub enum EidosError {
     InvalidArgument {
         function: Function,
         position: usize,
-        found_type: Type,
+        expected: TypeConstraint,
+        found: Type,
     },
     NotEnoughArguments {
         function: Function,
@@ -22,10 +23,11 @@ impl fmt::Display for EidosError {
             EidosError::InvalidArgument {
                 function,
                 position,
-                found_type,
+                expected,
+                found,
             } => write!(
                 f,
-                "Invalid argument {position} to {function}. Found {found_type}."
+                "Invalid argument {position} to {function}. Expected {expected} but found {found}."
             ),
             EidosError::NotEnoughArguments {
                 function,

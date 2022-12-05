@@ -1,11 +1,12 @@
 use std::fmt;
 
-use crate::{Field, Function};
+use crate::{Field, Function, Modifier};
 
 #[derive(Debug, Clone)]
 pub enum Value {
     Field(Field),
     Function(Function),
+    Modifier(Modifier),
 }
 
 impl Default for Value {
@@ -18,6 +19,7 @@ impl Default for Value {
 pub enum Type {
     Field(usize),
     Function(Function),
+    Modifier(Modifier),
 }
 
 impl Type {
@@ -37,6 +39,7 @@ impl fmt::Display for Type {
                 n => write!(f, "{n}D Field"),
             },
             Type::Function(function) => function.fmt(f),
+            Type::Modifier(modifier) => modifier.fmt(f),
         }
     }
 }
@@ -46,6 +49,15 @@ impl Value {
         match self {
             Value::Field(f) => Type::Field(f.rank()),
             Value::Function(f) => Type::Function(*f),
+            Value::Modifier(m) => Type::Modifier(*m),
+        }
+    }
+    #[track_caller]
+    pub fn unwrap_field(self) -> Field {
+        if let Value::Field(field) = self {
+            field
+        } else {
+            panic!("Value expected to be a field was a {} instead", self.ty())
         }
     }
 }
@@ -68,3 +80,4 @@ macro_rules! value_from {
 
 value_from!(Field, Field);
 value_from!(Function, Function);
+value_from!(Modifier, Modifier);
