@@ -33,9 +33,6 @@ but they cannot influence them directly.
 ### Elevation
 The relative elevation of the land
 
-### Gravity
-The force of gravity
-
 ### Density
 The density in an area
 
@@ -44,6 +41,9 @@ These fields can be both observed and influenced by magicians.
 
 ### Force
 A vector field which can push objects. It is usually zero when uninfluenced my magic.
+
+### Gravity
+The scalar vertical gravitational field.
 
 ### Temporal 
 A positive scalar field which controls the relative speed of passing time.

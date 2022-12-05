@@ -1,11 +1,13 @@
 #![allow(unstable_name_collisions)]
 
 mod controls;
-mod render;
+mod plot;
 mod sva;
+mod world;
 
 use eframe::egui::*;
 use sva::Sva;
+use world::World;
 
 fn main() {
     eframe::run_native(
@@ -18,6 +20,7 @@ fn main() {
             cc.egui_ctx.set_pixels_per_point(2.0);
             Box::new(Game {
                 sva: Sva::default(),
+                world: World::default(),
             })
         }),
     );
@@ -25,10 +28,15 @@ fn main() {
 
 struct Game {
     sva: Sva,
+    world: World,
 }
 
 impl eframe::App for Game {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        CentralPanel::default().show(ctx, |ui| self.sva.ui(ui));
+        CentralPanel::default().show(ctx, |ui| {
+            self.sva.ui(ui);
+            self.world.ui(ui);
+        });
+        ctx.request_repaint();
     }
 }
