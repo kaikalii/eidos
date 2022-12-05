@@ -137,7 +137,7 @@ impl Sva {
                                     ui.small("Function:");
                                     ui.label(f.to_string());
                                 });
-                                selected_function = Some(f.clone());
+                                selected_function = Some(*f);
                             }
                         }
                         // Allow simple selections
@@ -199,10 +199,12 @@ impl Sva {
                                                         );
                                                     }
                                                 }
-                                            });
-                                    })
-                                    .response
-                                    .on_hover_text(format!("No {name:?} functions are available"));
+                                            })
+                                            .response
+                                            .on_disabled_hover_text(format!(
+                                                "No {name:?} functions are available"
+                                            ));
+                                    });
                                 }
                             });
                     });
@@ -307,6 +309,9 @@ fn plot_number(ui: &mut Ui, n: f32, i: usize, j: usize) {
         .width(50.0)
         .height(50.0)
         .show_axes([false; 2])
+        .show_x(false)
+        .show_y(false)
+        .show_background(false)
         .allow_zoom(false)
         .allow_drag(false)
         .include_x(-2.0)
@@ -396,6 +401,7 @@ fn plot_field(ui: &mut Ui, field: &Field, i: usize, j: usize) {
             let mut plot = Plot::new((i, j))
                 .width(200.0)
                 .height(100.0)
+                .show_background(false)
                 .allow_scroll(false);
             if let Some((min, max)) = field.min_max() {
                 plot = plot.include_y(min).include_y(max);

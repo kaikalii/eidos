@@ -4,6 +4,7 @@ name = 'eidos'
 version = '0.1.0'
 
 [dependencies]
+derive_more = '0.99.17'
 eframe = '0.19.0'
 enum-iterator = '1'
 itertools = '0.10.5'

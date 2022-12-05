@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Combinator, Combinator2, EidosError, Field, Function, MiscFunction, Value};
+use crate::{BinaryField, Combinator1, Combinator2, EidosError, Field, Function, Value};
 
 pub type Stack = Vec<Value>;
 
@@ -46,24 +46,36 @@ impl Runtime {
             Instr::Function(function) => {
                 self.validate_function_use(function)?;
                 match function {
-                    Function::Misc(MiscFunction::Identity) => {
-                        self.stack.push(Field::Identity.into())
-                    }
-                    Function::Misc(MiscFunction::Resample) => {
-                        let b = self.stack.pop().unwrap();
-                        let a = self.stack.pop().unwrap();
-                        match (a, b) {
-                            (Value::Field(a), Value::Field(b)) => {
-                                self.stack.push(a.sample_field(b).into())
-                            }
+                    Function::Nullary(nullary) => self.stack.push(nullary.value()),
+                    Function::UnaryField(un) => {
+                        let value = self.stack.pop().unwrap();
+                        match value {
+                            Value::Field(f) => self.stack.push(f.un(*un).into()),
                             _ => unreachable!(),
                         }
                     }
-                    Function::Combinator(Combinator::Duplicate) => {
-                        let value = self.stack.last().unwrap().clone();
-                        self.stack.push(value);
+                    Function::BinaryField(bin) => {
+                        let b = self.stack.pop().unwrap();
+                        let a = self.stack.pop().unwrap();
+                        match (a, b) {
+                            (Value::Field(a), Value::Field(b)) => self.stack.push(match bin {
+                                BinaryField::Op(op) => a.zip(*op, b).into(),
+                                BinaryField::Sample => a.sample_field(b).into(),
+                            }),
+                            _ => unreachable!(),
+                        }
                     }
-                    Function::Combinator(Combinator::Combinator2(com2)) => {
+                    Function::Combinator1(com1) => {
+                        let value = self.stack.pop().unwrap();
+                        match com1 {
+                            Combinator1::Duplicate => {
+                                self.stack.push(value.clone());
+                                self.stack.push(value);
+                            }
+                            Combinator1::Drop => {}
+                        }
+                    }
+                    Function::Combinator2(com2) => {
                         let b = self.stack.pop().unwrap();
                         let a = self.stack.pop().unwrap();
                         match com2 {
@@ -77,29 +89,6 @@ impl Runtime {
                                 self.stack.push(a);
                             }
                         }
-                    }
-                    Function::Un(op) => {
-                        let value = self.stack.pop().unwrap();
-                        self.stack.push(match value {
-                            Value::Field(f) => f.un(*op).into(),
-                            Value::Function(_) => unreachable!(),
-                        })
-                    }
-                    Function::Zip(op) => {
-                        let b = self.stack.pop().unwrap();
-                        let a = self.stack.pop().unwrap();
-                        self.stack.push(match (a, b) {
-                            (Value::Field(a), Value::Field(b)) => a.zip(*op, b).into(),
-                            _ => unreachable!(),
-                        });
-                    }
-                    Function::Square(op) => {
-                        let b = self.stack.pop().unwrap();
-                        let a = self.stack.pop().unwrap();
-                        self.stack.push(match (a, b) {
-                            (Value::Field(a), Value::Field(b)) => a.square(*op, b).into(),
-                            _ => unreachable!(),
-                        });
                     }
                     Function::Resample(res) => {
                         let b = self.stack.pop().unwrap();

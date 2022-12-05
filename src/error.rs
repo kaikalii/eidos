@@ -16,23 +16,6 @@ pub enum EidosError {
     },
 }
 
-impl EidosError {
-    pub fn invalid_argument(function: &Function, position: usize, found_type: Type) -> Self {
-        EidosError::InvalidArgument {
-            function: function.clone(),
-            position,
-            found_type,
-        }
-    }
-    pub fn not_enough_arguments(function: &Function, expected: usize, stack_size: usize) -> Self {
-        EidosError::NotEnoughArguments {
-            function: function.clone(),
-            expected,
-            stack_size,
-        }
-    }
-}
-
 impl fmt::Display for EidosError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

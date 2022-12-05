@@ -14,7 +14,7 @@ impl Default for Value {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Type {
     Field(usize),
     Function(Function),
@@ -45,7 +45,7 @@ impl Value {
     pub fn ty(&self) -> Type {
         match self {
             Value::Field(f) => Type::Field(f.rank()),
-            Value::Function(f) => Type::Function(f.clone()),
+            Value::Function(f) => Type::Function(*f),
         }
     }
 }
