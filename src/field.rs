@@ -1,14 +1,14 @@
 use std::{fmt, iter, ops::*};
 
-use crate::{BinOp, BinaryFieldFunction, Resampler, UnOp};
+use crate::{BinFieldFunction, BinOp, Resampler, UnOp};
 
 #[derive(Debug, Clone)]
 pub enum Field {
     Array { data: Vec<f32>, shape: Vec<usize> },
     Identity,
     Un(UnOp, Box<Self>),
-    Zip(BinaryFieldFunction, Box<Self>, Box<Self>),
-    Square(BinaryFieldFunction, Box<Self>, Box<Self>),
+    Zip(BinFieldFunction, Box<Self>, Box<Self>),
+    Square(BinFieldFunction, Box<Self>, Box<Self>),
     Resample(Box<Self>, Resampler, f32),
 }
 
@@ -49,10 +49,10 @@ impl Field {
             Field::Array { shape, .. } => shape.len(),
             Field::Identity => 1,
             Field::Un(_, field) => field.rank(),
-            Field::Zip(BinaryFieldFunction::Op(_), a, b) => a.rank().max(b.rank()),
-            Field::Zip(BinaryFieldFunction::Sample, a, b) => a.rank() + b.rank().saturating_sub(1),
-            Field::Square(BinaryFieldFunction::Op(_), a, b) => a.rank() + b.rank(),
-            Field::Square(BinaryFieldFunction::Sample, a, b) => a.rank() + b.rank(), // Probably wrong
+            Field::Zip(BinFieldFunction::Op(_), a, b) => a.rank().max(b.rank()),
+            Field::Zip(BinFieldFunction::Sample, a, b) => a.rank() + b.rank().saturating_sub(1),
+            Field::Square(BinFieldFunction::Op(_), a, b) => a.rank() + b.rank(),
+            Field::Square(BinFieldFunction::Sample, a, b) => a.rank() + b.rank(), // Probably wrong
             Field::Resample(field, _, _) => field.rank(),
         }
     }
@@ -112,14 +112,14 @@ impl Field {
             Field::Un(op, self.into())
         }
     }
-    pub fn zip(self, f: BinaryFieldFunction, other: Self) -> Self {
+    pub fn zip(self, f: BinFieldFunction, other: Self) -> Self {
         if let Some(a) = self.as_scalar() {
             f.on_scalar_and_field(a, &other)
         } else {
             Field::Zip(f, self.into(), other.into())
         }
     }
-    pub fn square(self, f: BinaryFieldFunction, other: Self) -> Self {
+    pub fn square(self, f: BinFieldFunction, other: Self) -> Self {
         if let Some(a) = self.as_scalar() {
             f.on_scalar_and_field(a, &other)
         } else {
@@ -137,7 +137,7 @@ impl Field {
         if let Some(x) = self.as_scalar() {
             field.sample(x)
         } else {
-            Field::Zip(BinaryFieldFunction::Sample, self.into(), field.into())
+            Field::Zip(BinFieldFunction::Sample, self.into(), field.into())
         }
     }
     pub fn default_range(&self) -> Option<RangeInclusive<f32>> {
@@ -151,7 +151,7 @@ impl Field {
             }
             Field::Identity => None,
             Field::Un(_, field) => field.default_range(),
-            Field::Zip(BinaryFieldFunction::Op(_), a, b) => {
+            Field::Zip(BinFieldFunction::Op(_), a, b) => {
                 let a = a.default_range();
                 let b = b.default_range();
                 match (a, b) {
@@ -161,7 +161,7 @@ impl Field {
                     (None, None) => None,
                 }
             }
-            Field::Zip(BinaryFieldFunction::Sample, a, b) => {
+            Field::Zip(BinFieldFunction::Sample, a, b) => {
                 if a.is_scalar() {
                     b.default_range()
                 } else {
@@ -253,17 +253,14 @@ macro_rules! bin_op {
         impl $trait for Field {
             type Output = Self;
             fn $method(self, other: Self) -> Self::Output {
-                self.zip(BinaryFieldFunction::Op(BinOp::$trait), other)
+                self.zip(BinFieldFunction::Op(BinOp::$trait), other)
             }
         }
 
         impl $trait<f32> for Field {
             type Output = Self;
             fn $method(self, other: f32) -> Self::Output {
-                self.zip(
-                    BinaryFieldFunction::Op(BinOp::$trait),
-                    Field::uniform(other),
-                )
+                self.zip(BinFieldFunction::Op(BinOp::$trait), Field::uniform(other))
             }
         }
     };

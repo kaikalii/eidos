@@ -7,18 +7,13 @@ use crate::{EidosError, Field, Type, Value};
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Function {
-    Modifier(Modifier),
     Nullary(Nullary),
+    Modifier(Modifier),
     UnaryField(UnOp),
-    BinaryField(BinaryFieldFunction),
+    BinaryField(BinFieldFunction),
     Combinator1(Combinator1),
     Combinator2(Combinator2),
     Resample(Resampler),
-}
-
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
-pub enum Modifier {
-    Square,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
@@ -39,22 +34,22 @@ impl Nullary {
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
-pub enum BinaryFieldFunction {
+pub enum BinFieldFunction {
     Op(BinOp),
     Sample,
 }
 
-impl BinaryFieldFunction {
+impl BinFieldFunction {
     pub fn on_scalar_and_field(&self, a: f32, b: &Field) -> Field {
         match self {
-            BinaryFieldFunction::Op(op) => {
+            BinFieldFunction::Op(op) => {
                 if let Some(b) = b.as_scalar() {
                     Field::uniform(op.operate(a, b))
                 } else {
                     Field::Zip(*self, Field::uniform(a).into(), b.clone().into())
                 }
             }
-            BinaryFieldFunction::Sample => b.sample(a),
+            BinFieldFunction::Sample => b.sample(a),
         }
     }
 }
@@ -67,6 +62,7 @@ pub enum Combinator1 {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Combinator2 {
+    Apply,
     Swap,
     Over,
 }
@@ -148,6 +144,22 @@ impl Resampler {
     }
 }
 
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum Modifier {
+    UnUn(UnUnModifier),
+    UnBin(UnBinModifier),
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum UnUnModifier {
+    Reduce,
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum UnBinModifier {
+    Square,
+}
+
 #[derive(Debug, Display, Sequence)]
 pub enum FunctionCategory {
     Modifier,
@@ -165,7 +177,7 @@ impl FunctionCategory {
             FunctionCategory::Nullary => Box::new(all::<Nullary>().map(Function::Nullary)),
             FunctionCategory::Unary => Box::new(all::<UnOp>().map(Function::UnaryField)),
             FunctionCategory::Binary => {
-                Box::new(all::<BinaryFieldFunction>().map(Function::BinaryField))
+                Box::new(all::<BinFieldFunction>().map(Function::BinaryField))
             }
             FunctionCategory::Combinator => Box::new(
                 all::<Combinator1>()
@@ -185,10 +197,14 @@ pub enum TypeConstraint {
 }
 
 impl Function {
-    pub fn validate_use(&self, mut stack: &[Value]) -> Result<(), EidosError> {
+    pub fn validate_use(&self, stack: &[Value]) -> Result<(), EidosError> {
         // Adjust for modifiers
-        if let Some(Value::Modifier(_)) = stack.last() {
-            stack = &stack[..stack.len() - 1];
+        if let Some(Value::Modifier(m)) = stack.last() {
+            return match m {
+                Modifier::UnUn(_) | Modifier::UnBin(_) => {
+                    self.validate_use(&stack[..stack.len() - 1])
+                }
+            };
         }
         // Collect constraints
         use TypeConstraint::*;

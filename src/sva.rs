@@ -158,7 +158,7 @@ impl Sva {
                                     let mut functions: Vec<_> = category
                                         .functions()
                                         .map(|function| {
-                                            let error = rt.validate_function_use(&function).err();
+                                            let error = rt.validate_function_use(function).err();
                                             (function, error)
                                         })
                                         .collect();
