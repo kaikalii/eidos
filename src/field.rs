@@ -4,7 +4,7 @@ use derive_more::{Display, From};
 use eframe::epaint::Vec2;
 use enum_iterator::Sequence;
 
-use crate::{function::*, game::FieldsSource, world::World};
+use crate::{function::*, game::FieldsSource};
 
 #[derive(Debug, Clone, From)]
 pub enum GenericField<'a> {
@@ -64,14 +64,30 @@ pub enum VectorField<'a> {
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence)]
-pub enum ScalarFieldKind {
-    Density,
-    Holographic,
+pub enum FieldKind<T> {
+    Typed(T),
+    Any(AnyFieldKind),
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence)]
+pub enum AnyFieldKind {
+    Spell,
     Staging,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Sequence)]
-pub enum VectorWorldFieldKind {}
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence)]
+pub enum GenericFieldKind {
+    Scalar(ScalarFieldKind),
+    Vector(VectorFieldKind),
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence)]
+pub enum ScalarFieldKind {
+    Density,
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence)]
+pub enum VectorFieldKind {}
 
 #[derive(Clone, Copy)]
 pub struct ScalarWorldField<'a> {
@@ -87,8 +103,8 @@ impl<'a> fmt::Debug for ScalarWorldField<'a> {
 
 #[derive(Clone, Copy)]
 pub struct VectorWorldField<'a> {
-    pub kind: VectorWorldFieldKind,
-    pub world: &'a World,
+    pub kind: VectorFieldKind,
+    pub source: FieldsSource<'a>,
 }
 
 impl<'a> fmt::Debug for VectorWorldField<'a> {
