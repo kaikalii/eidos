@@ -1,8 +1,8 @@
-use std::{marker::PhantomData, ops::*};
+use std::{collections::HashMap, marker::PhantomData, ops::*};
 
 use derive_more::Display;
 use eframe::epaint::{vec2, Vec2};
-use enum_iterator::Sequence;
+use enum_iterator::{all, Sequence};
 
 use crate::{error::EidosError, field::*, value::*};
 
@@ -12,6 +12,30 @@ pub enum Function {
     Combinator1(Combinator1),
     Combinator2(Combinator2),
     Un(GenericUnOp),
+    Bin(GenericBinOp),
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum FunctionCategory {
+    Nullary,
+    Combinator,
+    Unary,
+    Binary,
+}
+
+impl FunctionCategory {
+    pub fn functions(&self) -> Box<dyn Iterator<Item = Function>> {
+        match self {
+            FunctionCategory::Nullary => Box::new(all::<Nullary>().map(Function::Nullary)),
+            FunctionCategory::Combinator => Box::new(
+                all::<Combinator1>()
+                    .map(Function::Combinator1)
+                    .chain(all::<Combinator2>().map(Function::Combinator2)),
+            ),
+            FunctionCategory::Unary => Box::new(all::<GenericUnOp>().map(Function::Un)),
+            FunctionCategory::Binary => Box::new(all::<GenericBinOp>().map(Function::Bin)),
+        }
+    }
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
@@ -156,6 +180,12 @@ pub trait BinOperator<A, B> {
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum GenericBinOp {
+    Math(MathBinOp),
+    Homo(HomoBinOp),
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum BinOp<T> {
     Math(MathBinOp),
     Typed(T),
@@ -266,24 +296,26 @@ impl BinOperator<Vec2, Vec2> for HomoBinOp {
 
 #[derive(Debug, Display, Clone, Copy)]
 pub enum TypeConstraint {
-    Value(ValueConstraint),
     Field(ValueConstraint),
-    AnyArity(ValueType),
     Any,
 }
 
 #[derive(Debug, Display, Clone, Copy)]
 pub enum ValueConstraint {
     Exact(ValueType),
+    Group(u8),
     Any,
 }
 
+#[derive(Default)]
+struct ConstraintContext {
+    values: HashMap<u8, ValueType>,
+}
+
 impl TypeConstraint {
-    fn matches(&self, ty: Type) -> bool {
+    fn matches(&self, ty: Type, ctx: &mut ConstraintContext) -> bool {
         match (self, ty) {
-            (TypeConstraint::Value(constraint), Type::Value(vt)) => constraint.matches(vt),
-            (TypeConstraint::Field(constraint), Type::Field(vt)) => constraint.matches(vt),
-            (TypeConstraint::AnyArity(a), Type::Value(b) | Type::Field(b)) => a == &b,
+            (TypeConstraint::Field(constraint), Type::Field(vt)) => constraint.matches(vt, ctx),
             (TypeConstraint::Any, _) => true,
             _ => false,
         }
@@ -291,9 +323,17 @@ impl TypeConstraint {
 }
 
 impl ValueConstraint {
-    fn matches(&self, ty: ValueType) -> bool {
+    fn matches(&self, ty: ValueType, ctx: &mut ConstraintContext) -> bool {
         match self {
             ValueConstraint::Exact(vt) => vt == &ty,
+            ValueConstraint::Group(i) => {
+                if let Some(ty2) = ctx.values.get(i) {
+                    &ty == ty2
+                } else {
+                    ctx.values.insert(*i, ty);
+                    true
+                }
+            }
             ValueConstraint::Any => true,
         }
     }
@@ -309,10 +349,19 @@ impl Function {
             Function::Combinator2(_) => vec![Any; 2],
             Function::Un(op) => match op {
                 GenericUnOp::Math(_) => vec![Any],
-                GenericUnOp::Scalar(_) => vec![AnyArity(ValueType::Scalar)],
+                GenericUnOp::Scalar(_) => vec![Field(ValueConstraint::Exact(ValueType::Scalar))],
                 GenericUnOp::VectorScalar(_) | GenericUnOp::VectorVector(_) => {
-                    vec![AnyArity(ValueType::Vector)]
+                    vec![Field(ValueConstraint::Exact(ValueType::Vector))]
                 }
+            },
+            Function::Bin(op) => match op {
+                GenericBinOp::Math(_) => {
+                    vec![Field(ValueConstraint::Any), Field(ValueConstraint::Any)]
+                }
+                GenericBinOp::Homo(_) => vec![
+                    Field(ValueConstraint::Group(0)),
+                    Field(ValueConstraint::Group(0)),
+                ],
             },
         };
         // Validate stack size
@@ -324,6 +373,7 @@ impl Function {
             });
         }
         // Validate constraints
+        let mut ctx = ConstraintContext::default();
         for (i, (constraint, value)) in constraints
             .into_iter()
             .rev()
@@ -331,7 +381,7 @@ impl Function {
             .rev()
             .enumerate()
         {
-            if !constraint.matches(value.ty()) {
+            if !constraint.matches(value.ty(), &mut ctx) {
                 return Err(EidosError::InvalidArgument {
                     function: *self,
                     position: i + 1,

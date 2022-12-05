@@ -6,7 +6,7 @@ use enum_iterator::all;
 
 use crate::{
     field::*,
-    function::Function,
+    function::{Function, FunctionCategory},
     math::polygon_contains,
     plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
     runtime::Runtime,
@@ -130,6 +130,7 @@ impl Game {
         });
         // Draw functions
         ui.horizontal_wrapped(|ui| {
+            ui.label("");
             for function in &self.spell.staging {
                 ui.label(function.to_string());
             }
@@ -141,16 +142,20 @@ impl Game {
                     self.spell.command(command);
                 }
             }
-            for function in all::<Function>() {
-                let enabled = error.is_none() && rt.validate_function_use(function).is_ok();
-                if ui
-                    .add_enabled(enabled, Button::new(function.to_string()))
-                    .clicked()
-                {
-                    self.spell.staging.push(function);
-                }
-            }
         });
+        for category in all::<FunctionCategory>() {
+            ui.horizontal_wrapped(|ui| {
+                for function in category.functions() {
+                    let enabled = error.is_none() && rt.validate_function_use(function).is_ok();
+                    if ui
+                        .add_enabled(enabled, Button::new(function.to_string()))
+                        .clicked()
+                    {
+                        self.spell.staging.push(function);
+                    }
+                }
+            });
+        }
     }
 }
 

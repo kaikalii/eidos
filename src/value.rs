@@ -34,7 +34,6 @@ pub enum ValueType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Type {
-    Value(ValueType),
     Field(ValueType),
     Function(Function),
 }
@@ -51,8 +50,6 @@ impl Type {
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Type::Value(ValueType::Scalar) => "Scalar".fmt(f),
-            Type::Value(ValueType::Vector) => "Vector".fmt(f),
             Type::Field(ValueType::Scalar) => "Scalar Field".fmt(f),
             Type::Field(ValueType::Vector) => "Vector Field".fmt(f),
             Type::Function(function) => function.fmt(f),
