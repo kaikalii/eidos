@@ -1,4 +1,5 @@
 use std::{
+    f32::consts::PI,
     f64,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -39,7 +40,12 @@ pub fn default_scalar_color(t: f32) -> Color32 {
 }
 
 pub fn default_vector_color(t: Vec2) -> Color32 {
-    Rgba::from_rgba_unmultiplied(1.0 - t.y, t.x, 1.0, 1.0).into()
+    let t = (t - Vec2::splat(0.5)) * 2.0;
+    let s = t.length();
+    let v = 0.9 * t.length() + 0.1;
+    let h = (t.angle() + PI) / (2.0 * PI);
+    let h = (h + 0.75) % 1.0;
+    Hsva::new(h, s, v, 1.0).into()
 }
 
 pub struct MapPlot {
@@ -49,7 +55,7 @@ pub struct MapPlot {
     resolution: usize,
 }
 
-const Z_BUCKETS: usize = 99;
+const Z_BUCKETS: usize = 51;
 
 impl MapPlot {
     pub fn new(center: Vec2, range: f32) -> Self {
@@ -237,7 +243,10 @@ impl PartitionAndPlottable for Vec2 {
                 if points.is_empty() {
                     continue;
                 }
-                let t = vec2(i as f32 / Z_BUCKETS as f32, j as f32 / Z_BUCKETS as f32);
+                let t = vec2(
+                    i as f32 / (Z_BUCKETS + 1) as f32,
+                    j as f32 / (Z_BUCKETS + 1) as f32,
+                );
                 let color = field_plot.get_color(t);
                 if color.a() == 0 {
                     continue;

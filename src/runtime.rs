@@ -1,4 +1,4 @@
-use crate::{error::EidosError, field::*, function::*, value::*};
+use crate::{error::EidosError, field::*, function::*, game::FieldsSource, value::*};
 
 pub type Stack<'a> = Vec<Value<'a>>;
 
@@ -32,17 +32,33 @@ impl<'a> Runtime<'a> {
             _ => None,
         }
     }
-    pub fn call_value(&mut self, value: Value<'a>) -> Result<(), EidosError> {
+    pub fn call_value(
+        &mut self,
+        source: FieldsSource<'a, ()>,
+        value: Value<'a>,
+    ) -> Result<(), EidosError> {
         if let Value::Function(function) = value {
-            self.call(function)
+            self.call(source, function)
         } else {
             self.stack.push(value);
             Ok(())
         }
     }
-    pub fn call(&mut self, function: Function) -> Result<(), EidosError> {
+    pub fn call(
+        &mut self,
+        source: FieldsSource<'a, ()>,
+        function: Function,
+    ) -> Result<(), EidosError> {
         self.validate_function_use(function)?;
         match function {
+            Function::ReadField(field_kind) => match field_kind {
+                GenericFieldKind::Scalar(kind) => {
+                    self.push(ScalarField::World(ScalarWorldField { kind, source }))
+                }
+                GenericFieldKind::Vector(kind) => {
+                    self.push(VectorField::World(VectorWorldField { kind, source }))
+                }
+            },
             Function::Nullary(nullary) => self.push(nullary.value()),
             Function::Combinator1(com1) => {
                 let a = self.pop();
@@ -60,7 +76,7 @@ impl<'a> Runtime<'a> {
                 match com2 {
                     Combinator2::Apply => {
                         self.push(a);
-                        self.call_value(b)?;
+                        self.call_value(source, b)?;
                     }
                     Combinator2::Swap => {
                         self.push(b);

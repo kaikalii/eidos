@@ -63,38 +63,39 @@ pub enum VectorField<'a> {
     BinSV(BinOp<NoOp<Vec2>>, Box<ScalarField<'a>>, Box<Self>),
     BinVS(BinOp<NoOp<Vec2>>, Box<Self>, Box<ScalarField<'a>>),
     BinVV(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
+    World(VectorWorldField<'a>),
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
 pub enum FieldKind<T> {
     Typed(T),
     Any(AnyFieldKind),
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
 pub enum AnyFieldKind {
     Spell,
     Staging,
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
 pub enum GenericFieldKind {
     Scalar(ScalarFieldKind),
     Vector(VectorFieldKind),
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
 pub enum ScalarFieldKind {
     Density,
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
 pub enum VectorFieldKind {}
 
 #[derive(Clone, Copy)]
 pub struct ScalarWorldField<'a> {
     pub kind: ScalarFieldKind,
-    pub source: FieldsSource<'a>,
+    pub source: FieldsSource<'a, ()>,
 }
 
 impl<'a> fmt::Debug for ScalarWorldField<'a> {
@@ -106,7 +107,7 @@ impl<'a> fmt::Debug for ScalarWorldField<'a> {
 #[derive(Clone, Copy)]
 pub struct VectorWorldField<'a> {
     pub kind: VectorFieldKind,
-    pub source: FieldsSource<'a>,
+    pub source: FieldsSource<'a, ()>,
 }
 
 impl<'a> fmt::Debug for VectorWorldField<'a> {
@@ -167,6 +168,7 @@ impl<'a> VectorField<'a> {
             VectorField::BinSV(op, a, b) => op.operate(a.sample(x, y), b.sample(x, y)),
             VectorField::BinVS(op, a, b) => op.operate(a.sample(x, y), b.sample(x, y)),
             VectorField::BinVV(op, a, b) => op.operate(a.sample(x, y), b.sample(x, y)),
+            VectorField::World(field) => field.source.sample_vector_field(field.kind, x, y),
         }
     }
 }

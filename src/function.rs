@@ -8,6 +8,7 @@ use crate::{error::EidosError, field::*, value::*};
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Function {
+    ReadField(GenericFieldKind),
     Nullary(Nullary),
     Combinator1(Combinator1),
     Combinator2(Combinator2),
@@ -17,6 +18,7 @@ pub enum Function {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum FunctionCategory {
+    ReadField,
     Nullary,
     Combinator,
     Unary,
@@ -26,6 +28,9 @@ pub enum FunctionCategory {
 impl FunctionCategory {
     pub fn functions(&self) -> Box<dyn Iterator<Item = Function>> {
         match self {
+            FunctionCategory::ReadField => {
+                Box::new(all::<GenericFieldKind>().map(Function::ReadField))
+            }
             FunctionCategory::Nullary => Box::new(all::<Nullary>().map(Function::Nullary)),
             FunctionCategory::Combinator => Box::new(
                 all::<Combinator1>()
@@ -40,19 +45,27 @@ impl FunctionCategory {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Nullary {
-    X,
-    Y,
     Zero,
     One,
+    OneX,
+    OneY,
+    X,
+    Y,
+    VX,
+    VY,
 }
 
 impl Nullary {
     pub fn value<'a>(&self) -> Value<'a> {
         match self {
-            Nullary::X => ScalarField::Common(CommonField::X).into(),
-            Nullary::Y => ScalarField::Common(CommonField::Y).into(),
             Nullary::Zero => CommonField::Uniform(0.0).into(),
             Nullary::One => CommonField::Uniform(1.0).into(),
+            Nullary::OneX => CommonField::Uniform(Vec2::X).into(),
+            Nullary::OneY => CommonField::Uniform(Vec2::X).into(),
+            Nullary::X => ScalarField::Common(CommonField::X).into(),
+            Nullary::Y => ScalarField::Common(CommonField::Y).into(),
+            Nullary::VX => VectorField::Common(CommonField::X).into(),
+            Nullary::VY => VectorField::Common(CommonField::Y).into(),
         }
     }
 }
@@ -344,7 +357,7 @@ impl Function {
         // Collect constraints
         use TypeConstraint::*;
         let constraints = match self {
-            Function::Nullary(_) => vec![],
+            Function::ReadField(_) | Function::Nullary(_) => vec![],
             Function::Combinator1(_) => vec![Any],
             Function::Combinator2(_) => vec![Any; 2],
             Function::Un(op) => match op {

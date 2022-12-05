@@ -10,7 +10,7 @@ pub fn regular_poly(center: Vec2, radius: f32, sides: usize, rotation: f32) -> V
     (0..sides)
         .map(|i| {
             let angle = i as f32 / sides as f32 * 2.0 * PI + rotation;
-            center + radius * vec2(angle.sin(), angle.cos())
+            center + radius * Vec2::angled(angle)
         })
         .collect()
 }

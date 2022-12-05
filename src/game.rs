@@ -41,9 +41,9 @@ impl Default for UiState {
 }
 
 #[derive(Clone, Copy)]
-pub struct FieldsSource<'a> {
+pub struct FieldsSource<'a, S = &'a SpellState<GenericField<'a>>> {
     pub world: &'a World,
-    pub spell_state: &'a SpellState<GenericField<'a>>,
+    pub spell_state: S,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -77,9 +77,13 @@ impl Game {
         // Calculate fields
         let mut rt = Runtime::default();
         let mut error = None;
+        let source = FieldsSource {
+            world: &self.world,
+            spell_state: (),
+        };
         // Calculate spell field
         for function in &self.spell.spell {
-            if let Err(e) = rt.call(*function) {
+            if let Err(e) = rt.call(source, *function) {
                 error = Some(e);
                 break;
             }
@@ -91,7 +95,7 @@ impl Game {
         // Calculate staging field
         if error.is_none() {
             for function in &self.spell.staging {
-                if let Err(e) = rt.call(*function) {
+                if let Err(e) = rt.call(source, *function) {
                     error = Some(e);
                 }
             }
@@ -177,16 +181,24 @@ impl<'a> FieldsSource<'a> {
                 ui,
                 ScalarWorldField {
                     kind,
-                    source: *self,
+                    source: self.no_spells(),
                 },
             ),
             FieldKind::Typed(GenericFieldKind::Vector(kind)) => plot.ui(
                 ui,
                 VectorWorldField {
                     kind,
-                    source: *self,
+                    source: self.no_spells(),
                 },
             ),
+        }
+    }
+}
+impl<'a, S> FieldsSource<'a, S> {
+    pub fn no_spells(self) -> FieldsSource<'a, ()> {
+        FieldsSource {
+            world: self.world,
+            spell_state: (),
         }
     }
     pub fn sample_scalar_field(&self, kind: ScalarFieldKind, x: f32, y: f32) -> f32 {
