@@ -4,13 +4,14 @@ use derive_more::Display;
 use eframe::epaint::{vec2, Vec2};
 use enum_iterator::Sequence;
 
-use crate::{CommonField, EidosError, ScalarField, Type, Value};
+use crate::{CommonField, EidosError, ScalarField, Type, Value, ValueType};
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Function {
     Nullary(Nullary),
     Combinator1(Combinator1),
     Combinator2(Combinator2),
+    Un(GenericUnOp),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
@@ -22,7 +23,7 @@ pub enum Nullary {
 }
 
 impl Nullary {
-    pub fn value(&self) -> Value {
+    pub fn value<'a>(&self) -> Value<'a> {
         match self {
             Nullary::X => ScalarField::Common(CommonField::X).into(),
             Nullary::Y => ScalarField::Common(CommonField::Y).into(),
@@ -265,9 +266,37 @@ impl BinOperator<Vec2, Vec2> for HomoBinOp {
 
 #[derive(Debug, Display, Clone, Copy)]
 pub enum TypeConstraint {
-    Exact(Type),
-    Field,
+    Value(ValueConstraint),
+    Field(ValueConstraint),
+    AnyArity(ValueType),
     Any,
+}
+
+#[derive(Debug, Display, Clone, Copy)]
+pub enum ValueConstraint {
+    Exact(ValueType),
+    Any,
+}
+
+impl TypeConstraint {
+    fn matches(&self, ty: Type) -> bool {
+        match (self, ty) {
+            (TypeConstraint::Value(constraint), Type::Value(vt)) => constraint.matches(vt),
+            (TypeConstraint::Field(constraint), Type::Field(vt)) => constraint.matches(vt),
+            (TypeConstraint::AnyArity(a), Type::Value(b) | Type::Field(b)) => a == &b,
+            (TypeConstraint::Any, _) => true,
+            _ => false,
+        }
+    }
+}
+
+impl ValueConstraint {
+    fn matches(&self, ty: ValueType) -> bool {
+        match self {
+            ValueConstraint::Exact(vt) => vt == &ty,
+            ValueConstraint::Any => true,
+        }
+    }
 }
 
 impl Function {
@@ -278,6 +307,13 @@ impl Function {
             Function::Nullary(_) => vec![],
             Function::Combinator1(_) => vec![Any],
             Function::Combinator2(_) => vec![Any; 2],
+            Function::Un(op) => match op {
+                GenericUnOp::Math(_) => vec![Any],
+                GenericUnOp::Scalar(_) => vec![AnyArity(ValueType::Scalar)],
+                GenericUnOp::VectorScalar(_) | GenericUnOp::VectorVector(_) => {
+                    vec![AnyArity(ValueType::Vector)]
+                }
+            },
         };
         // Validate stack size
         if stack.len() < constraints.len() {
@@ -295,18 +331,13 @@ impl Function {
             .rev()
             .enumerate()
         {
-            match (constraint, value) {
-                (Any, _) => {}
-                (Field, Value::Field(_)) => {}
-                (Exact(ty), value) if ty == value.ty() => {}
-                _ => {
-                    return Err(EidosError::InvalidArgument {
-                        function: *self,
-                        position: i + 1,
-                        expected: constraint,
-                        found: value.ty(),
-                    })
-                }
+            if !constraint.matches(value.ty()) {
+                return Err(EidosError::InvalidArgument {
+                    function: *self,
+                    position: i + 1,
+                    expected: constraint,
+                    found: value.ty(),
+                });
             }
         }
         Ok(())

@@ -1,16 +1,14 @@
 use std::fmt;
 
-use derive_more::From;
+use derive_more::{Display, From};
 use eframe::epaint::Vec2;
 
-use crate::{CommonField, Function, GenericField, ScalarField, VectorField};
+use crate::{CommonField, Function, GenericField, ScalarField, UnOperator, VectorField};
 
 #[derive(Debug, Clone, From)]
 pub enum Value<'a> {
-    #[from]
-    Scalar(f32),
-    #[from]
-    Vector(Vec2),
+    #[from(types(f32, Vec2))]
+    Value(GenericValue),
     #[from(types(
         "ScalarField<'a>",
         "VectorField<'a>",
@@ -22,22 +20,28 @@ pub enum Value<'a> {
     Function(Function),
 }
 
+#[derive(Debug, Clone, From)]
+pub enum GenericValue {
+    Scalar(f32),
+    Vector(Vec2),
+}
+
 impl<'a> Default for Value<'a> {
     fn default() -> Self {
         0.0.into()
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum FieldType {
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ValueType {
     Scalar,
     Vector,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Type {
-    Value(FieldType),
-    Field(FieldType),
+    Value(ValueType),
+    Field(ValueType),
     Function(Function),
 }
 
@@ -53,11 +57,29 @@ impl Type {
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Type::Value(FieldType::Scalar) => "Scalar".fmt(f),
-            Type::Value(FieldType::Vector) => "Vector".fmt(f),
-            Type::Field(FieldType::Scalar) => "Scalar Field".fmt(f),
-            Type::Field(FieldType::Vector) => "Vector Field".fmt(f),
+            Type::Value(ValueType::Scalar) => "Scalar".fmt(f),
+            Type::Value(ValueType::Vector) => "Vector".fmt(f),
+            Type::Field(ValueType::Scalar) => "Scalar Field".fmt(f),
+            Type::Field(ValueType::Vector) => "Vector Field".fmt(f),
             Type::Function(function) => function.fmt(f),
+        }
+    }
+}
+
+impl GenericValue {
+    pub fn ty(&self) -> ValueType {
+        match self {
+            GenericValue::Scalar(_) => ValueType::Scalar,
+            GenericValue::Vector(_) => ValueType::Vector,
+        }
+    }
+    pub fn un<O>(self, op: O) -> Self
+    where
+        O: UnOperator<f32, Output = f32> + UnOperator<Vec2, Output = Vec2>,
+    {
+        match self {
+            GenericValue::Scalar(v) => GenericValue::Scalar(op.operate(v)),
+            GenericValue::Vector(v) => GenericValue::Vector(op.operate(v)),
         }
     }
 }
@@ -65,10 +87,9 @@ impl fmt::Display for Type {
 impl<'a> Value<'a> {
     pub fn ty(&self) -> Type {
         match self {
-            Value::Scalar(_) => Type::Value(FieldType::Scalar),
-            Value::Vector(_) => Type::Value(FieldType::Vector),
-            Value::Field(GenericField::Scalar(_)) => Type::Field(FieldType::Scalar),
-            Value::Field(GenericField::Vector(_)) => Type::Field(FieldType::Vector),
+            Value::Value(v) => Type::Value(v.ty()),
+            Value::Field(GenericField::Scalar(_)) => Type::Field(ValueType::Scalar),
+            Value::Field(GenericField::Vector(_)) => Type::Field(ValueType::Vector),
             Value::Function(f) => Type::Function(*f),
         }
     }
