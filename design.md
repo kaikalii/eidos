@@ -15,9 +15,41 @@ In time, Spell Verification Assistants, or SVAs, were invented to ensure that sp
 be safe and correct before they were cast. SVAs are small handheld devices made of metal or
 wood that are imbued with magical matrices to generate an interface.
 
-# Progression
+# Story
 
-- Start as a magician's apprentice
-- Your mentor teaches you the language
-- They guide you through various exercises on the SVA
-- You help them with various jobs given by townspeople
+You are blind and have no limbs. However, you were born with some innate magical ability.
+Your uncle takes you to the town magician to learn magic and make up for your disabilities.
+Magic helps you to do everything that an able-bodied person can do.
+
+Once you can move around properly, you help your teacher with various jobs given by townspeople.
+
+# Fields
+Magic is performed by manipulating various fields.
+
+## Immutable Fields
+Magicians can observe these fields and use them in spells,
+but they cannot influence them directly.
+
+### Elevation
+The relative elevation of the land
+
+### Gravity
+The force of gravity
+
+### Density
+The density in an area
+
+## Mutable Fields
+These fields can be both observed and influenced by magicians.
+
+### Force
+A vector field which can push objects. It is usually zero when uninfluenced my magic.
+
+### Temporal 
+A positive scalar field which controls the relative speed of passing time.
+
+### Heat 
+A scalar field which controls temperature
+
+### Order 
+A scalar field which relates to order and disorder
