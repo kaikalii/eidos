@@ -1,13 +1,10 @@
 use std::fmt;
 
-use derive_more::From;
+use derive_more::{Display, From};
 use eframe::epaint::Vec2;
 use enum_iterator::Sequence;
 
-use crate::{
-    world::World, BinOp, BinOperator, HomoBinOp, NoOp, ScalarUnOp, UnOp, UnOperator,
-    VectorUnScalarOp, VectorUnVectorOp,
-};
+use crate::{function::*, game::FieldsSource, world::World};
 
 #[derive(Debug, Clone, From)]
 pub enum GenericField<'a> {
@@ -66,18 +63,20 @@ pub enum VectorField<'a> {
     BinVV(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence)]
 pub enum ScalarFieldKind {
     Density,
+    Holographic,
+    Staging,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Sequence)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Sequence)]
 pub enum VectorWorldFieldKind {}
 
 #[derive(Clone, Copy)]
 pub struct ScalarWorldField<'a> {
     pub kind: ScalarFieldKind,
-    pub world: &'a World,
+    pub source: FieldsSource<'a>,
 }
 
 impl<'a> fmt::Debug for ScalarWorldField<'a> {
@@ -137,7 +136,7 @@ impl<'a> ScalarField<'a> {
             ScalarField::ScalarUn(op, field) => op.operate(field.sample(x, y)),
             ScalarField::VectorUn(op, field) => op.operate(field.sample(x, y)),
             ScalarField::Bin(op, a, b) => op.operate(a.sample(x, y), b.sample(x, y)),
-            ScalarField::World(field) => field.world.sample_scalar_field(field.kind, x, y),
+            ScalarField::World(field) => field.source.sample_scalar_field(field.kind, x, y),
         }
     }
 }

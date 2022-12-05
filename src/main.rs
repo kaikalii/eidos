@@ -1,18 +1,18 @@
 #![allow(unstable_name_collisions)]
 
-mod controls;
-mod error;
-mod field;
-mod function;
-mod plot;
-mod runtime;
-mod value;
-mod world;
+pub mod controls;
+pub mod error;
+pub mod field;
+pub mod function;
+pub mod game;
+pub mod math;
+pub mod plot;
+pub mod runtime;
+pub mod value;
+pub mod world;
 
 use eframe::egui::*;
-use world::World;
-
-pub use {error::*, field::*, function::*, runtime::*, value::*, world::*};
+use game::Game;
 
 fn main() {
     eframe::run_native(
@@ -23,22 +23,7 @@ fn main() {
         },
         Box::new(|cc| {
             cc.egui_ctx.set_pixels_per_point(2.0);
-            Box::new(Game {
-                world: World::default(),
-            })
+            Box::new(Game::default())
         }),
     );
-}
-
-struct Game {
-    world: World,
-}
-
-impl eframe::App for Game {
-    fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        CentralPanel::default().show(ctx, |ui| {
-            self.world.ui(ui);
-        });
-        ctx.request_repaint();
-    }
 }

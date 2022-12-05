@@ -3,7 +3,7 @@ use std::fmt;
 use derive_more::{Display, From};
 use eframe::epaint::Vec2;
 
-use crate::{CommonField, Function, GenericField, ScalarField, UnOperator, VectorField};
+use crate::{field::*, function::*};
 
 #[derive(Debug, Clone, From)]
 pub enum Value<'a> {

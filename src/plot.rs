@@ -1,5 +1,6 @@
 use std::{
     f64,
+    hash::Hash,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -10,34 +11,32 @@ use eframe::{
 use itertools::Itertools;
 use rand::prelude::*;
 
-pub struct MapPlot<F> {
-    key: &'static str,
+pub trait FieldPlot {
+    type Key: Hash;
+    fn key(&self) -> Self::Key;
+    fn get_z(&self, x: f32, y: f32) -> f32;
+    fn get_color(&self, t: f32) -> Color32 {
+        let h = 0.9 * (1.0 - t);
+        let v = (2.0 * t - 1.0).abs();
+        let s = v.powf(0.5);
+        Hsva::new(h, s, v, 1.0).into()
+    }
+}
+
+pub struct MapPlot {
     center: Vec2,
     range: f32,
     width: f32,
     resolution: usize,
-    get_z: F,
-    get_color: fn(f32) -> Color32,
 }
 
-impl<F> MapPlot<F>
-where
-    F: Fn(f32, f32) -> f32,
-{
-    pub fn new(key: &'static str, center: Vec2, range: f32, get_z: F) -> Self {
+impl MapPlot {
+    pub fn new(center: Vec2, range: f32) -> Self {
         Self {
-            key,
             center,
             range,
             width: 200.0,
             resolution: 100,
-            get_z,
-            get_color: |t| {
-                let h = 0.9 * (1.0 - t);
-                let v = (2.0 * t - 1.0).abs();
-                let s = v.powf(0.5);
-                Hsva::new(h, s, v, 1.0).into()
-            },
         }
     }
     pub fn _width(self, width: f32) -> Self {
@@ -46,11 +45,11 @@ where
     pub fn _resolution(self, resolution: usize) -> Self {
         Self { resolution, ..self }
     }
-    pub fn _color(self, get_color: fn(f32) -> Color32) -> Self {
-        Self { get_color, ..self }
-    }
-    pub fn ui(&self, ui: &mut Ui) {
-        Plot::new(self.key)
+    pub fn ui<F>(&self, ui: &mut Ui, field_plot: F)
+    where
+        F: FieldPlot,
+    {
+        Plot::new(field_plot.key())
             .width(self.width)
             .view_aspect(1.0)
             .include_x(self.center.x - self.range)
@@ -81,7 +80,7 @@ where
                         if vec2(x, y).length() > self.range {
                             continue;
                         }
-                        let z = (self.get_z)(x, y);
+                        let z = field_plot.get_z(x, y);
                         let dx = (t + rng.gen::<f64>() * 2.0 * f64::consts::PI).sin() as f32
                             * point_radius
                             * 0.05;
@@ -108,7 +107,7 @@ where
                 }
                 for (k, points) in grouped_points.into_iter().enumerate() {
                     let t = k as f32 / Z_BUCKETS as f32;
-                    let color = (self.get_color)(t);
+                    let color = field_plot.get_color(t);
                     for point in points {
                         plot_ui.points(
                             Points::new(PlotPoints::Owned(vec![point]))
@@ -122,7 +121,7 @@ where
                     if p.to_vec2().length() < self.range {
                         let x = p.x as f32;
                         let y = p.y as f32;
-                        let z = (self.get_z)(x, y);
+                        let z = field_plot.get_z(x, y);
                         let anchor = if y > self.range * 0.9 {
                             Align2::RIGHT_TOP
                         } else if x < -self.range * 0.5 {

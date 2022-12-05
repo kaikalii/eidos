@@ -1,9 +1,6 @@
 use std::fmt;
 
-use crate::{
-    Combinator1, Combinator2, EidosError, Function, GenericField, GenericUnOp, GenericValue,
-    ScalarField, UnOp, UnOperator, Value, VectorField,
-};
+use crate::{error::EidosError, field::*, function::*, value::*};
 
 pub type Stack<'a> = Vec<Value<'a>>;
 
@@ -45,6 +42,12 @@ impl<'a> Runtime<'a> {
     }
     pub fn push(&mut self, value: impl Into<Value<'a>>) {
         self.stack.push(value.into())
+    }
+    pub fn top_field(&self) -> Option<&GenericField<'a>> {
+        match self.stack.last() {
+            Some(Value::Field(field)) => Some(field),
+            _ => None,
+        }
     }
     pub fn do_instr(&mut self, instr: &Instr) -> Result<(), EidosError> {
         match instr {
