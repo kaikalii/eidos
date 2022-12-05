@@ -7,9 +7,9 @@ use crate::{field::*, function::*};
 
 #[derive(Debug, Clone, From)]
 pub enum Value<'a> {
-    #[from(types(f32, Vec2))]
-    Value(GenericValue),
     #[from(types(
+        f32,
+        Vec2,
         "ScalarField<'a>",
         "VectorField<'a>",
         "CommonField<f32>",
@@ -18,12 +18,6 @@ pub enum Value<'a> {
     Field(GenericField<'a>),
     #[from]
     Function(Function),
-}
-
-#[derive(Debug, Clone, From)]
-pub enum GenericValue {
-    Scalar(f32),
-    Vector(Vec2),
 }
 
 impl<'a> Default for Value<'a> {
@@ -66,28 +60,9 @@ impl fmt::Display for Type {
     }
 }
 
-impl GenericValue {
-    pub fn ty(&self) -> ValueType {
-        match self {
-            GenericValue::Scalar(_) => ValueType::Scalar,
-            GenericValue::Vector(_) => ValueType::Vector,
-        }
-    }
-    pub fn un<O>(self, op: O) -> Self
-    where
-        O: UnOperator<f32, Output = f32> + UnOperator<Vec2, Output = Vec2>,
-    {
-        match self {
-            GenericValue::Scalar(v) => GenericValue::Scalar(op.operate(v)),
-            GenericValue::Vector(v) => GenericValue::Vector(op.operate(v)),
-        }
-    }
-}
-
 impl<'a> Value<'a> {
     pub fn ty(&self) -> Type {
         match self {
-            Value::Value(v) => Type::Value(v.ty()),
             Value::Field(GenericField::Scalar(_)) => Type::Field(ValueType::Scalar),
             Value::Field(GenericField::Vector(_)) => Type::Field(ValueType::Vector),
             Value::Function(f) => Type::Function(*f),

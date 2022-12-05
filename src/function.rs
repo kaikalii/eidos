@@ -6,7 +6,7 @@ use enum_iterator::Sequence;
 
 use crate::{error::EidosError, field::*, value::*};
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Function {
     Nullary(Nullary),
     Combinator1(Combinator1),

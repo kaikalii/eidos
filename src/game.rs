@@ -1,4 +1,7 @@
-use eframe::{egui::*, epaint::ahash::HashMap};
+use eframe::{
+    egui::*,
+    epaint::{ahash::HashMap, color::Hsva},
+};
 use enum_iterator::all;
 
 use crate::{
@@ -7,6 +10,7 @@ use crate::{
     math::polygon_contains,
     plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
     runtime::Runtime,
+    word::SpellCommand,
     world::World,
 };
 
@@ -17,9 +21,23 @@ pub struct Game {
     spell: SpellState<Vec<Function>>,
 }
 
-#[derive(Default)]
 struct UiState {
     fields_visible: HashMap<FieldKind<GenericFieldKind>, bool>,
+}
+
+impl Default for UiState {
+    fn default() -> Self {
+        UiState {
+            fields_visible: [
+                FieldKind::Typed(GenericFieldKind::Scalar(ScalarFieldKind::Density)),
+                FieldKind::Any(AnyFieldKind::Spell),
+                FieldKind::Any(AnyFieldKind::Staging),
+            ]
+            .map(|kind| (kind, true))
+            .into_iter()
+            .collect(),
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -34,6 +52,19 @@ pub struct SpellState<T> {
     pub staging: T,
 }
 
+impl SpellState<Vec<Function>> {
+    pub fn command(&mut self, command: SpellCommand) {
+        match command {
+            SpellCommand::Commit => self.spell.append(&mut self.staging),
+            SpellCommand::Disapate => self.staging.clear(),
+            SpellCommand::Clear => {
+                self.spell.clear();
+                self.staging.clear();
+            }
+        }
+    }
+}
+
 impl eframe::App for Game {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         CentralPanel::default().show(ctx, |ui| self.ui(ui));
@@ -46,6 +77,7 @@ impl Game {
         // Calculate fields
         let mut rt = Runtime::default();
         let mut error = None;
+        // Calculate spell field
         for function in &self.spell.spell {
             if let Err(e) = rt.call(*function) {
                 error = Some(e);
@@ -56,6 +88,7 @@ impl Game {
             .top_field()
             .cloned()
             .unwrap_or_else(|| ScalarField::Common(CommonField::Uniform(0.0)).into());
+        // Calculate staging field
         if error.is_none() {
             for function in &self.spell.staging {
                 if let Err(e) = rt.call(*function) {
@@ -68,6 +101,7 @@ impl Game {
             .then(|| rt.top_field().cloned())
             .flatten()
             .unwrap_or_else(|| ScalarField::Common(CommonField::Uniform(0.0)).into());
+        // Build fields source
         let spell_fields = SpellState { spell, staging };
         let source = FieldsSource {
             world: &self.world,
@@ -75,6 +109,7 @@ impl Game {
         };
         // Draw ui
         Grid::new("fields").show(ui, |ui| {
+            // Draw fields
             for field_kind in all::<FieldKind<GenericFieldKind>>() {
                 ui.toggle_value(
                     self.ui_state
@@ -90,6 +125,29 @@ impl Game {
                     source.plot_field(ui, field_kind);
                 } else {
                     ui.label("");
+                }
+            }
+        });
+        // Draw functions
+        ui.horizontal_wrapped(|ui| {
+            for function in &self.spell.staging {
+                ui.label(function.to_string());
+            }
+        });
+        // Draw word buttons
+        ui.horizontal_wrapped(|ui| {
+            for command in all::<SpellCommand>() {
+                if ui.button(command.to_string()).clicked() {
+                    self.spell.command(command);
+                }
+            }
+            for function in all::<Function>() {
+                let enabled = error.is_none() && rt.validate_function_use(function).is_ok();
+                if ui
+                    .add_enabled(enabled, Button::new(function.to_string()))
+                    .clicked()
+                {
+                    self.spell.staging.push(function);
                 }
             }
         });
@@ -151,7 +209,14 @@ impl<'a> FieldPlot for (&'a ScalarField<'a>, AnyFieldKind) {
         self.0.sample(x, y)
     }
     fn get_color(&self, t: Self::Value) -> Color32 {
-        default_scalar_color(t)
+        let h = if t > 0.5 { 0.5 } else { 0.0 };
+        let v = 0.7 * (2.0 * t - 1.0).abs() + 0.3;
+        let s = (2.0 * t - 1.0).abs()
+            * match self.1 {
+                AnyFieldKind::Spell => 1.0,
+                AnyFieldKind::Staging => 0.7,
+            };
+        Hsva::new(h, s, v, 1.0).into()
     }
 }
 

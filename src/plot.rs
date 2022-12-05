@@ -12,9 +12,11 @@ use rand::prelude::*;
 
 use crate::field::{FieldKind, GenericFieldKind};
 
+pub type FieldPlotKey = FieldKind<GenericFieldKind>;
+
 pub trait FieldPlot {
     type Value: PartitionAndPlottable;
-    fn key(&self) -> FieldKind<GenericFieldKind>;
+    fn key(&self) -> FieldPlotKey;
     fn get_z(&self, x: f32, y: f32) -> Self::Value;
     fn get_color(&self, t: Self::Value) -> Color32;
 }
@@ -172,9 +174,15 @@ impl PartitionAndPlottable for f32 {
                 .min(Z_BUCKETS - 1);
             grouped_points[group].push(PlotPoint::new(x, y));
         }
-        for (k, points) in grouped_points.into_iter().enumerate() {
-            let t = k as f32 / Z_BUCKETS as f32;
+        for (i, points) in grouped_points.into_iter().enumerate() {
+            if points.is_empty() {
+                continue;
+            }
+            let t = i as f32 / (Z_BUCKETS + 1) as f32;
             let color = field_plot.get_color(t);
+            if color.a() == 0 {
+                continue;
+            }
             plot_ui.points(
                 Points::new(PlotPoints::Owned(points))
                     .shape(MarkerShape::Circle)
@@ -222,9 +230,18 @@ impl PartitionAndPlottable for Vec2 {
             grouped_points[x_group][y_group].push(PlotPoint::new(x, y));
         }
         for (i, points) in grouped_points.into_iter().enumerate() {
+            if points.is_empty() {
+                continue;
+            }
             for (j, points) in points.into_iter().enumerate() {
+                if points.is_empty() {
+                    continue;
+                }
                 let t = vec2(i as f32 / Z_BUCKETS as f32, j as f32 / Z_BUCKETS as f32);
                 let color = field_plot.get_color(t);
+                if color.a() == 0 {
+                    continue;
+                }
                 plot_ui.points(
                     Points::new(PlotPoints::Owned(points))
                         .shape(MarkerShape::Circle)
@@ -234,4 +251,91 @@ impl PartitionAndPlottable for Vec2 {
             }
         }
     }
+}
+
+pub fn plot_number(ui: &mut Ui, n: f32, key: FieldPlotKey) {
+    Plot::new(key)
+        .width(50.0)
+        .height(50.0)
+        .show_axes([false; 2])
+        .show_x(false)
+        .show_y(false)
+        .show_background(false)
+        .allow_zoom(false)
+        .allow_drag(false)
+        .include_x(-2.0)
+        .include_x(2.0)
+        .include_y(-2.0)
+        .include_y(2.0)
+        .allow_scroll(false)
+        .show(ui, |plot_ui| {
+            const FLOWER_MAX: f32 = 10.0;
+            let frac = (n as f64) % 1.0;
+            let ones_part = ((n % FLOWER_MAX).abs().floor() * n.signum()) as f64;
+            let tens_part = ((n / FLOWER_MAX % FLOWER_MAX).abs().floor() * n.signum()) as f64;
+            let hundreds_part = ((n / (FLOWER_MAX * FLOWER_MAX)).abs().floor() * n.signum()) as f64;
+            // Fractional circle
+            plot_ui.line(
+                Line::new(PlotPoints::from_parametric_callback(
+                    |t| {
+                        let theta = t * 2.0 * f64::consts::PI;
+                        (theta.cos(), theta.sin())
+                    },
+                    0.0..=frac,
+                    100,
+                ))
+                .color(Color32::GREEN),
+            );
+            // Hundreds flower
+            if hundreds_part.abs() >= 1.0 {
+                plot_ui.line(
+                    Line::new(PlotPoints::from_parametric_callback(
+                        |t| {
+                            let theta = t * 2.0 * f64::consts::PI;
+                            let r = 1.0 + (theta * hundreds_part / 2.0).cos().powf(16.0);
+                            let x = r * theta.cos();
+                            let y = r * theta.sin();
+                            (x, y)
+                        },
+                        0.0..=1.0,
+                        100,
+                    ))
+                    .color(Color32::YELLOW),
+                );
+            }
+            // Tens flower
+            if tens_part.abs() >= 1.0 {
+                plot_ui.line(
+                    Line::new(PlotPoints::from_parametric_callback(
+                        |t| {
+                            let theta = t * 2.0 * f64::consts::PI;
+                            let r = 1.0 + (theta * tens_part * 0.5).cos().powf(2.0);
+                            let x = r * theta.cos();
+                            let y = r * theta.sin();
+                            (x, y)
+                        },
+                        0.0..=1.0,
+                        100,
+                    ))
+                    .color(Color32::from_rgb(0, 100, 255)),
+                );
+            }
+            // Ones flower
+            if n == 0.0 || ones_part.abs() >= 1.0 {
+                plot_ui.line(
+                    Line::new(PlotPoints::from_parametric_callback(
+                        |t| {
+                            let theta = t * 2.0 * f64::consts::PI;
+                            let r = 1.0 + (theta * ones_part).cos();
+                            let x = r * theta.cos();
+                            let y = r * theta.sin();
+                            (x, y)
+                        },
+                        0.0..=1.0,
+                        100,
+                    ))
+                    .color(Color32::RED),
+                );
+            }
+        });
 }

@@ -9,6 +9,7 @@ pub mod math;
 pub mod plot;
 pub mod runtime;
 pub mod value;
+pub mod word;
 pub mod world;
 
 use eframe::egui::*;
@@ -18,7 +19,7 @@ fn main() {
     eframe::run_native(
         "Eidos",
         eframe::NativeOptions {
-            initial_window_size: Some(Vec2::new(1000.0, 500.0)),
+            initial_window_size: Some(Vec2::new(1280.0, 720.0)),
             ..Default::default()
         },
         Box::new(|cc| {

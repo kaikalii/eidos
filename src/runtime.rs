@@ -1,5 +1,3 @@
-use std::fmt;
-
 use crate::{error::EidosError, field::*, function::*, value::*};
 
 pub type Stack<'a> = Vec<Value<'a>>;
@@ -7,21 +5,6 @@ pub type Stack<'a> = Vec<Value<'a>>;
 #[derive(Default)]
 pub struct Runtime<'a> {
     pub stack: Stack<'a>,
-}
-
-#[derive(Debug)]
-pub enum Instr {
-    Number(f32),
-    Function(Function),
-}
-
-impl fmt::Display for Instr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Instr::Number(n) => n.fmt(f),
-            Instr::Function(function) => function.fmt(f),
-        }
-    }
 }
 
 impl<'a> Runtime<'a> {
@@ -48,13 +31,6 @@ impl<'a> Runtime<'a> {
             Some(Value::Field(field)) => Some(field),
             _ => None,
         }
-    }
-    pub fn do_instr(&mut self, instr: &Instr) -> Result<(), EidosError> {
-        match instr {
-            Instr::Number(f) => self.stack.push((*f).into()),
-            Instr::Function(function) => self.call(*function)?,
-        }
-        Ok(())
     }
     pub fn call_value(&mut self, value: Value<'a>) -> Result<(), EidosError> {
         if let Value::Function(function) = value {
@@ -101,7 +77,6 @@ impl<'a> Runtime<'a> {
                 let a = self.pop();
                 match op {
                     GenericUnOp::Math(op) => match a {
-                        Value::Value(v) => self.push(v.un(op)),
                         Value::Field(GenericField::Scalar(f)) => {
                             self.push(ScalarField::ScalarUn(UnOp::Math(op), f.into()))
                         }
@@ -111,14 +86,23 @@ impl<'a> Runtime<'a> {
                         _ => unreachable!(),
                     },
                     GenericUnOp::Scalar(op) => match a {
-                        Value::Value(GenericValue::Scalar(v)) => self.push(op.operate(v)),
                         Value::Field(GenericField::Scalar(f)) => {
                             self.push(ScalarField::ScalarUn(UnOp::Typed(op), f.into()))
                         }
                         _ => unreachable!(),
                     },
-                    GenericUnOp::VectorScalar(_) => todo!(),
-                    GenericUnOp::VectorVector(_) => todo!(),
+                    GenericUnOp::VectorScalar(op) => match a {
+                        Value::Field(GenericField::Vector(f)) => {
+                            self.push(ScalarField::VectorUn(op, f.into()))
+                        }
+                        _ => unreachable!(),
+                    },
+                    GenericUnOp::VectorVector(op) => match a {
+                        Value::Field(GenericField::Vector(f)) => {
+                            self.push(VectorField::Un(UnOp::Typed(op), f.into()))
+                        }
+                        _ => unreachable!(),
+                    },
                 }
             }
         }

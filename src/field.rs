@@ -8,9 +8,9 @@ use crate::{function::*, game::FieldsSource};
 
 #[derive(Debug, Clone, From)]
 pub enum GenericField<'a> {
-    #[from(types("CommonField<f32>"))]
+    #[from(types(f32, "CommonField<f32>"))]
     Scalar(ScalarField<'a>),
-    #[from(types("CommonField<Vec2>"))]
+    #[from(types(Vec2, "CommonField<Vec2>"))]
     Vector(VectorField<'a>),
 }
 
@@ -47,6 +47,7 @@ pub enum CommonField<T> {
 
 #[derive(Debug, Clone, From)]
 pub enum ScalarField<'a> {
+    #[from(types(f32))]
     Common(CommonField<f32>),
     ScalarUn(UnOp<ScalarUnOp>, Box<Self>),
     VectorUn(VectorUnScalarOp, Box<VectorField<'a>>),
@@ -56,6 +57,7 @@ pub enum ScalarField<'a> {
 
 #[derive(Debug, Clone, From)]
 pub enum VectorField<'a> {
+    #[from(types(Vec2))]
     Common(CommonField<Vec2>),
     Un(UnOp<VectorUnVectorOp>, Box<Self>),
     BinSV(BinOp<NoOp<Vec2>>, Box<ScalarField<'a>>, Box<Self>),
