@@ -2,18 +2,19 @@ use std::fmt;
 
 use derive_more::From;
 use eframe::epaint::Vec2;
+use enum_iterator::Sequence;
 
 use crate::{
-    BinOp, BinOperator, HomoBinOp, NoOp, ScalarUnOp, UnOp, UnOperator, VectorUnScalarOp,
-    VectorUnVectorOp,
+    world::World, BinOp, BinOperator, HomoBinOp, NoOp, ScalarUnOp, UnOp, UnOperator,
+    VectorUnScalarOp, VectorUnVectorOp,
 };
 
 #[derive(Debug, Clone, From)]
-pub enum GenericField {
+pub enum GenericField<'a> {
     #[from(types("CommonField<f32>"))]
-    Scalar(ScalarField),
+    Scalar(ScalarField<'a>),
     #[from(types("CommonField<Vec2>"))]
-    Vector(VectorField),
+    Vector(VectorField<'a>),
 }
 
 pub trait FieldValue: Copy + Default {
@@ -48,20 +49,53 @@ pub enum CommonField<T> {
 }
 
 #[derive(Debug, Clone, From)]
-pub enum ScalarField {
+pub enum ScalarField<'a> {
     Common(CommonField<f32>),
     ScalarUn(UnOp<ScalarUnOp>, Box<Self>),
-    VectorUn(VectorUnScalarOp, Box<VectorField>),
+    VectorUn(VectorUnScalarOp, Box<VectorField<'a>>),
     Bin(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
+    World(ScalarWorldField<'a>),
 }
 
 #[derive(Debug, Clone, From)]
-pub enum VectorField {
+pub enum VectorField<'a> {
     Common(CommonField<Vec2>),
     Un(UnOp<VectorUnVectorOp>, Box<Self>),
-    BinSV(BinOp<NoOp<Vec2>>, Box<ScalarField>, Box<Self>),
-    BinVS(BinOp<NoOp<Vec2>>, Box<Self>, Box<ScalarField>),
+    BinSV(BinOp<NoOp<Vec2>>, Box<ScalarField<'a>>, Box<Self>),
+    BinVS(BinOp<NoOp<Vec2>>, Box<Self>, Box<ScalarField<'a>>),
     BinVV(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Sequence)]
+pub enum ScalarFieldKind {
+    Density,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Sequence)]
+pub enum VectorWorldFieldKind {}
+
+#[derive(Clone, Copy)]
+pub struct ScalarWorldField<'a> {
+    pub kind: ScalarFieldKind,
+    pub world: &'a World,
+}
+
+impl<'a> fmt::Debug for ScalarWorldField<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.kind.fmt(f)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct VectorWorldField<'a> {
+    pub kind: VectorWorldFieldKind,
+    pub world: &'a World,
+}
+
+impl<'a> fmt::Debug for VectorWorldField<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.kind.fmt(f)
+    }
 }
 
 impl<T> CommonField<T>
@@ -96,18 +130,19 @@ where
     }
 }
 
-impl ScalarField {
+impl<'a> ScalarField<'a> {
     pub fn sample(&self, x: f32, y: f32) -> f32 {
         match self {
             ScalarField::Common(field) => field.sample(x, y),
             ScalarField::ScalarUn(op, field) => op.operate(field.sample(x, y)),
             ScalarField::VectorUn(op, field) => op.operate(field.sample(x, y)),
             ScalarField::Bin(op, a, b) => op.operate(a.sample(x, y), b.sample(x, y)),
+            ScalarField::World(field) => field.world.sample_scalar_field(field.kind, x, y),
         }
     }
 }
 
-impl VectorField {
+impl<'a> VectorField<'a> {
     pub fn sample(&self, x: f32, y: f32) -> Vec2 {
         match self {
             VectorField::Common(field) => field.sample(x, y),

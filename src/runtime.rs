@@ -2,11 +2,11 @@ use std::fmt;
 
 use crate::{EidosError, Function, GenericField, Value};
 
-pub type Stack = Vec<Value>;
+pub type Stack<'a> = Vec<Value<'a>>;
 
 #[derive(Default)]
-pub struct Runtime {
-    pub stack: Stack,
+pub struct Runtime<'a> {
+    pub stack: Stack<'a>,
 }
 
 #[derive(Debug)]
@@ -24,7 +24,7 @@ impl fmt::Display for Instr {
     }
 }
 
-impl Runtime {
+impl<'a> Runtime<'a> {
     pub fn validate_function_use(&self, function: Function) -> Result<(), EidosError> {
         function.validate_use(&self.stack)
     }
@@ -47,7 +47,7 @@ impl Runtime {
         }
         Ok(())
     }
-    pub fn call_value(&mut self, value: Value) -> Result<(), EidosError> {
+    pub fn call_value(&mut self, value: Value<'a>) -> Result<(), EidosError> {
         if let Value::Function(function) = value {
             self.call(function)
         } else {

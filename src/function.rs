@@ -51,16 +51,17 @@ pub trait UnOperator<T> {
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
-pub enum UnOp<T> {
-    Math(MathUnOp),
-    Typed(T),
-}
-
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum GenericUnOp {
+    Math(MathUnOp),
     Scalar(ScalarUnOp),
     VectorScalar(VectorUnScalarOp),
     VectorVector(VectorUnVectorOp),
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum UnOp<T> {
+    Math(MathUnOp),
+    Typed(T),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]

@@ -6,18 +6,23 @@ use eframe::epaint::Vec2;
 use crate::{CommonField, Function, GenericField, ScalarField, VectorField};
 
 #[derive(Debug, Clone, From)]
-pub enum Value {
+pub enum Value<'a> {
     #[from]
     Scalar(f32),
     #[from]
     Vector(Vec2),
-    #[from(types(ScalarField, VectorField, "CommonField<f32>", "CommonField<Vec2>"))]
-    Field(GenericField),
+    #[from(types(
+        "ScalarField<'a>",
+        "VectorField<'a>",
+        "CommonField<f32>",
+        "CommonField<Vec2>"
+    ))]
+    Field(GenericField<'a>),
     #[from]
     Function(Function),
 }
 
-impl Default for Value {
+impl<'a> Default for Value<'a> {
     fn default() -> Self {
         0.0.into()
     }
@@ -57,7 +62,7 @@ impl fmt::Display for Type {
     }
 }
 
-impl Value {
+impl<'a> Value<'a> {
     pub fn ty(&self) -> Type {
         match self {
             Value::Scalar(_) => Type::Value(FieldType::Scalar),
@@ -68,7 +73,7 @@ impl Value {
         }
     }
     #[track_caller]
-    pub fn unwrap_field(self) -> GenericField {
+    pub fn unwrap_field(self) -> GenericField<'a> {
         if let Value::Field(field) = self {
             field
         } else {

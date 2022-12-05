@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use eframe::egui::*;
 
-use crate::plot::MapPlot;
+use crate::{plot::MapPlot, ScalarFieldKind};
 
 pub struct World {
     pub static_objects: Vec<Object>,
@@ -50,13 +50,18 @@ impl World {
     }
     fn test_plot(&self, ui: &mut Ui) {
         MapPlot::new("test", Vec2::ZERO, 10.0, |x, y| {
-            let obstructed = self
-                .static_objects
-                .iter()
-                .any(|obj| polygon_contains(&obj.shape, vec2(x, y) + Vec2::splat(1e-5)));
-            obstructed as u8 as f32
+            self.sample_scalar_field(ScalarFieldKind::Density, x, y)
         })
         .ui(ui);
+    }
+    pub fn sample_scalar_field(&self, kind: ScalarFieldKind, x: f32, y: f32) -> f32 {
+        match kind {
+            ScalarFieldKind::Density => self
+                .static_objects
+                .iter()
+                .any(|obj| polygon_contains(&obj.shape, vec2(x, y) + Vec2::splat(1e-5)))
+                as u8 as f32,
+        }
     }
 }
 
