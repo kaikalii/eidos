@@ -11,7 +11,6 @@ use crate::{
     function::{Function, FunctionCategory},
     plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
     runtime::Runtime,
-    value::Value,
     word::SpellCommand,
     world::World,
 };
@@ -99,7 +98,7 @@ impl Game {
                 break;
             }
         }
-        self.world.spell_field = rt.top_field().cloned();
+        self.world.spell_field = rt.top().cloned();
         // Execute staging functions
         if error.is_none() {
             for function in &self.spell.staging {
@@ -132,11 +131,8 @@ impl Game {
         // Draw stack
         ui.horizontal_wrapped(|ui| {
             ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
-            for value in &rt.stack {
-                match value {
-                    Value::Field(field) => self.plot_generic_field(ui, SMALL_PLOT_SIZE, 50, field),
-                    Value::Function(_) => {}
-                }
+            for field in &rt.stack {
+                self.plot_generic_field(ui, SMALL_PLOT_SIZE, 50, field);
             }
         });
         // Draw word buttons

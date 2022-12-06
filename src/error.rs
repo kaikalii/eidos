@@ -1,6 +1,6 @@
 use std::{borrow::Cow, error::Error, fmt};
 
-use crate::{function::*, value::*};
+use crate::{field::Type, function::*};
 
 #[derive(Debug)]
 pub enum EidosError {

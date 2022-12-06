@@ -4,7 +4,7 @@ use derive_more::Display;
 use eframe::epaint::{vec2, Vec2};
 use enum_iterator::{all, Sequence};
 
-use crate::{error::EidosError, field::*, value::*};
+use crate::{error::EidosError, field::*};
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Function {
@@ -61,7 +61,7 @@ pub enum Nullary {
 }
 
 impl Nullary {
-    pub fn value(&self) -> Value {
+    pub fn field(&self) -> GenericField {
         match self {
             Nullary::Zero => CommonField::Uniform(0.0).into(),
             Nullary::One => CommonField::Uniform(1.0).into(),
@@ -83,7 +83,6 @@ pub enum Combinator1 {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Combinator2 {
-    Apply,
     Swap,
     Over,
 }
@@ -320,28 +319,27 @@ pub enum TypeConstraint {
 
 #[derive(Debug, Display, Clone, Copy)]
 pub enum ValueConstraint {
-    Exact(ValueType),
+    Exact(Type),
     Group(u8),
     Any,
 }
 
 #[derive(Default)]
 struct ConstraintContext {
-    values: HashMap<u8, ValueType>,
+    values: HashMap<u8, Type>,
 }
 
 impl TypeConstraint {
     fn matches(&self, ty: Type, ctx: &mut ConstraintContext) -> bool {
         match (self, ty) {
-            (TypeConstraint::Field(constraint), Type::Field(vt)) => constraint.matches(vt, ctx),
+            (TypeConstraint::Field(constraint), vt) => constraint.matches(vt, ctx),
             (TypeConstraint::Any, _) => true,
-            _ => false,
         }
     }
 }
 
 impl ValueConstraint {
-    fn matches(&self, ty: ValueType, ctx: &mut ConstraintContext) -> bool {
+    fn matches(&self, ty: Type, ctx: &mut ConstraintContext) -> bool {
         match self {
             ValueConstraint::Exact(vt) => vt == &ty,
             ValueConstraint::Group(i) => {
@@ -358,26 +356,26 @@ impl ValueConstraint {
 }
 
 impl Function {
-    pub fn validate_use(&self, stack: &[Value]) -> Result<(), EidosError> {
+    pub fn validate_use(&self, stack: &[GenericField]) -> Result<(), EidosError> {
         // Collect constraints
         use TypeConstraint::*;
         let constraints = match self {
             Function::ReadField(_) | Function::Nullary(_) => vec![],
             Function::WriteField(kind) => match kind {
                 GenericOutputFieldKind::Scalar(_) => {
-                    vec![Field(ValueConstraint::Exact(ValueType::Scalar))]
+                    vec![Field(ValueConstraint::Exact(Type::Scalar))]
                 }
                 GenericOutputFieldKind::Vector(_) => {
-                    vec![Field(ValueConstraint::Exact(ValueType::Vector))]
+                    vec![Field(ValueConstraint::Exact(Type::Vector))]
                 }
             },
             Function::Combinator1(_) => vec![Any],
             Function::Combinator2(_) => vec![Any; 2],
             Function::Un(op) => match op {
                 GenericUnOp::Math(_) => vec![Any],
-                GenericUnOp::Scalar(_) => vec![Field(ValueConstraint::Exact(ValueType::Scalar))],
+                GenericUnOp::Scalar(_) => vec![Field(ValueConstraint::Exact(Type::Scalar))],
                 GenericUnOp::VectorScalar(_) | GenericUnOp::VectorVector(_) => {
-                    vec![Field(ValueConstraint::Exact(ValueType::Vector))]
+                    vec![Field(ValueConstraint::Exact(Type::Vector))]
                 }
             },
             Function::Bin(op) => match op {

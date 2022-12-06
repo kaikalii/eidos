@@ -9,7 +9,6 @@ pub mod math;
 pub mod physics;
 pub mod plot;
 pub mod runtime;
-pub mod value;
 pub mod word;
 pub mod world;
 

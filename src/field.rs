@@ -14,6 +14,21 @@ pub enum GenericField {
     Vector(VectorField),
 }
 
+impl GenericField {
+    pub fn ty(&self) -> Type {
+        match self {
+            GenericField::Scalar(_) => Type::Scalar,
+            GenericField::Vector(_) => Type::Vector,
+        }
+    }
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Type {
+    Scalar,
+    Vector,
+}
+
 pub trait FieldValue: Copy + Default {
     fn x(x: f32) -> Self;
     fn y(y: f32) -> Self;
