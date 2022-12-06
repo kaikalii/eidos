@@ -3,9 +3,18 @@ use std::collections::HashMap;
 use eframe::egui::*;
 use rapier2d::prelude::*;
 
+use crate::field::{GenericField, ScalarInputFieldKind, VectorField, VectorOutputFieldKind};
+
 #[derive(Default)]
 pub struct World {
     pub objects: HashMap<RigidBodyHandle, Object>,
+    pub spell_field: Option<GenericField>,
+    pub outputs: OutputFields,
+}
+
+#[derive(Default)]
+pub struct OutputFields {
+    pub vectors: HashMap<VectorOutputFieldKind, VectorField>,
 }
 
 pub struct Object {
@@ -47,5 +56,20 @@ impl World {
         self.objects
             .values()
             .find(|obj| obj.shape.contains(p - obj.pos.to_vec2() - obj.shape_offset))
+    }
+    pub fn sample_scalar_field(&self, kind: ScalarInputFieldKind, x: f32, y: f32) -> f32 {
+        match kind {
+            ScalarInputFieldKind::Density => self
+                .find_object_at(pos2(x, y))
+                .map(|obj| obj.density)
+                .unwrap_or(0.0),
+        }
+    }
+    pub fn sample_vector_field(&self, kind: VectorOutputFieldKind, x: f32, y: f32) -> Vec2 {
+        self.outputs
+            .vectors
+            .get(&kind)
+            .map(|field| field.sample(self, x, y))
+            .unwrap_or_default()
     }
 }

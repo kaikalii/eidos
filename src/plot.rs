@@ -12,7 +12,10 @@ use eframe::{
 use itertools::Itertools;
 use rand::prelude::*;
 
-use crate::field::{FieldKind, GenericInputFieldKind};
+use crate::{
+    field::{FieldKind, GenericInputFieldKind},
+    world::World,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FieldPlotKey {
@@ -28,7 +31,7 @@ enum FieldPlotKind {
 pub trait FieldPlot {
     type Value: PartitionAndPlottable;
     fn key(&self) -> FieldPlotKey;
-    fn get_z(&self, x: f32, y: f32) -> Self::Value;
+    fn get_z(&self, world: &World, x: f32, y: f32) -> Self::Value;
     fn get_color(&self, t: Self::Value) -> Color32;
 }
 
@@ -62,7 +65,8 @@ pub fn default_vector_color(t: Vec2) -> Color32 {
     Hsva::new(h, s, v, 1.0).into()
 }
 
-pub struct MapPlot {
+pub struct MapPlot<'w> {
+    world: &'w World,
     center: Pos2,
     range: f32,
     size: f32,
@@ -78,9 +82,10 @@ fn time() -> f64 {
         .as_secs_f64()
 }
 
-impl MapPlot {
-    pub fn new(center: Pos2, range: f32) -> Self {
+impl<'w> MapPlot<'w> {
+    pub fn new(world: &'w World, center: Pos2, range: f32) -> Self {
         Self {
+            world,
             center,
             range,
             size: 200.0,
@@ -128,7 +133,7 @@ impl MapPlot {
                         if pos2(x, y).distance(self.center) > self.range {
                             continue;
                         }
-                        let z = field_plot.get_z(x, y);
+                        let z = field_plot.get_z(self.world, x, y);
                         let dx = (time + rng.gen::<f64>() * 2.0 * f64::consts::PI).sin() as f32
                             * F::Value::wiggle_delta(point_radius);
                         let dy = (time + rng.gen::<f64>() * 2.0 * f64::consts::PI).sin() as f32
@@ -141,7 +146,7 @@ impl MapPlot {
                     if p.to_vec2().length() < self.range {
                         let x = p.x as f32;
                         let y = p.y as f32;
-                        let z = field_plot.get_z(x, y);
+                        let z = field_plot.get_z(self.world, x, y);
                         let anchor = if y > self.range * 0.9 {
                             Align2::RIGHT_TOP
                         } else if x < -self.range * 0.5 {
@@ -167,9 +172,18 @@ impl MapPlot {
                 }
             });
     }
-    pub fn number_ui(ui: &mut Ui, size: f32, resolution: usize, n: f32, key: FieldPlotKey) {
+    pub fn number_ui(
+        world: &'w World,
+        ui: &mut Ui,
+        size: f32,
+        resolution: usize,
+        n: f32,
+        key: FieldPlotKey,
+    ) {
         let time = time();
-        let plot = Self::new(Pos2::ZERO, 2.1).size(size).resolution(resolution);
+        let plot = Self::new(world, Pos2::ZERO, 2.1)
+            .size(size)
+            .resolution(resolution);
         let rng = RefCell::new(SmallRng::seed_from_u64(0));
         let point_radius = plot.range * plot.size / plot.resolution as f32 * 0.1;
         let delta = move || {

@@ -61,7 +61,7 @@ pub enum Nullary {
 }
 
 impl Nullary {
-    pub fn value<'a>(&self) -> Value<'a> {
+    pub fn value(&self) -> Value {
         match self {
             Nullary::Zero => CommonField::Uniform(0.0).into(),
             Nullary::One => CommonField::Uniform(1.0).into(),

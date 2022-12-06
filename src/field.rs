@@ -4,14 +4,14 @@ use derive_more::{Display, From};
 use eframe::epaint::Vec2;
 use enum_iterator::Sequence;
 
-use crate::{function::*, game::FieldsSource};
+use crate::{function::*, world::World};
 
 #[derive(Debug, Clone, From)]
-pub enum GenericField<'a> {
+pub enum GenericField {
     #[from(types(f32, "CommonField<f32>"))]
-    Scalar(ScalarField<'a>),
+    Scalar(ScalarField),
     #[from(types(Vec2, "CommonField<Vec2>"))]
-    Vector(VectorField<'a>),
+    Vector(VectorField),
 }
 
 pub trait FieldValue: Copy + Default {
@@ -46,24 +46,24 @@ pub enum CommonField<T> {
 }
 
 #[derive(Debug, Clone, From)]
-pub enum ScalarField<'a> {
+pub enum ScalarField {
     #[from(types(f32))]
     Common(CommonField<f32>),
     ScalarUn(UnOp<ScalarUnOp>, Box<Self>),
-    VectorUn(VectorUnScalarOp, Box<VectorField<'a>>),
+    VectorUn(VectorUnScalarOp, Box<VectorField>),
     Bin(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
-    World(ScalarWorldField<'a>),
+    World(ScalarInputFieldKind),
 }
 
 #[derive(Debug, Clone, From)]
-pub enum VectorField<'a> {
+pub enum VectorField {
     #[from(types(Vec2))]
     Common(CommonField<Vec2>),
     Un(UnOp<VectorUnVectorOp>, Box<Self>),
-    BinSV(BinOp<NoOp<Vec2>>, ScalarField<'a>, Box<Self>),
-    BinVS(BinOp<NoOp<Vec2>>, Box<Self>, ScalarField<'a>),
+    BinSV(BinOp<NoOp<Vec2>>, ScalarField, Box<Self>),
+    BinVS(BinOp<NoOp<Vec2>>, Box<Self>, ScalarField),
     BinVV(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
-    World(VectorWorldField<'a>),
+    World(VectorOutputFieldKind),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
@@ -91,30 +91,6 @@ pub enum ScalarInputFieldKind {
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
 pub enum VectorOutputFieldKind {
     Force,
-}
-
-#[derive(Clone, Copy)]
-pub struct ScalarWorldField<'a> {
-    pub kind: ScalarInputFieldKind,
-    pub source: FieldsSource<'a>,
-}
-
-impl<'a> fmt::Debug for ScalarWorldField<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.kind.fmt(f)
-    }
-}
-
-#[derive(Clone, Copy)]
-pub struct VectorWorldField<'a> {
-    pub kind: VectorOutputFieldKind,
-    pub source: FieldsSource<'a>,
-}
-
-impl<'a> fmt::Debug for VectorWorldField<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.kind.fmt(f)
-    }
 }
 
 impl<T> CommonField<T>
@@ -149,14 +125,14 @@ where
     }
 }
 
-impl<'a> ScalarField<'a> {
-    pub fn sample(&self, x: f32, y: f32) -> f32 {
+impl ScalarField {
+    pub fn sample(&self, world: &World, x: f32, y: f32) -> f32 {
         match self {
             ScalarField::Common(field) => field.sample(x, y),
-            ScalarField::ScalarUn(op, field) => op.operate(field.sample(x, y)),
-            ScalarField::VectorUn(op, field) => op.operate(field.sample(x, y)),
-            ScalarField::Bin(op, a, b) => op.operate(a.sample(x, y), b.sample(x, y)),
-            ScalarField::World(field) => field.source.sample_scalar_field(field.kind, x, y),
+            ScalarField::ScalarUn(op, field) => op.operate(field.sample(world, x, y)),
+            ScalarField::VectorUn(op, field) => op.operate(field.sample(world, x, y)),
+            ScalarField::Bin(op, a, b) => op.operate(a.sample(world, x, y), b.sample(world, x, y)),
+            ScalarField::World(kind) => world.sample_scalar_field(*kind, x, y),
         }
     }
     fn uniform(&self) -> Option<f32> {
@@ -193,15 +169,21 @@ impl<'a> ScalarField<'a> {
     }
 }
 
-impl<'a> VectorField<'a> {
-    pub fn sample(&self, x: f32, y: f32) -> Vec2 {
+impl VectorField {
+    pub fn sample(&self, world: &World, x: f32, y: f32) -> Vec2 {
         match self {
             VectorField::Common(field) => field.sample(x, y),
-            VectorField::Un(op, field) => op.operate(field.sample(x, y)),
-            VectorField::BinSV(op, a, b) => op.operate(a.sample(x, y), b.sample(x, y)),
-            VectorField::BinVS(op, a, b) => op.operate(a.sample(x, y), b.sample(x, y)),
-            VectorField::BinVV(op, a, b) => op.operate(a.sample(x, y), b.sample(x, y)),
-            VectorField::World(field) => field.source.sample_vector_field(field.kind, x, y),
+            VectorField::Un(op, field) => op.operate(field.sample(world, x, y)),
+            VectorField::BinSV(op, a, b) => {
+                op.operate(a.sample(world, x, y), b.sample(world, x, y))
+            }
+            VectorField::BinVS(op, a, b) => {
+                op.operate(a.sample(world, x, y), b.sample(world, x, y))
+            }
+            VectorField::BinVV(op, a, b) => {
+                op.operate(a.sample(world, x, y), b.sample(world, x, y))
+            }
+            VectorField::World(kind) => world.sample_vector_field(*kind, x, y),
         }
     }
     fn uniform(&self) -> Option<Vec2> {
