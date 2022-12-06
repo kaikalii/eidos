@@ -24,7 +24,7 @@ fn main() {
             ..Default::default()
         },
         Box::new(|cc| {
-            cc.egui_ctx.set_pixels_per_point(2.0);
+            cc.egui_ctx.set_pixels_per_point(1.8);
             Box::new(Game::default())
         }),
     );

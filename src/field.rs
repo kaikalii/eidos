@@ -1,7 +1,7 @@
 use std::fmt;
 
 use derive_more::{Display, From};
-use eframe::epaint::Vec2;
+use eframe::epaint::{Pos2, Vec2};
 use enum_iterator::Sequence;
 
 use crate::{function::*, world::World};
@@ -52,7 +52,7 @@ pub enum ScalarField {
     ScalarUn(UnOp<ScalarUnOp>, Box<Self>),
     VectorUn(VectorUnScalarOp, Box<VectorField>),
     Bin(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
-    World(ScalarInputFieldKind),
+    World(GenericScalarFieldKind),
 }
 
 #[derive(Debug, Clone, From)]
@@ -63,30 +63,52 @@ pub enum VectorField {
     BinSV(BinOp<NoOp<Vec2>>, ScalarField, Box<Self>),
     BinVS(BinOp<NoOp<Vec2>>, Box<Self>, ScalarField),
     BinVV(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
-    World(VectorOutputFieldKind),
+    World(GenericVectorFieldKind),
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
-pub enum FieldKind<T> {
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From, Sequence)]
+#[from(forward)]
+pub enum FieldKind {
     Uncasted,
-    Typed(T),
+    Typed(GenericFieldKind),
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
-pub enum GenericInputFieldKind {
-    Scalar(ScalarInputFieldKind),
-    Vector(VectorOutputFieldKind),
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From, Sequence)]
+pub enum GenericFieldKind {
+    #[from(types(ScalarInputFieldKind, ScalarOutputFieldKind))]
+    Scalar(GenericScalarFieldKind),
+    #[from(types(VectorInputFieldKind, VectorOutputFieldKind))]
+    Vector(GenericVectorFieldKind),
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From, Sequence)]
 pub enum GenericOutputFieldKind {
+    Scalar(ScalarOutputFieldKind),
     Vector(VectorOutputFieldKind),
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From, Sequence)]
+pub enum GenericScalarFieldKind {
+    Input(ScalarInputFieldKind),
+    Output(ScalarOutputFieldKind),
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From, Sequence)]
+pub enum GenericVectorFieldKind {
+    Input(VectorInputFieldKind),
+    Output(VectorOutputFieldKind),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
 pub enum ScalarInputFieldKind {
     Density,
 }
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
+pub enum VectorInputFieldKind {}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
+pub enum ScalarOutputFieldKind {}
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
 pub enum VectorOutputFieldKind {
@@ -105,14 +127,14 @@ where
                 .collect(),
         )
     }
-    pub fn sample(&self, x: f32, y: f32) -> T {
+    pub fn sample(&self, world: &World, pos: Pos2) -> T {
         match self {
             CommonField::Uniform(k) => *k,
-            CommonField::X => T::x(x),
-            CommonField::Y => T::y(y),
+            CommonField::X => T::x(pos.x - world.player_pos.x),
+            CommonField::Y => T::y(pos.y - world.player_pos.y),
             CommonField::Array(data) => {
-                let x = x.round();
-                let y = y.round();
+                let x = pos.x.round();
+                let y = pos.y.round();
                 if x < 0.0 || y < 0.0 {
                     return T::default();
                 }
@@ -126,13 +148,13 @@ where
 }
 
 impl ScalarField {
-    pub fn sample(&self, world: &World, x: f32, y: f32) -> f32 {
+    pub fn sample(&self, world: &World, pos: Pos2) -> f32 {
         match self {
-            ScalarField::Common(field) => field.sample(x, y),
-            ScalarField::ScalarUn(op, field) => op.operate(field.sample(world, x, y)),
-            ScalarField::VectorUn(op, field) => op.operate(field.sample(world, x, y)),
-            ScalarField::Bin(op, a, b) => op.operate(a.sample(world, x, y), b.sample(world, x, y)),
-            ScalarField::World(kind) => world.sample_scalar_field(*kind, x, y),
+            ScalarField::Common(field) => field.sample(world, pos),
+            ScalarField::ScalarUn(op, field) => op.operate(field.sample(world, pos)),
+            ScalarField::VectorUn(op, field) => op.operate(field.sample(world, pos)),
+            ScalarField::Bin(op, a, b) => op.operate(a.sample(world, pos), b.sample(world, pos)),
+            ScalarField::World(kind) => world.sample_scalar_field(*kind, pos),
         }
     }
     fn uniform(&self) -> Option<f32> {
@@ -170,20 +192,14 @@ impl ScalarField {
 }
 
 impl VectorField {
-    pub fn sample(&self, world: &World, x: f32, y: f32) -> Vec2 {
+    pub fn sample(&self, world: &World, pos: Pos2) -> Vec2 {
         match self {
-            VectorField::Common(field) => field.sample(x, y),
-            VectorField::Un(op, field) => op.operate(field.sample(world, x, y)),
-            VectorField::BinSV(op, a, b) => {
-                op.operate(a.sample(world, x, y), b.sample(world, x, y))
-            }
-            VectorField::BinVS(op, a, b) => {
-                op.operate(a.sample(world, x, y), b.sample(world, x, y))
-            }
-            VectorField::BinVV(op, a, b) => {
-                op.operate(a.sample(world, x, y), b.sample(world, x, y))
-            }
-            VectorField::World(kind) => world.sample_vector_field(*kind, x, y),
+            VectorField::Common(field) => field.sample(world, pos),
+            VectorField::Un(op, field) => op.operate(field.sample(world, pos)),
+            VectorField::BinSV(op, a, b) => op.operate(a.sample(world, pos), b.sample(world, pos)),
+            VectorField::BinVS(op, a, b) => op.operate(a.sample(world, pos), b.sample(world, pos)),
+            VectorField::BinVV(op, a, b) => op.operate(a.sample(world, pos), b.sample(world, pos)),
+            VectorField::World(kind) => world.sample_vector_field(*kind, pos),
         }
     }
     fn uniform(&self) -> Option<Vec2> {

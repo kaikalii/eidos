@@ -1,11 +1,9 @@
-use eframe::epaint::Vec2;
 use rapier2d::{na::Unit, prelude::*};
 
 use crate::{
     field::VectorOutputFieldKind,
-    game::Game,
     math::Convert,
-    world::{GraphicalShape, Object},
+    world::{GraphicalShape, Object, World},
 };
 
 pub struct PhysicsContext {
@@ -59,42 +57,18 @@ impl PhysicsContext {
     }
 }
 
-impl Game {
-    pub fn initialize_physics(&mut self) {
-        // Ground
-        self.add_object(
-            GraphicalShape::HalfSpace(Vec2::Y),
-            RigidBodyBuilder::fixed(),
-            |c| c.density(3.0),
-        );
-
-        self.add_object(
-            GraphicalShape::Circle(1.0),
-            RigidBodyBuilder::dynamic().translation([3.0, 10.0].into()),
-            |c| c.density(2.0).restitution(1.0),
-        );
-        // Player
-        self.player.body_handle = self.add_object(
-            GraphicalShape::Capsule {
-                half_height: 0.25,
-                radius: 0.25,
-            },
-            RigidBodyBuilder::dynamic().translation([2.0, 0.5].into()),
-            |c| c.density(1.0),
-        );
-    }
+impl World {
     pub fn run_physics(&mut self) {
         // Set forces
         if let Some(field) = self
-            .world
             .outputs
             .vectors
             .get(&VectorOutputFieldKind::Force)
             .cloned()
         {
-            for handle in self.world.objects.keys() {
-                let pos = self.world.objects[handle].pos;
-                let vector = field.sample(&self.world, pos.x, pos.y);
+            for handle in self.objects.keys() {
+                let pos = self.objects[handle].pos;
+                let vector = field.sample(self, pos);
                 let body = &mut self.physics.bodies[*handle];
                 body.reset_forces(true);
                 body.add_force(vector.convert(), true);
@@ -103,11 +77,12 @@ impl Game {
         // Step physics
         self.physics.step();
         // Set object positions from physics system
-        for obj in self.world.objects.values_mut() {
+        for obj in self.objects.values_mut() {
             let body = self.physics.bodies.get(obj.body_handle).unwrap();
             obj.pos = body.translation().convert();
             obj.rot = body.rotation().angle();
         }
+        self.player_pos = self.objects[&self.player.body_handle].pos;
     }
     pub fn add_object(
         &mut self,
@@ -146,7 +121,7 @@ impl Game {
         self.physics
             .colliders
             .insert_with_parent(collider, body_handle, &mut self.physics.bodies);
-        self.world.objects.insert(body_handle, object);
+        self.objects.insert(body_handle, object);
         body_handle
     }
 }

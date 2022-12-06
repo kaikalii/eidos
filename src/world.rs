@@ -3,23 +3,65 @@ use std::collections::HashMap;
 use eframe::egui::*;
 use rapier2d::prelude::*;
 
-use crate::{
-    field::{GenericField, ScalarInputFieldKind, VectorField, VectorOutputFieldKind},
-    math::rotate,
-};
+use crate::{field::*, math::rotate, physics::PhysicsContext};
 
-#[derive(Default)]
 pub struct World {
+    pub player_pos: Pos2,
+    pub player: Player,
     pub objects: HashMap<RigidBodyHandle, Object>,
+    pub physics: PhysicsContext,
     pub spell_field: Option<GenericField>,
     pub outputs: OutputFields,
 }
 
+pub struct Player {
+    pub body_handle: RigidBodyHandle,
+}
+
 #[derive(Default)]
 pub struct OutputFields {
+    pub scalars: HashMap<ScalarOutputFieldKind, ScalarField>,
     pub vectors: HashMap<VectorOutputFieldKind, VectorField>,
 }
 
+impl Default for World {
+    fn default() -> Self {
+        // Init world
+        let mut world = World {
+            player_pos: Pos2::ZERO,
+            player: Player {
+                body_handle: RigidBodyHandle::default(),
+            },
+            physics: PhysicsContext::default(),
+            objects: HashMap::new(),
+            outputs: OutputFields::default(),
+            spell_field: None,
+        };
+        // Add objects
+        // Ground
+        world.add_object(
+            GraphicalShape::HalfSpace(Vec2::Y),
+            RigidBodyBuilder::fixed(),
+            |c| c.density(3.0),
+        );
+        // Rock?
+        world.add_object(
+            GraphicalShape::Circle(1.0),
+            RigidBodyBuilder::dynamic().translation([3.0, 10.0].into()),
+            |c| c.density(2.0).restitution(1.0),
+        );
+        // Player
+        world.player.body_handle = world.add_object(
+            GraphicalShape::Capsule {
+                half_height: 0.25,
+                radius: 0.25,
+            },
+            RigidBodyBuilder::dynamic().translation([2.0, 0.5].into()),
+            |c| c.density(1.0),
+        );
+        world
+    }
+}
 pub struct Object {
     pub pos: Pos2,
     pub rot: f32,
@@ -56,6 +98,9 @@ impl GraphicalShape {
 }
 
 impl World {
+    pub fn player_pos(&self) -> Pos2 {
+        self.player_pos
+    }
     pub fn find_object_at(&self, p: Pos2) -> Option<&Object> {
         self.objects.values().find(|obj| {
             let transformed_point =
@@ -63,19 +108,37 @@ impl World {
             obj.shape.contains(transformed_point)
         })
     }
-    pub fn sample_scalar_field(&self, kind: ScalarInputFieldKind, x: f32, y: f32) -> f32 {
+    pub fn sample_scalar_field(&self, kind: GenericScalarFieldKind, pos: Pos2) -> f32 {
+        match kind {
+            GenericScalarFieldKind::Input(kind) => self.sample_input_scalar_field(kind, pos),
+            GenericScalarFieldKind::Output(kind) => self.sample_output_scalar_field(kind, pos),
+        }
+    }
+    pub fn sample_vector_field(&self, kind: GenericVectorFieldKind, pos: Pos2) -> Vec2 {
+        match kind {
+            GenericVectorFieldKind::Input(kind) => self.sample_input_vector_field(kind, pos),
+            GenericVectorFieldKind::Output(kind) => self.sample_output_vector_field(kind, pos),
+        }
+    }
+    pub fn sample_input_scalar_field(&self, kind: ScalarInputFieldKind, pos: Pos2) -> f32 {
         match kind {
             ScalarInputFieldKind::Density => self
-                .find_object_at(pos2(x, y))
+                .find_object_at(pos)
                 .map(|obj| obj.density)
                 .unwrap_or(0.0),
         }
     }
-    pub fn sample_vector_field(&self, kind: VectorOutputFieldKind, x: f32, y: f32) -> Vec2 {
+    pub fn sample_input_vector_field(&self, kind: VectorInputFieldKind, _pos: Pos2) -> Vec2 {
+        match kind {}
+    }
+    pub fn sample_output_scalar_field(&self, kind: ScalarOutputFieldKind, _pos: Pos2) -> f32 {
+        match kind {}
+    }
+    pub fn sample_output_vector_field(&self, kind: VectorOutputFieldKind, pos: Pos2) -> Vec2 {
         self.outputs
             .vectors
             .get(&kind)
-            .map(|field| field.sample(self, x, y))
+            .map(|field| field.sample(self, pos))
             .unwrap_or_default()
     }
 }

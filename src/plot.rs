@@ -12,21 +12,11 @@ use eframe::{
 use itertools::Itertools;
 use rand::prelude::*;
 
-use crate::{
-    field::{FieldKind, GenericInputFieldKind},
-    world::World,
-};
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FieldPlotKey {
-    Kind(FieldKind<GenericInputFieldKind>),
-    Staging(usize),
-}
+use crate::world::World;
 
 pub trait FieldPlot {
     type Value: PartitionAndPlottable;
-    fn key(&self) -> FieldPlotKey;
-    fn get_z(&self, world: &World, x: f32, y: f32) -> Self::Value;
+    fn get_z(&self, world: &World, pos: Pos2) -> Self::Value;
     fn get_color(&self, t: Self::Value) -> Color32;
 }
 
@@ -109,7 +99,7 @@ impl<'w> MapPlot<'w> {
             .show_y(false)
             .show_background(false)
     }
-    pub fn ui<F>(&self, ui: &mut Ui, field_plot: F)
+    pub fn ui<F>(&self, ui: &mut Ui, field_plot: &F)
     where
         F: FieldPlot,
     {
@@ -129,7 +119,7 @@ impl<'w> MapPlot<'w> {
                     if pos2(x, y).distance(self.center) > self.range {
                         continue;
                     }
-                    let z = field_plot.get_z(self.world, x, y);
+                    let z = field_plot.get_z(self.world, pos2(x, y));
                     let dx = (time + dxt * 2.0 * f64::consts::PI).sin() as f32
                         * F::Value::wiggle_delta(point_radius);
                     let dy = (time + dyt * 2.0 * f64::consts::PI).sin() as f32
@@ -137,12 +127,12 @@ impl<'w> MapPlot<'w> {
                     points.push((x + dx, y + dy, z));
                 }
             }
-            F::Value::partition_and_plot(plot_ui, &field_plot, point_radius, points);
+            F::Value::partition_and_plot(plot_ui, field_plot, point_radius, points);
             if let Some(p) = plot_ui.pointer_coordinate() {
-                if p.to_vec2().length() < self.range {
+                if pos2(p.x as f32, p.y as f32).distance(self.center) < self.range {
                     let x = p.x as f32;
                     let y = p.y as f32;
-                    let z = field_plot.get_z(self.world, x, y);
+                    let z = field_plot.get_z(self.world, pos2(x, y));
                     let anchor = if y > self.range * 0.9 {
                         Align2::RIGHT_TOP
                     } else if x < -self.range * 0.5 {

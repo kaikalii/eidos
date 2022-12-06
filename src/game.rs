@@ -5,13 +5,11 @@ use eframe::{
     epaint::{ahash::HashMap, color::Hsva},
 };
 use enum_iterator::all;
-use rapier2d::prelude::RigidBodyHandle;
 
 use crate::{
     field::*,
     function::{Function, FunctionCategory},
-    physics::PhysicsContext,
-    plot::{default_scalar_color, default_vector_color, FieldPlot, FieldPlotKey, MapPlot},
+    plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
     runtime::Runtime,
     value::Value,
     word::SpellCommand,
@@ -20,44 +18,32 @@ use crate::{
 
 pub struct Game {
     pub world: World,
-    pub physics: PhysicsContext,
     ui_state: UiState,
     spell: SpellState,
     last_time: Instant,
-    pub player: Player,
 }
 
 impl Default for Game {
     fn default() -> Self {
-        let mut game = Game {
+        Game {
             world: World::default(),
             ui_state: UiState::default(),
             spell: SpellState::default(),
             last_time: Instant::now(),
-            physics: PhysicsContext::default(),
-            player: Player {
-                body_handle: Default::default(),
-            },
-        };
-        game.initialize_physics();
-        game
+        }
     }
 }
 
-pub struct Player {
-    pub body_handle: RigidBodyHandle,
-}
-
 struct UiState {
-    fields_visible: HashMap<FieldKind<GenericInputFieldKind>, bool>,
+    fields_visible: HashMap<FieldKind, bool>,
 }
 
 impl Default for UiState {
     fn default() -> Self {
         UiState {
             fields_visible: [
-                FieldKind::Typed(GenericInputFieldKind::Scalar(ScalarInputFieldKind::Density)),
-                FieldKind::Typed(GenericInputFieldKind::Vector(VectorOutputFieldKind::Force)),
+                ScalarInputFieldKind::Density.into(),
+                VectorOutputFieldKind::Force.into(),
                 FieldKind::Uncasted,
             ]
             .map(|kind| (kind, true))
@@ -125,7 +111,7 @@ impl Game {
         // Draw ui
         Grid::new("fields").show(ui, |ui| {
             // Draw fields
-            for field_kind in all::<FieldKind<GenericInputFieldKind>>() {
+            for field_kind in all::<FieldKind>() {
                 ui.toggle_value(
                     self.ui_state
                         .fields_visible
@@ -135,7 +121,7 @@ impl Game {
                 );
             }
             ui.end_row();
-            for field_kind in all::<FieldKind<GenericInputFieldKind>>() {
+            for field_kind in all::<FieldKind>() {
                 if self.ui_state.fields_visible[&field_kind] {
                     self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, field_kind);
                 } else {
@@ -146,15 +132,9 @@ impl Game {
         // Draw stack
         ui.horizontal_wrapped(|ui| {
             ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
-            for (i, value) in rt.stack.iter().enumerate() {
+            for value in &rt.stack {
                 match value {
-                    Value::Field(field) => self.plot_generic_field(
-                        ui,
-                        SMALL_PLOT_SIZE,
-                        50,
-                        FieldPlotKey::Staging(i),
-                        field,
-                    ),
+                    Value::Field(field) => self.plot_generic_field(ui, SMALL_PLOT_SIZE, 50, field),
                     Value::Function(_) => {}
                 }
             }
@@ -181,14 +161,10 @@ impl Game {
             });
         }
         // Run physics
-        self.run_physics();
+        self.world.run_physics();
     }
-}
-
-impl Game {
     fn init_plot(&self, size: f32, resolution: usize) -> MapPlot {
-        let player_pos = self.world.objects[&self.player.body_handle].pos;
-        MapPlot::new(&self.world, player_pos + Vec2::Y, 5.0)
+        MapPlot::new(&self.world, self.world.player_pos() + Vec2::Y, 5.0)
             .size(size)
             .resolution(resolution)
     }
@@ -197,7 +173,6 @@ impl Game {
         ui: &mut Ui,
         size: f32,
         resolution: usize,
-        key: FieldPlotKey,
         field: &GenericField,
     ) {
         let plot = self.init_plot(size, resolution);
@@ -205,39 +180,30 @@ impl Game {
             GenericField::Scalar(ScalarField::Common(CommonField::Uniform(n))) => {
                 MapPlot::number_ui(&self.world, ui, size, resolution, *n)
             }
-            GenericField::Scalar(field) => plot.ui(ui, (field, key)),
-            GenericField::Vector(field) => plot.ui(ui, (field, key)),
+            GenericField::Scalar(field) => plot.ui(ui, field),
+            GenericField::Vector(field) => plot.ui(ui, field),
         }
     }
-    pub fn plot_field_kind(
-        &self,
-        ui: &mut Ui,
-        size: f32,
-        resolution: usize,
-        kind: FieldKind<GenericInputFieldKind>,
-    ) {
+    pub fn plot_field_kind(&self, ui: &mut Ui, size: f32, resolution: usize, kind: FieldKind) {
         let plot = self.init_plot(size, resolution);
         match kind {
             FieldKind::Uncasted => {
                 if let Some(field) = &self.world.spell_field {
-                    self.plot_generic_field(ui, size, resolution, FieldPlotKey::Kind(kind), field)
+                    self.plot_generic_field(ui, size, resolution, field)
                 } else {
                     ui.allocate_exact_size(vec2(size, size), Sense::hover());
                 }
             }
-            FieldKind::Typed(GenericInputFieldKind::Scalar(kind)) => plot.ui(ui, kind),
-            FieldKind::Typed(GenericInputFieldKind::Vector(kind)) => plot.ui(ui, kind),
+            FieldKind::Typed(GenericFieldKind::Scalar(kind)) => plot.ui(ui, &kind),
+            FieldKind::Typed(GenericFieldKind::Vector(kind)) => plot.ui(ui, &kind),
         }
     }
 }
 
-impl<'a> FieldPlot for (&'a ScalarField, FieldPlotKey) {
+impl FieldPlot for ScalarField {
     type Value = f32;
-    fn key(&self) -> FieldPlotKey {
-        self.1
-    }
-    fn get_z(&self, world: &World, x: f32, y: f32) -> Self::Value {
-        self.0.sample(world, x, y)
+    fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
+        self.sample(world, pos)
     }
     fn get_color(&self, t: Self::Value) -> Color32 {
         let h = if t > 0.5 { 0.5 } else { 0.0 };
@@ -247,39 +213,30 @@ impl<'a> FieldPlot for (&'a ScalarField, FieldPlotKey) {
     }
 }
 
-impl<'a> FieldPlot for (&'a VectorField, FieldPlotKey) {
+impl FieldPlot for VectorField {
     type Value = Vec2;
-    fn key(&self) -> FieldPlotKey {
-        self.1
-    }
-    fn get_z(&self, world: &World, x: f32, y: f32) -> Self::Value {
-        self.0.sample(world, x, y)
+    fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
+        self.sample(world, pos)
     }
     fn get_color(&self, t: Self::Value) -> Color32 {
         default_vector_color(t)
     }
 }
 
-impl FieldPlot for ScalarInputFieldKind {
+impl FieldPlot for GenericScalarFieldKind {
     type Value = f32;
-    fn key(&self) -> FieldPlotKey {
-        FieldPlotKey::Kind(FieldKind::Typed(GenericInputFieldKind::Scalar(*self)))
-    }
-    fn get_z(&self, world: &World, x: f32, y: f32) -> Self::Value {
-        world.sample_scalar_field(*self, x, y)
+    fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
+        world.sample_scalar_field(*self, pos)
     }
     fn get_color(&self, t: Self::Value) -> Color32 {
         default_scalar_color(t)
     }
 }
 
-impl FieldPlot for VectorOutputFieldKind {
+impl FieldPlot for GenericVectorFieldKind {
     type Value = Vec2;
-    fn key(&self) -> FieldPlotKey {
-        FieldPlotKey::Kind(FieldKind::Typed(GenericInputFieldKind::Vector(*self)))
-    }
-    fn get_z(&self, world: &World, x: f32, y: f32) -> Self::Value {
-        world.sample_vector_field(*self, x, y)
+    fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
+        world.sample_vector_field(*self, pos)
     }
     fn get_color(&self, t: Self::Value) -> Color32 {
         default_vector_color(t)

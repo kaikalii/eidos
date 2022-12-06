@@ -8,7 +8,7 @@ use crate::{error::EidosError, field::*, value::*};
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Function {
-    ReadField(GenericInputFieldKind),
+    ReadField(GenericFieldKind),
     WriteField(GenericOutputFieldKind),
     Nullary(Nullary),
     Combinator1(Combinator1),
@@ -31,7 +31,7 @@ impl FunctionCategory {
     pub fn functions(&self) -> Box<dyn Iterator<Item = Function>> {
         match self {
             FunctionCategory::ReadField => {
-                Box::new(all::<GenericInputFieldKind>().map(Function::ReadField))
+                Box::new(all::<GenericFieldKind>().map(Function::ReadField))
             }
             FunctionCategory::WriteField => {
                 Box::new(all::<GenericOutputFieldKind>().map(Function::WriteField))
@@ -364,6 +364,9 @@ impl Function {
         let constraints = match self {
             Function::ReadField(_) | Function::Nullary(_) => vec![],
             Function::WriteField(kind) => match kind {
+                GenericOutputFieldKind::Scalar(_) => {
+                    vec![Field(ValueConstraint::Exact(ValueType::Scalar))]
+                }
                 GenericOutputFieldKind::Vector(_) => {
                     vec![Field(ValueConstraint::Exact(ValueType::Vector))]
                 }

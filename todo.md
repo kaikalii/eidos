@@ -1,4 +1,3 @@
-- Fix sampling offset
 - Remove function values
 - Add index function
 - Improve functions

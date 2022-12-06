@@ -54,8 +54,8 @@ impl Runtime {
         self.validate_function_use(function)?;
         match function {
             Function::ReadField(field_kind) => match field_kind {
-                GenericInputFieldKind::Scalar(kind) => self.push(ScalarField::World(kind)),
-                GenericInputFieldKind::Vector(kind) => self.push(VectorField::World(kind)),
+                GenericFieldKind::Scalar(kind) => self.push(ScalarField::World(kind)),
+                GenericFieldKind::Vector(kind) => self.push(VectorField::World(kind)),
             },
             Function::WriteField(field_kind) => {
                 let field = self.pop_field();
