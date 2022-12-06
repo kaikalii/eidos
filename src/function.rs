@@ -8,7 +8,8 @@ use crate::{error::EidosError, field::*, value::*};
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Function {
-    ReadField(GenericFieldKind),
+    ReadField(GenericInputFieldKind),
+    WriteField(GenericOutputFieldKind),
     Nullary(Nullary),
     Combinator1(Combinator1),
     Combinator2(Combinator2),
@@ -19,6 +20,7 @@ pub enum Function {
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum FunctionCategory {
     ReadField,
+    WriteField,
     Nullary,
     Combinator,
     Unary,
@@ -29,7 +31,10 @@ impl FunctionCategory {
     pub fn functions(&self) -> Box<dyn Iterator<Item = Function>> {
         match self {
             FunctionCategory::ReadField => {
-                Box::new(all::<GenericFieldKind>().map(Function::ReadField))
+                Box::new(all::<GenericInputFieldKind>().map(Function::ReadField))
+            }
+            FunctionCategory::WriteField => {
+                Box::new(all::<GenericOutputFieldKind>().map(Function::WriteField))
             }
             FunctionCategory::Nullary => Box::new(all::<Nullary>().map(Function::Nullary)),
             FunctionCategory::Combinator => Box::new(
@@ -358,6 +363,11 @@ impl Function {
         use TypeConstraint::*;
         let constraints = match self {
             Function::ReadField(_) | Function::Nullary(_) => vec![],
+            Function::WriteField(kind) => match kind {
+                GenericOutputFieldKind::Vector(_) => {
+                    vec![Field(ValueConstraint::Exact(ValueType::Vector))]
+                }
+            },
             Function::Combinator1(_) => vec![Any],
             Function::Combinator2(_) => vec![Any; 2],
             Function::Un(op) => match op {

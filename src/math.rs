@@ -1,6 +1,47 @@
 use std::f32::consts::PI;
 
-use eframe::epaint::{pos2, Pos2, Vec2};
+use eframe::epaint::{pos2, vec2, Pos2, Vec2};
+use rapier2d::{na::Vector2, prelude::*};
+
+pub trait Convert<U> {
+    fn convert(self) -> U;
+}
+
+impl Convert<Vector2<f32>> for Vec2 {
+    fn convert(self) -> Vector2<f32> {
+        vector!(self.x, self.y)
+    }
+}
+
+impl Convert<Vec2> for Vector2<f32> {
+    fn convert(self) -> Vec2 {
+        vec2(self.x, self.y)
+    }
+}
+
+impl Convert<Vector2<f32>> for Pos2 {
+    fn convert(self) -> Vector2<f32> {
+        vector!(self.x, self.y)
+    }
+}
+
+impl Convert<Pos2> for Vector2<f32> {
+    fn convert(self) -> Pos2 {
+        pos2(self.x, self.y)
+    }
+}
+
+impl Convert<Point<f32>> for Pos2 {
+    fn convert(self) -> Point<f32> {
+        [self.x, self.y].into()
+    }
+}
+
+impl Convert<Pos2> for Point<f32> {
+    fn convert(self) -> Pos2 {
+        pos2(self.x, self.y)
+    }
+}
 
 pub fn rect_poly(min: Pos2, max: Pos2) -> Vec<Pos2> {
     vec![min, pos2(max.x, min.y), max, pos2(min.x, max.y)]

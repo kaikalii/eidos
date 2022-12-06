@@ -12,7 +12,7 @@ use crate::{
     function::{Function, FunctionCategory},
     physics::PhysicsContext,
     plot::{default_scalar_color, default_vector_color, FieldPlot, FieldPlotKey, MapPlot},
-    runtime::Runtime,
+    runtime::{OutputFields, Runtime},
     value::Value,
     word::SpellCommand,
     world::World,
@@ -49,14 +49,15 @@ pub struct Player {
 }
 
 struct UiState {
-    fields_visible: HashMap<FieldKind<GenericFieldKind>, bool>,
+    fields_visible: HashMap<FieldKind<GenericInputFieldKind>, bool>,
 }
 
 impl Default for UiState {
     fn default() -> Self {
         UiState {
             fields_visible: [
-                FieldKind::Typed(GenericFieldKind::Scalar(ScalarFieldKind::Density)),
+                FieldKind::Typed(GenericInputFieldKind::Scalar(ScalarInputFieldKind::Density)),
+                FieldKind::Typed(GenericInputFieldKind::Vector(VectorOutputFieldKind::Force)),
                 FieldKind::Uncasted,
             ]
             .map(|kind| (kind, true))
@@ -69,8 +70,9 @@ impl Default for UiState {
 #[derive(Clone, Copy)]
 pub struct FieldsSource<'a> {
     pub world: &'a World,
-    pub spell_field: Option<&'a GenericField<'a>>,
     pub player_pos: Pos2,
+    pub spell_field: Option<&'a GenericField<'a>>,
+    pub outputs: Option<&'a OutputFields<'a>>,
 }
 
 #[derive(Clone, Default)]
@@ -115,12 +117,13 @@ impl Game {
         let player_pos = self.world.objects[&self.player.body_handle].pos;
         let mut source = FieldsSource {
             world: &self.world,
-            spell_field: None,
             player_pos,
+            spell_field: None,
+            outputs: None,
         };
         // Calculate spell field
         for function in &self.spell.spell {
-            if let Err(e) = rt.call(source, *function) {
+            if let Err(e) = rt.call(source, *function, true) {
                 error = Some(e);
                 break;
             }
@@ -129,17 +132,18 @@ impl Game {
         // Execute staging functions
         if error.is_none() {
             for function in &self.spell.staging {
-                if let Err(e) = rt.call(source, *function) {
+                if let Err(e) = rt.call(source, *function, false) {
                     error = Some(e);
                 }
             }
         }
         // Build fields source
         source.spell_field = spell_field.as_ref();
+        source.outputs = Some(&rt.outputs);
         // Draw ui
         Grid::new("fields").show(ui, |ui| {
             // Draw fields
-            for field_kind in all::<FieldKind<GenericFieldKind>>() {
+            for field_kind in all::<FieldKind<GenericInputFieldKind>>() {
                 ui.toggle_value(
                     self.ui_state
                         .fields_visible
@@ -149,7 +153,7 @@ impl Game {
                 );
             }
             ui.end_row();
-            for field_kind in all::<FieldKind<GenericFieldKind>>() {
+            for field_kind in all::<FieldKind<GenericInputFieldKind>>() {
                 if self.ui_state.fields_visible[&field_kind] {
                     source.plot_field_kind(ui, BIG_PLOT_SIZE, 100, field_kind);
                 } else {
@@ -227,7 +231,7 @@ impl<'a> FieldsSource<'a> {
         ui: &mut Ui,
         size: f32,
         resolution: usize,
-        kind: FieldKind<GenericFieldKind>,
+        kind: FieldKind<GenericInputFieldKind>,
     ) {
         let plot = self.init_plot(size, resolution);
         match kind {
@@ -238,14 +242,14 @@ impl<'a> FieldsSource<'a> {
                     ui.allocate_exact_size(vec2(size, size), Sense::hover());
                 }
             }
-            FieldKind::Typed(GenericFieldKind::Scalar(kind)) => plot.ui(
+            FieldKind::Typed(GenericInputFieldKind::Scalar(kind)) => plot.ui(
                 ui,
                 ScalarWorldField {
                     kind,
                     source: *self,
                 },
             ),
-            FieldKind::Typed(GenericFieldKind::Vector(kind)) => plot.ui(
+            FieldKind::Typed(GenericInputFieldKind::Vector(kind)) => plot.ui(
                 ui,
                 VectorWorldField {
                     kind,
@@ -254,17 +258,20 @@ impl<'a> FieldsSource<'a> {
             ),
         }
     }
-    pub fn sample_scalar_field(&self, kind: ScalarFieldKind, x: f32, y: f32) -> f32 {
+    pub fn sample_scalar_field(&self, kind: ScalarInputFieldKind, x: f32, y: f32) -> f32 {
         match kind {
-            ScalarFieldKind::Density => self
+            ScalarInputFieldKind::Density => self
                 .world
                 .find_object_at(pos2(x, y))
                 .map(|obj| obj.density)
                 .unwrap_or(0.0),
         }
     }
-    pub fn sample_vector_field(&self, kind: VectorFieldKind, _x: f32, _y: f32) -> Vec2 {
-        match kind {}
+    pub fn sample_vector_field(&self, kind: VectorOutputFieldKind, x: f32, y: f32) -> Vec2 {
+        self.outputs
+            .and_then(|outputs| outputs.vectors.get(&kind))
+            .map(|field| field.sample(x, y))
+            .unwrap_or_default()
     }
 }
 
@@ -300,7 +307,7 @@ impl<'a> FieldPlot for (&'a VectorField<'a>, FieldPlotKey) {
 impl<'a> FieldPlot for ScalarWorldField<'a> {
     type Value = f32;
     fn key(&self) -> FieldPlotKey {
-        FieldPlotKey::Kind(FieldKind::Typed(GenericFieldKind::Scalar(self.kind)))
+        FieldPlotKey::Kind(FieldKind::Typed(GenericInputFieldKind::Scalar(self.kind)))
     }
     fn get_z(&self, x: f32, y: f32) -> Self::Value {
         self.source.sample_scalar_field(self.kind, x, y)
@@ -313,7 +320,7 @@ impl<'a> FieldPlot for ScalarWorldField<'a> {
 impl<'a> FieldPlot for VectorWorldField<'a> {
     type Value = Vec2;
     fn key(&self) -> FieldPlotKey {
-        FieldPlotKey::Kind(FieldKind::Typed(GenericFieldKind::Vector(self.kind)))
+        FieldPlotKey::Kind(FieldKind::Typed(GenericInputFieldKind::Vector(self.kind)))
     }
     fn get_z(&self, x: f32, y: f32) -> Self::Value {
         self.source.sample_vector_field(self.kind, x, y)

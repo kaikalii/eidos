@@ -1,3 +1,5 @@
+use eframe::epaint::ahash::HashMap;
+
 use crate::{error::EidosError, field::*, function::*, game::FieldsSource, value::*};
 
 pub type Stack<'a> = Vec<Value<'a>>;
@@ -5,6 +7,12 @@ pub type Stack<'a> = Vec<Value<'a>>;
 #[derive(Default)]
 pub struct Runtime<'a> {
     pub stack: Stack<'a>,
+    pub outputs: OutputFields<'a>,
+}
+
+#[derive(Default)]
+pub struct OutputFields<'a> {
+    pub vectors: HashMap<VectorOutputFieldKind, VectorField<'a>>,
 }
 
 impl<'a> Runtime<'a> {
@@ -36,25 +44,42 @@ impl<'a> Runtime<'a> {
         &mut self,
         source: FieldsSource<'a>,
         value: Value<'a>,
+        write_outputs: bool,
     ) -> Result<(), EidosError> {
         if let Value::Function(function) = value {
-            self.call(source, function)
+            self.call(source, function, write_outputs)
         } else {
             self.stack.push(value);
             Ok(())
         }
     }
-    pub fn call(&mut self, source: FieldsSource<'a>, function: Function) -> Result<(), EidosError> {
+    pub fn call(
+        &mut self,
+        source: FieldsSource<'a>,
+        function: Function,
+        write_outputs: bool,
+    ) -> Result<(), EidosError> {
         self.validate_function_use(function)?;
         match function {
             Function::ReadField(field_kind) => match field_kind {
-                GenericFieldKind::Scalar(kind) => {
+                GenericInputFieldKind::Scalar(kind) => {
                     self.push(ScalarField::World(ScalarWorldField { kind, source }))
                 }
-                GenericFieldKind::Vector(kind) => {
+                GenericInputFieldKind::Vector(kind) => {
                     self.push(VectorField::World(VectorWorldField { kind, source }))
                 }
             },
+            Function::WriteField(field_kind) => {
+                let field = self.pop_field();
+                if write_outputs {
+                    match (field_kind, field) {
+                        (GenericOutputFieldKind::Vector(kind), GenericField::Vector(field)) => {
+                            self.outputs.vectors.insert(kind, field);
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+            }
             Function::Nullary(nullary) => self.push(nullary.value()),
             Function::Combinator1(com1) => {
                 let a = self.pop();
@@ -72,7 +97,7 @@ impl<'a> Runtime<'a> {
                 match com2 {
                     Combinator2::Apply => {
                         self.push(a);
-                        self.call_value(source, b)?;
+                        self.call_value(source, b, write_outputs)?;
                     }
                     Combinator2::Swap => {
                         self.push(b);

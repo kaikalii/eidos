@@ -12,11 +12,11 @@ use eframe::{
 use itertools::Itertools;
 use rand::prelude::*;
 
-use crate::field::{FieldKind, GenericFieldKind};
+use crate::field::{FieldKind, GenericInputFieldKind};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FieldPlotKey {
-    Kind(FieldKind<GenericFieldKind>),
+    Kind(FieldKind<GenericInputFieldKind>),
     Staging(usize),
 }
 #[derive(PartialEq, Eq, Hash)]

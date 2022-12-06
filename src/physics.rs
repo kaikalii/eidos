@@ -1,11 +1,9 @@
-use eframe::epaint::{pos2, vec2, Pos2, Vec2};
-use rapier2d::{
-    na::{Unit, Vector2},
-    prelude::*,
-};
+use eframe::epaint::Vec2;
+use rapier2d::{na::Unit, prelude::*};
 
 use crate::{
     game::Game,
+    math::Convert,
     world::{GraphicalShape, Object},
 };
 
@@ -133,45 +131,5 @@ impl Game {
             .insert_with_parent(collider, body_handle, &mut self.physics.bodies);
         self.world.objects.insert(body_handle, object);
         body_handle
-    }
-}
-
-pub trait Convert<U> {
-    fn convert(self) -> U;
-}
-
-impl Convert<Vector2<f32>> for Vec2 {
-    fn convert(self) -> Vector2<f32> {
-        vector!(self.x, self.y)
-    }
-}
-
-impl Convert<Vec2> for Vector2<f32> {
-    fn convert(self) -> Vec2 {
-        vec2(self.x, self.y)
-    }
-}
-
-impl Convert<Vector2<f32>> for Pos2 {
-    fn convert(self) -> Vector2<f32> {
-        vector!(self.x, self.y)
-    }
-}
-
-impl Convert<Pos2> for Vector2<f32> {
-    fn convert(self) -> Pos2 {
-        pos2(self.x, self.y)
-    }
-}
-
-impl Convert<Point<f32>> for Pos2 {
-    fn convert(self) -> Point<f32> {
-        [self.x, self.y].into()
-    }
-}
-
-impl Convert<Pos2> for Point<f32> {
-    fn convert(self) -> Pos2 {
-        pos2(self.x, self.y)
     }
 }
