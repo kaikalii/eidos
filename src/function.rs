@@ -50,14 +50,21 @@ impl FunctionCategory {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Nullary {
+    #[display(fmt = "0")]
     Zero,
+    #[display(fmt = "1")]
     One,
-    Six,
+    #[display(fmt = "10")]
+    Ten,
+    #[display(fmt = "1➡")]
     OneX,
+    #[display(fmt = "1⬆")]
     OneY,
     X,
     Y,
+    #[display(fmt = "X➡")]
     VX,
+    #[display(fmt = "Y⬆")]
     VY,
 }
 
@@ -66,7 +73,7 @@ impl Nullary {
         match self {
             Nullary::Zero => CommonField::Uniform(0.0).into(),
             Nullary::One => CommonField::Uniform(1.0).into(),
-            Nullary::Six => CommonField::Uniform(6.0).into(),
+            Nullary::Ten => CommonField::Uniform(10.0).into(),
             Nullary::OneX => CommonField::Uniform(Vec2::X).into(),
             Nullary::OneY => CommonField::Uniform(Vec2::Y).into(),
             Nullary::X => ScalarField::Common(CommonField::X).into(),

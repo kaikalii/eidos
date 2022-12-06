@@ -11,7 +11,5 @@ pub enum Word {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From, Sequence)]
 pub enum SpellCommand {
-    Commit,
-    Disapate,
     Clear,
 }

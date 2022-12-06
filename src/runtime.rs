@@ -34,11 +34,11 @@ impl Runtime {
                 GenericFieldKind::Vector(kind) => self.push(VectorField::World(kind)),
             },
             Function::WriteField(field_kind) => {
-                let field = self.pop();
+                let field = self.top().unwrap();
                 if write_outputs {
                     match (field_kind, field) {
                         (GenericOutputFieldKind::Vector(kind), GenericField::Vector(field)) => {
-                            world.outputs.vectors.insert(kind, field);
+                            world.outputs.vectors.insert(kind, field.clone());
                         }
                         _ => unreachable!(),
                     }

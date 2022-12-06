@@ -8,11 +8,11 @@ use enum_iterator::all;
 
 use crate::{
     field::*,
-    function::{Function, FunctionCategory},
+    function::FunctionCategory,
     plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
     runtime::Runtime,
     word::SpellCommand,
-    world::World,
+    world::{World, MAX_MANA_EXHAUSTION},
 };
 
 pub const TICK_RATE: f32 = 1.0 / 60.0;
@@ -20,7 +20,6 @@ pub const TICK_RATE: f32 = 1.0 / 60.0;
 pub struct Game {
     pub world: World,
     ui_state: UiState,
-    spell: SpellState,
     last_time: Instant,
     ticker: f32,
 }
@@ -30,7 +29,6 @@ impl Default for Game {
         Game {
             world: World::default(),
             ui_state: UiState::default(),
-            spell: SpellState::default(),
             last_time: Instant::now(),
             ticker: 0.0,
         }
@@ -52,25 +50,6 @@ impl Default for UiState {
             .map(|kind| (kind, true))
             .into_iter()
             .collect(),
-        }
-    }
-}
-
-#[derive(Clone, Default)]
-pub struct SpellState {
-    pub spell: Vec<Function>,
-    pub staging: Vec<Function>,
-}
-
-impl SpellState {
-    pub fn command(&mut self, command: SpellCommand) {
-        match command {
-            SpellCommand::Commit => self.spell.append(&mut self.staging),
-            SpellCommand::Disapate => self.staging.clear(),
-            SpellCommand::Clear => {
-                self.spell.clear();
-                self.staging.clear();
-            }
         }
     }
 }
@@ -97,26 +76,32 @@ impl Game {
         let mut rt = Runtime::default();
         let mut error = None;
         // Calculate spell field
-        for function in &self.spell.spell {
-            if let Err(e) = rt.call(&mut self.world, *function, true) {
+        for function in self.world.player.spell.clone() {
+            if let Err(e) = rt.call(&mut self.world, function, true) {
                 error = Some(e);
                 break;
             }
         }
         self.world.spell_field = rt.top().cloned();
-        // Execute staging functions
-        if error.is_none() {
-            for function in &self.spell.staging {
-                if let Err(e) = rt.call(&mut self.world, *function, false) {
-                    error = Some(e);
-                }
-            }
-        }
         // Draw ui
         // Mana bar
-        ProgressBar::new(self.world.player.mana / self.world.player.max_mana)
-            .desired_width(300.0)
-            .ui(ui);
+        ui.scope(|ui| {
+            let player = &self.world.player;
+            let (curr, max, color) = if player.can_cast() {
+                (player.mana, player.max_mana, Color32::BLUE)
+            } else {
+                (
+                    player.mana_exhaustion,
+                    MAX_MANA_EXHAUSTION,
+                    Color32::LIGHT_RED,
+                )
+            };
+            ui.visuals_mut().selection.bg_fill = color;
+            ProgressBar::new(curr / max)
+                .text(format!("{} / {}", curr.round(), max.round()))
+                .desired_width(300.0)
+                .ui(ui);
+        });
         // World Fields
         Grid::new("fields").show(ui, |ui| {
             // Draw fields
@@ -149,7 +134,9 @@ impl Game {
         ui.horizontal_wrapped(|ui| {
             for command in all::<SpellCommand>() {
                 if ui.button(command.to_string()).clicked() {
-                    self.spell.command(command);
+                    match command {
+                        SpellCommand::Clear => self.world.player.spell.clear(),
+                    }
                 }
             }
         });
@@ -161,7 +148,7 @@ impl Game {
                         .add_enabled(enabled, Button::new(function.to_string()))
                         .clicked()
                     {
-                        self.spell.staging.push(function);
+                        self.world.player.spell.push(function);
                     }
                 }
             });

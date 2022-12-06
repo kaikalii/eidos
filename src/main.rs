@@ -23,7 +23,7 @@ fn main() {
             ..Default::default()
         },
         Box::new(|cc| {
-            cc.egui_ctx.set_pixels_per_point(1.8);
+            cc.egui_ctx.set_pixels_per_point(1.5);
             Box::new(Game::default())
         }),
     );

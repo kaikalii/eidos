@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use eframe::egui::*;
 use rapier2d::prelude::*;
 
-use crate::{field::*, game::TICK_RATE, math::rotate, physics::PhysicsContext};
+use crate::{field::*, function::Function, game::TICK_RATE, math::rotate, physics::PhysicsContext};
 
 pub struct World {
     pub player_pos: Pos2,
@@ -14,18 +14,46 @@ pub struct World {
     pub outputs: OutputFields,
 }
 
-const MANA_REGEN_RATE: f32 = 0.5;
+pub const MANA_REGEN_RATE: f32 = 0.5;
+pub const MAX_MANA_EXHAUSTION: f32 = 5.0;
 
 pub struct Player {
     pub body_handle: RigidBodyHandle,
     pub mana: f32,
     pub max_mana: f32,
+    pub mana_exhaustion: f32,
+    pub spell: Vec<Function>,
 }
 
 #[derive(Default)]
 pub struct OutputFields {
     pub scalars: HashMap<ScalarOutputFieldKind, ScalarField>,
     pub vectors: HashMap<VectorOutputFieldKind, VectorField>,
+}
+
+impl Player {
+    pub fn field_scale(&self) -> f32 {
+        if self.mana_exhaustion > 0.0 {
+            0.0
+        } else {
+            self.mana.clamp(0.1, 1.0)
+        }
+    }
+    pub fn do_work(&mut self, work: f32) {
+        self.mana -= work;
+        if self.mana < 0.0 {
+            self.mana = 0.0;
+            self.mana_exhaustion = MAX_MANA_EXHAUSTION;
+        }
+        if self.mana_exhaustion > 0.0 {
+            self.mana_exhaustion = (self.mana_exhaustion - TICK_RATE * MANA_REGEN_RATE).max(0.0);
+        } else {
+            self.mana = (self.mana + TICK_RATE * MANA_REGEN_RATE).min(self.max_mana);
+        }
+    }
+    pub fn can_cast(&self) -> bool {
+        self.mana_exhaustion <= 0.0
+    }
 }
 
 impl Default for World {
@@ -35,8 +63,10 @@ impl Default for World {
             player_pos: Pos2::ZERO,
             player: Player {
                 body_handle: RigidBodyHandle::default(),
-                mana: 1.0,
-                max_mana: 1.0,
+                mana: 100.0,
+                max_mana: 100.0,
+                mana_exhaustion: 0.0,
+                spell: Vec::new(),
             },
             physics: PhysicsContext::default(),
             objects: HashMap::new(),
@@ -52,12 +82,12 @@ impl Default for World {
             RigidBodyBuilder::fixed(),
             |c| c.restitution(0.5),
         );
-        // Rock?
-        world.add_object(
-            GraphicalShape::Circle(1.0).offset(Vec2::ZERO).density(2.0),
-            RigidBodyBuilder::dynamic().translation([3.0, 10.0].into()),
-            |c| c,
-        );
+        // // Rock?
+        // world.add_object(
+        //     GraphicalShape::Circle(1.0).offset(Vec2::ZERO).density(2.0),
+        //     RigidBodyBuilder::dynamic().translation([3.0, 10.0].into()),
+        //     |c| c,
+        // );
         // Player
         world.player.body_handle = world.add_object(
             vec![
@@ -196,14 +226,16 @@ impl World {
             .get(&kind)
             .map(|field| field.sample(self, pos))
             .unwrap_or_default()
-            * self.player.mana.clamp(0.0, 1.0)
+            * self.player.field_scale()
     }
     pub fn update(&mut self) {
         // Run physics
         let work_done = self.run_physics();
         // Update mana
-        self.player.mana -= work_done;
-        self.player.mana =
-            (self.player.mana + TICK_RATE * MANA_REGEN_RATE).min(self.player.max_mana);
+        self.player.do_work(work_done);
+        if !self.player.can_cast() {
+            self.outputs.scalars.clear();
+            self.outputs.vectors.clear();
+        }
     }
 }
