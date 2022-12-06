@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use eframe::egui::*;
 use rapier2d::prelude::*;
 
-use crate::field::{GenericField, ScalarInputFieldKind, VectorField, VectorOutputFieldKind};
+use crate::{
+    field::{GenericField, ScalarInputFieldKind, VectorField, VectorOutputFieldKind},
+    math::rotate,
+};
 
 #[derive(Default)]
 pub struct World {
@@ -19,6 +22,7 @@ pub struct OutputFields {
 
 pub struct Object {
     pub pos: Pos2,
+    pub rot: f32,
     pub shape: GraphicalShape,
     pub density: f32,
     pub shape_offset: Vec2,
@@ -53,9 +57,11 @@ impl GraphicalShape {
 
 impl World {
     pub fn find_object_at(&self, p: Pos2) -> Option<&Object> {
-        self.objects
-            .values()
-            .find(|obj| obj.shape.contains(p - obj.pos.to_vec2() - obj.shape_offset))
+        self.objects.values().find(|obj| {
+            let transformed_point =
+                rotate(p.to_vec2() - obj.pos.to_vec2() - obj.shape_offset, -obj.rot).to_pos2();
+            obj.shape.contains(transformed_point)
+        })
     }
     pub fn sample_scalar_field(&self, kind: ScalarInputFieldKind, x: f32, y: f32) -> f32 {
         match kind {

@@ -99,7 +99,7 @@ impl<'w> MapPlot<'w> {
         Self { resolution, ..self }
     }
     fn init_plot(&self, key: FieldPlotKey, kind: FieldPlotKind) -> Plot {
-        Plot::new((key, kind))
+        Plot::new((key, kind, random::<usize>()))
             .width(self.size)
             .view_aspect(1.0)
             .include_x(self.center.x - self.range)
