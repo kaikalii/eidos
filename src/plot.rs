@@ -129,29 +129,31 @@ impl<'w> MapPlot<'w> {
             }
             F::Value::partition_and_plot(plot_ui, field_plot, point_radius, points);
             if let Some(p) = plot_ui.pointer_coordinate() {
-                if pos2(p.x as f32, p.y as f32).distance(self.center) < self.range {
-                    let x = p.x as f32;
-                    let y = p.y as f32;
-                    let z = field_plot.get_z(self.world, pos2(x, y));
-                    let anchor = if y > self.range * 0.9 {
+                let ppos = pos2(p.x as f32, p.y as f32);
+                let relative_pos = ppos - self.center;
+                if relative_pos.length() < self.range {
+                    let z = field_plot.get_z(self.world, ppos);
+                    let anchor = if relative_pos.y > self.range * 0.9 {
                         Align2::RIGHT_TOP
-                    } else if x < -self.range * 0.5 {
+                    } else if relative_pos.x < -self.range * 0.5 {
                         Align2::LEFT_BOTTOM
-                    } else if x > self.range * 0.5 {
+                    } else if relative_pos.x > self.range * 0.5 {
                         Align2::RIGHT_BOTTOM
                     } else {
                         Align2::CENTER_BOTTOM
                     };
+                    let reported_pos = ppos - self.world.player_pos;
                     plot_ui.text(
                         Text::new(
                             p,
                             format!(
                                 " ({}, {}): {} ",
-                                (x * 10.0).round() / 10.0,
-                                (y * 10.0).round() / 10.0,
+                                (reported_pos.x * 10.0).round() / 10.0,
+                                (reported_pos.y * 10.0).round() / 10.0,
                                 z.format(|z| (z * 10.0).round() / 10.0),
                             ),
                         )
+                        .color(Color32::WHITE)
                         .anchor(anchor),
                     );
                 }

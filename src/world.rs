@@ -98,9 +98,6 @@ impl GraphicalShape {
 }
 
 impl World {
-    pub fn player_pos(&self) -> Pos2 {
-        self.player_pos
-    }
     pub fn find_object_at(&self, p: Pos2) -> Option<&Object> {
         self.objects.values().find(|obj| {
             let transformed_point =

@@ -160,7 +160,7 @@ impl Game {
         self.world.run_physics();
     }
     fn init_plot(&self, size: f32, resolution: usize) -> MapPlot {
-        MapPlot::new(&self.world, self.world.player_pos() + Vec2::Y, 5.0)
+        MapPlot::new(&self.world, self.world.player_pos + Vec2::Y, 5.0)
             .size(size)
             .resolution(resolution)
     }
