@@ -1,3 +1,4 @@
+- Revamp UI
 - Add more useful functions
 - Add dialog system
 - Implement story

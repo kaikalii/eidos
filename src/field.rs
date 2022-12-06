@@ -99,6 +99,12 @@ pub enum GenericFieldKind {
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From, Sequence)]
+pub enum GenericInputFieldKind {
+    Scalar(ScalarInputFieldKind),
+    Vector(VectorInputFieldKind),
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From, Sequence)]
 pub enum GenericOutputFieldKind {
     Scalar(ScalarOutputFieldKind),
     Vector(VectorOutputFieldKind),

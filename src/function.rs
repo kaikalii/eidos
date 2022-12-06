@@ -1,19 +1,26 @@
 use std::{collections::HashMap, marker::PhantomData, ops::*};
 
-use derive_more::Display;
+use derive_more::{Display, From};
 use eframe::epaint::{vec2, Vec2};
 use enum_iterator::{all, Sequence};
 
 use crate::{error::EidosError, field::*};
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From, Sequence)]
 pub enum Function {
-    ReadField(GenericFieldKind),
+    #[from(types(ScalarInputFieldKind, VectorInputFieldKind))]
+    ReadField(GenericInputFieldKind),
+    #[from(types(ScalarOutputFieldKind, VectorOutputFieldKind))]
     WriteField(GenericOutputFieldKind),
+    #[from]
     Nullary(Nullary),
+    #[from(types(MathBinOp, HomoBinOp))]
     Bin(GenericBinOp),
+    #[from(types(MathUnOp))]
     Un(GenericUnOp),
+    #[from]
     Combinator1(Combinator1),
+    #[from]
     Combinator2(Combinator2),
 }
 
@@ -31,7 +38,7 @@ impl FunctionCategory {
     pub fn functions(&self) -> Box<dyn Iterator<Item = Function>> {
         match self {
             FunctionCategory::ReadField => {
-                Box::new(all::<GenericFieldKind>().map(Function::ReadField))
+                Box::new(all::<GenericInputFieldKind>().map(Function::ReadField))
             }
             FunctionCategory::WriteField => {
                 Box::new(all::<GenericOutputFieldKind>().map(Function::WriteField))
@@ -54,18 +61,20 @@ pub enum Nullary {
     Zero,
     #[display(fmt = "1")]
     One,
+    #[display(fmt = "2")]
+    Two,
+    #[display(fmt = "5")]
+    Five,
     #[display(fmt = "10")]
     Ten,
+    #[display(fmt = "↕0↔")]
+    ZeroVector,
     #[display(fmt = "1➡")]
     OneX,
     #[display(fmt = "1⬆")]
     OneY,
     X,
     Y,
-    #[display(fmt = "X➡")]
-    VX,
-    #[display(fmt = "Y⬆")]
-    VY,
 }
 
 impl Nullary {
@@ -73,13 +82,14 @@ impl Nullary {
         match self {
             Nullary::Zero => CommonField::Uniform(0.0).into(),
             Nullary::One => CommonField::Uniform(1.0).into(),
+            Nullary::Two => CommonField::Uniform(2.0).into(),
+            Nullary::Five => CommonField::Uniform(5.0).into(),
             Nullary::Ten => CommonField::Uniform(10.0).into(),
+            Nullary::ZeroVector => CommonField::Uniform(Vec2::ZERO).into(),
             Nullary::OneX => CommonField::Uniform(Vec2::X).into(),
             Nullary::OneY => CommonField::Uniform(Vec2::Y).into(),
             Nullary::X => ScalarField::Common(CommonField::X).into(),
             Nullary::Y => ScalarField::Common(CommonField::Y).into(),
-            Nullary::VX => VectorField::Common(CommonField::X).into(),
-            Nullary::VY => VectorField::Common(CommonField::Y).into(),
         }
     }
 }
@@ -105,7 +115,7 @@ pub trait UnOperator<T> {
     fn operate(&self, v: T) -> Self::Output;
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From, Sequence)]
 pub enum GenericUnOp {
     Math(MathUnOp),
     Scalar(ScalarUnOp),
@@ -216,7 +226,7 @@ pub trait BinOperator<A, B> {
     fn operate(&self, a: A, b: B) -> Self::Output;
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From, Sequence)]
 pub enum GenericBinOp {
     Math(MathBinOp),
     Homo(HomoBinOp),

@@ -8,10 +8,11 @@ use enum_iterator::all;
 
 use crate::{
     field::*,
-    function::FunctionCategory,
+    function::Function,
     plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
     runtime::Runtime,
     word::SpellCommand,
+    word::*,
     world::{World, MAX_MANA_EXHAUSTION},
 };
 
@@ -130,6 +131,9 @@ impl Game {
                 self.plot_generic_field(ui, SMALL_PLOT_SIZE, 50, field);
             }
         });
+        if let Some(e) = error {
+            ui.label(RichText::new(e.to_string()).color(Color32::RED));
+        }
         // Draw word buttons
         ui.horizontal_wrapped(|ui| {
             for command in all::<SpellCommand>() {
@@ -140,19 +144,34 @@ impl Game {
                 }
             }
         });
-        for category in all::<FunctionCategory>() {
-            ui.horizontal_wrapped(|ui| {
-                for function in category.functions() {
-                    let enabled = error.is_none() && rt.validate_function_use(function).is_ok();
-                    if ui
-                        .add_enabled(enabled, Button::new(function.to_string()))
-                        .clicked()
-                    {
-                        self.world.player.spell.push(function);
-                    }
-                }
-            });
-        }
+        Grid::new("words").show(ui, |ui| {
+            fn button(
+                ui: &mut Ui,
+                rt: &mut Runtime,
+                w: impl Into<Word> + ToString,
+            ) -> Option<Function> {
+                let name = w.to_string();
+                let f = w.into().function();
+                let enabled = rt.validate_function_use(f).is_ok();
+                ui.add_enabled(enabled, Button::new(name))
+                    .on_hover_text(f.to_string())
+                    .clicked()
+                    .then_some(f)
+            }
+            let spell = &mut self.world.player.spell;
+            spell.extend(all::<ScalarWord>().filter_map(|w| button(ui, &mut rt, w)));
+            ui.end_row();
+            spell.extend(all::<VectorWord>().filter_map(|w| button(ui, &mut rt, w)));
+            spell.extend(all::<AxisWord>().filter_map(|w| button(ui, &mut rt, w)));
+            ui.end_row();
+            spell.extend(all::<InputWord>().filter_map(|w| button(ui, &mut rt, w)));
+            spell.extend(all::<OutputWord>().filter_map(|w| button(ui, &mut rt, w)));
+            ui.end_row();
+            spell.extend(all::<OperatorWord>().filter_map(|w| button(ui, &mut rt, w)));
+            ui.end_row();
+            spell.extend(all::<CombinatorWord>().filter_map(|w| button(ui, &mut rt, w)));
+            ui.end_row();
+        });
         // Update world
         while self.ticker >= TICK_RATE {
             self.world.update();
@@ -202,9 +221,9 @@ impl FieldPlot for ScalarField {
         self.sample(world, pos)
     }
     fn get_color(&self, t: Self::Value) -> Color32 {
-        let h = if t > 0.5 { 0.5 } else { 0.0 };
-        let v = 0.7 * (2.0 * t - 1.0).abs() + 0.3;
-        let s = (2.0 * t - 1.0).abs();
+        let h = 0.9 * (1.0 - t);
+        let v = (2.0 * t - 1.0).abs();
+        let s = v.powf(0.5) * 0.8;
         Hsva::new(h, s, v, 1.0).into()
     }
 }
