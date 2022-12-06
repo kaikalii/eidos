@@ -10,8 +10,9 @@ use crate::{
     field::*,
     function::{Function, FunctionCategory},
     math::polygon_contains,
-    plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
+    plot::{default_scalar_color, default_vector_color, FieldPlot, FieldPlotKey, MapPlot},
     runtime::Runtime,
+    value::Value,
     word::SpellCommand,
     world::World,
 };
@@ -19,7 +20,7 @@ use crate::{
 pub struct Game {
     world: World,
     ui_state: UiState,
-    spell: SpellState<Vec<Function>>,
+    spell: SpellState,
     last_time: Instant,
 }
 
@@ -43,8 +44,7 @@ impl Default for UiState {
         UiState {
             fields_visible: [
                 FieldKind::Typed(GenericFieldKind::Scalar(ScalarFieldKind::Density)),
-                FieldKind::Any(AnyFieldKind::Spell),
-                FieldKind::Any(AnyFieldKind::Staging),
+                FieldKind::Uncasted,
             ]
             .map(|kind| (kind, true))
             .into_iter()
@@ -54,18 +54,18 @@ impl Default for UiState {
 }
 
 #[derive(Clone, Copy)]
-pub struct FieldsSource<'a, S = &'a SpellState<GenericField<'a>>> {
+pub struct FieldsSource<'a> {
     pub world: &'a World,
-    pub spell_state: S,
+    pub spell_field: Option<&'a GenericField<'a>>,
 }
 
-#[derive(Clone, Copy, Default)]
-pub struct SpellState<T> {
-    pub spell: T,
-    pub staging: T,
+#[derive(Clone, Default)]
+pub struct SpellState {
+    pub spell: Vec<Function>,
+    pub staging: Vec<Function>,
 }
 
-impl SpellState<Vec<Function>> {
+impl SpellState {
     pub fn command(&mut self, command: SpellCommand) {
         match command {
             SpellCommand::Commit => self.spell.append(&mut self.staging),
@@ -85,6 +85,9 @@ impl eframe::App for Game {
     }
 }
 
+const BIG_PLOT_SIZE: f32 = 200.0;
+const SMALL_PLOT_SIZE: f32 = 100.0;
+
 impl Game {
     fn ui(&mut self, ui: &mut Ui) {
         // Fps
@@ -97,7 +100,7 @@ impl Game {
         let mut error = None;
         let source = FieldsSource {
             world: &self.world,
-            spell_state: (),
+            spell_field: None,
         };
         // Calculate spell field
         for function in &self.spell.spell {
@@ -106,11 +109,8 @@ impl Game {
                 break;
             }
         }
-        let spell = rt
-            .top_field()
-            .cloned()
-            .unwrap_or_else(|| ScalarField::Common(CommonField::Uniform(0.0)).into());
-        // Calculate staging field
+        let spell_field = rt.top_field().cloned();
+        // Execute staging functions
         if error.is_none() {
             for function in &self.spell.staging {
                 if let Err(e) = rt.call(source, *function) {
@@ -118,16 +118,10 @@ impl Game {
                 }
             }
         }
-        let staging = error
-            .is_none()
-            .then(|| rt.top_field().cloned())
-            .flatten()
-            .unwrap_or_else(|| ScalarField::Common(CommonField::Uniform(0.0)).into());
         // Build fields source
-        let spell_fields = SpellState { spell, staging };
         let source = FieldsSource {
             world: &self.world,
-            spell_state: &spell_fields,
+            spell_field: spell_field.as_ref(),
         };
         // Draw ui
         Grid::new("fields").show(ui, |ui| {
@@ -144,17 +138,26 @@ impl Game {
             ui.end_row();
             for field_kind in all::<FieldKind<GenericFieldKind>>() {
                 if self.ui_state.fields_visible[&field_kind] {
-                    source.plot_field(ui, field_kind);
+                    source.plot_field_kind(ui, BIG_PLOT_SIZE, 100, field_kind);
                 } else {
                     ui.label("");
                 }
             }
         });
-        // Draw functions
+        // Draw stack
         ui.horizontal_wrapped(|ui| {
-            ui.label("");
-            for function in &self.spell.staging {
-                ui.label(function.to_string());
+            ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
+            for (i, value) in rt.stack.iter().enumerate() {
+                match value {
+                    Value::Field(field) => source.plot_generic_field(
+                        ui,
+                        SMALL_PLOT_SIZE,
+                        50,
+                        FieldPlotKey::Staging(i),
+                        field,
+                    ),
+                    Value::Function(_) => {}
+                }
             }
         });
         // Draw word buttons
@@ -182,44 +185,58 @@ impl Game {
 }
 
 impl<'a> FieldsSource<'a> {
-    pub fn plot_field(&self, ui: &mut Ui, kind: FieldKind<GenericFieldKind>) {
-        let plot = MapPlot::new(Vec2::ZERO, 10.0);
+    pub fn plot_generic_field(
+        &self,
+        ui: &mut Ui,
+        size: f32,
+        resolution: usize,
+        key: FieldPlotKey,
+        field: &GenericField,
+    ) {
+        let plot = MapPlot::new(Vec2::ZERO, 10.0)
+            .size(size)
+            .resolution(resolution);
+        match field {
+            GenericField::Scalar(ScalarField::Common(CommonField::Uniform(n))) => MapPlot::number()
+                .size(size)
+                .resolution(resolution)
+                .number_ui(ui, *n, key),
+            GenericField::Scalar(field) => plot.ui(ui, (field, key)),
+            GenericField::Vector(field) => plot.ui(ui, (field, key)),
+        }
+    }
+    pub fn plot_field_kind(
+        &self,
+        ui: &mut Ui,
+        size: f32,
+        resolution: usize,
+        kind: FieldKind<GenericFieldKind>,
+    ) {
+        let plot = MapPlot::new(Vec2::ZERO, 10.0)
+            .size(size)
+            .resolution(resolution);
         match kind {
-            FieldKind::Any(kind) => {
-                let field = match kind {
-                    AnyFieldKind::Spell => &self.spell_state.spell,
-                    AnyFieldKind::Staging => &self.spell_state.staging,
-                };
-                match field {
-                    GenericField::Scalar(ScalarField::Common(CommonField::Uniform(n))) => {
-                        MapPlot::number_ui(ui, *n, FieldKind::Any(kind))
-                    }
-                    GenericField::Scalar(field) => plot.ui(ui, (field, kind)),
-                    GenericField::Vector(field) => plot.ui(ui, (field, kind)),
+            FieldKind::Uncasted => {
+                if let Some(field) = self.spell_field {
+                    self.plot_generic_field(ui, size, resolution, FieldPlotKey::Kind(kind), field)
+                } else {
+                    ui.allocate_exact_size(vec2(size, size), Sense::hover());
                 }
             }
             FieldKind::Typed(GenericFieldKind::Scalar(kind)) => plot.ui(
                 ui,
                 ScalarWorldField {
                     kind,
-                    source: self.no_spells(),
+                    source: *self,
                 },
             ),
             FieldKind::Typed(GenericFieldKind::Vector(kind)) => plot.ui(
                 ui,
                 VectorWorldField {
                     kind,
-                    source: self.no_spells(),
+                    source: *self,
                 },
             ),
-        }
-    }
-}
-impl<'a, S> FieldsSource<'a, S> {
-    pub fn no_spells(self) -> FieldsSource<'a, ()> {
-        FieldsSource {
-            world: self.world,
-            spell_state: (),
         }
     }
     pub fn sample_scalar_field(&self, kind: ScalarFieldKind, x: f32, y: f32) -> f32 {
@@ -238,10 +255,10 @@ impl<'a, S> FieldsSource<'a, S> {
     }
 }
 
-impl<'a> FieldPlot for (&'a ScalarField<'a>, AnyFieldKind) {
+impl<'a> FieldPlot for (&'a ScalarField<'a>, FieldPlotKey) {
     type Value = f32;
-    fn key(&self) -> FieldKind<GenericFieldKind> {
-        FieldKind::Any(self.1)
+    fn key(&self) -> FieldPlotKey {
+        self.1
     }
     fn get_z(&self, x: f32, y: f32) -> Self::Value {
         self.0.sample(x, y)
@@ -249,19 +266,15 @@ impl<'a> FieldPlot for (&'a ScalarField<'a>, AnyFieldKind) {
     fn get_color(&self, t: Self::Value) -> Color32 {
         let h = if t > 0.5 { 0.5 } else { 0.0 };
         let v = 0.7 * (2.0 * t - 1.0).abs() + 0.3;
-        let s = (2.0 * t - 1.0).abs()
-            * match self.1 {
-                AnyFieldKind::Spell => 1.0,
-                AnyFieldKind::Staging => 0.7,
-            };
+        let s = (2.0 * t - 1.0).abs();
         Hsva::new(h, s, v, 1.0).into()
     }
 }
 
-impl<'a> FieldPlot for (&'a VectorField<'a>, AnyFieldKind) {
+impl<'a> FieldPlot for (&'a VectorField<'a>, FieldPlotKey) {
     type Value = Vec2;
-    fn key(&self) -> FieldKind<GenericFieldKind> {
-        FieldKind::Any(self.1)
+    fn key(&self) -> FieldPlotKey {
+        self.1
     }
     fn get_z(&self, x: f32, y: f32) -> Self::Value {
         self.0.sample(x, y)
@@ -273,8 +286,8 @@ impl<'a> FieldPlot for (&'a VectorField<'a>, AnyFieldKind) {
 
 impl<'a> FieldPlot for ScalarWorldField<'a> {
     type Value = f32;
-    fn key(&self) -> FieldKind<GenericFieldKind> {
-        FieldKind::Typed(GenericFieldKind::Scalar(self.kind))
+    fn key(&self) -> FieldPlotKey {
+        FieldPlotKey::Kind(FieldKind::Typed(GenericFieldKind::Scalar(self.kind)))
     }
     fn get_z(&self, x: f32, y: f32) -> Self::Value {
         self.source.sample_scalar_field(self.kind, x, y)
@@ -286,8 +299,8 @@ impl<'a> FieldPlot for ScalarWorldField<'a> {
 
 impl<'a> FieldPlot for VectorWorldField<'a> {
     type Value = Vec2;
-    fn key(&self) -> FieldKind<GenericFieldKind> {
-        FieldKind::Typed(GenericFieldKind::Vector(self.kind))
+    fn key(&self) -> FieldPlotKey {
+        FieldPlotKey::Kind(FieldKind::Typed(GenericFieldKind::Vector(self.kind)))
     }
     fn get_z(&self, x: f32, y: f32) -> Self::Value {
         self.source.sample_vector_field(self.kind, x, y)

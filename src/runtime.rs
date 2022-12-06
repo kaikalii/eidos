@@ -34,7 +34,7 @@ impl<'a> Runtime<'a> {
     }
     pub fn call_value(
         &mut self,
-        source: FieldsSource<'a, ()>,
+        source: FieldsSource<'a>,
         value: Value<'a>,
     ) -> Result<(), EidosError> {
         if let Value::Function(function) = value {
@@ -44,11 +44,7 @@ impl<'a> Runtime<'a> {
             Ok(())
         }
     }
-    pub fn call(
-        &mut self,
-        source: FieldsSource<'a, ()>,
-        function: Function,
-    ) -> Result<(), EidosError> {
+    pub fn call(&mut self, source: FieldsSource<'a>, function: Function) -> Result<(), EidosError> {
         self.validate_function_use(function)?;
         match function {
             Function::ReadField(field_kind) => match field_kind {

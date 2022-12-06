@@ -19,7 +19,7 @@ fn main() {
     eframe::run_native(
         "Eidos",
         eframe::NativeOptions {
-            initial_window_size: Some(Vec2::new(1280.0, 720.0)),
+            initial_window_size: Some(Vec2::new(1280.0, 800.0)),
             ..Default::default()
         },
         Box::new(|cc| {

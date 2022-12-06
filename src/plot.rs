@@ -14,11 +14,15 @@ use rand::prelude::*;
 
 use crate::field::{FieldKind, GenericFieldKind};
 
-pub type FieldPlotKey = FieldKind<GenericFieldKind>;
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FieldPlotKey {
+    Kind(FieldKind<GenericFieldKind>),
+    Staging(usize),
+}
 #[derive(PartialEq, Eq, Hash)]
-pub enum FieldPlotKind {
-    Scalar,
+enum FieldPlotKind {
     Field,
+    Scalar,
 }
 
 pub trait FieldPlot {
@@ -61,7 +65,7 @@ pub fn default_vector_color(t: Vec2) -> Color32 {
 pub struct MapPlot {
     center: Vec2,
     range: f32,
-    width: f32,
+    size: f32,
     resolution: usize,
 }
 
@@ -79,20 +83,22 @@ impl MapPlot {
         Self {
             center,
             range,
-            width: 200.0,
+            size: 200.0,
             resolution: 100,
         }
     }
-    pub fn _width(self, width: f32) -> Self {
-        Self { width, ..self }
+    pub fn number() -> Self {
+        Self::new(Vec2::ZERO, 2.1)
     }
-    pub fn _resolution(self, resolution: usize) -> Self {
+    pub fn size(self, size: f32) -> Self {
+        Self { size, ..self }
+    }
+    pub fn resolution(self, resolution: usize) -> Self {
         Self { resolution, ..self }
     }
-
     fn init_plot(&self, key: FieldPlotKey, kind: FieldPlotKind) -> Plot {
         Plot::new((key, kind))
-            .width(self.width)
+            .width(self.size)
             .view_aspect(1.0)
             .include_x(self.center.x - self.range)
             .include_x(self.center.x + self.range)
@@ -115,7 +121,7 @@ impl MapPlot {
             .show(ui, |plot_ui| {
                 let mut rng = SmallRng::seed_from_u64(0);
                 let resolution = ((self.resolution as f32) / F::Value::SCALE) as usize;
-                let point_radius = self.width / resolution as f32;
+                let point_radius = self.size / resolution as f32;
                 let step = 2.0 * self.range / resolution as f32;
                 let mut points = Vec::with_capacity(self.resolution * resolution);
                 for i in 0..self.resolution {
@@ -164,19 +170,18 @@ impl MapPlot {
                 }
             });
     }
-    pub fn number_ui(ui: &mut Ui, n: f32, key: FieldPlotKey) {
-        let plot = Self::new(Vec2::ZERO, 2.1);
+    pub fn number_ui(&self, ui: &mut Ui, n: f32, key: FieldPlotKey) {
         let time = time();
         let rng = RefCell::new(SmallRng::seed_from_u64(0));
-        let resolution = ((plot.resolution as f32) / f32::SCALE) as usize;
-        let point_radius = plot.width / resolution as f32;
+        let resolution = ((self.resolution as f32) / f32::SCALE) as usize;
+        let point_radius = self.size / resolution as f32;
         let delta = move || {
             (time + rng.borrow_mut().gen::<f64>() * 2.0 * f64::consts::PI).sin()
                 * 0.25
                 * f32::wiggle_delta(point_radius) as f64
         };
         const SAMPLES: usize = 200;
-        plot.init_plot(key, FieldPlotKind::Scalar)
+        self.init_plot(key, FieldPlotKind::Scalar)
             .show(ui, |plot_ui| {
                 const FLOWER_MAX: f32 = 10.0;
                 let frac = (n as f64) % 1.0;

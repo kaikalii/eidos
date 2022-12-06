@@ -68,14 +68,8 @@ pub enum VectorField<'a> {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
 pub enum FieldKind<T> {
+    Uncasted,
     Typed(T),
-    Any(AnyFieldKind),
-}
-
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
-pub enum AnyFieldKind {
-    Spell,
-    Staging,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
@@ -95,7 +89,7 @@ pub enum VectorFieldKind {}
 #[derive(Clone, Copy)]
 pub struct ScalarWorldField<'a> {
     pub kind: ScalarFieldKind,
-    pub source: FieldsSource<'a, ()>,
+    pub source: FieldsSource<'a>,
 }
 
 impl<'a> fmt::Debug for ScalarWorldField<'a> {
@@ -107,7 +101,7 @@ impl<'a> fmt::Debug for ScalarWorldField<'a> {
 #[derive(Clone, Copy)]
 pub struct VectorWorldField<'a> {
     pub kind: VectorFieldKind,
-    pub source: FieldsSource<'a, ()>,
+    pub source: FieldsSource<'a>,
 }
 
 impl<'a> fmt::Debug for VectorWorldField<'a> {
