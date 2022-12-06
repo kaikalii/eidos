@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+
+use itertools::Itertools;
 use rapier2d::{na::Unit, prelude::*};
 
 use crate::{
@@ -39,6 +42,9 @@ impl Default for PhysicsContext {
 }
 
 impl PhysicsContext {
+    pub fn step_time(&self) -> f32 {
+        self.pipline.counters.step_time() as f32
+    }
     pub fn step(&mut self) {
         self.pipline.step(
             &self.gravity,
@@ -58,31 +64,41 @@ impl PhysicsContext {
 }
 
 impl World {
-    pub fn run_physics(&mut self) {
+    #[must_use]
+    pub fn run_physics(&mut self) -> f32 {
         // Set forces
-        if let Some(field) = self
-            .outputs
-            .vectors
-            .get(&VectorOutputFieldKind::Force)
-            .cloned()
-        {
-            for handle in self.objects.keys() {
-                let pos = self.objects[handle].pos;
-                let vector = field.sample(self, pos);
-                let body = &mut self.physics.bodies[*handle];
-                body.reset_forces(true);
-                body.add_force(vector.convert(), true);
-            }
+        let mut forces = HashMap::new();
+        for &handle in self.objects.keys().collect_vec() {
+            let pos = self.objects[&handle].pos;
+            let vector = self.sample_output_vector_field(VectorOutputFieldKind::Force, pos);
+            let body = &mut self.physics.bodies[handle];
+            body.reset_forces(true);
+            body.add_force(vector.convert(), true);
+            forces.insert(handle, vector);
         }
         // Step physics
         self.physics.step();
         // Set object positions from physics system
-        for obj in self.objects.values_mut() {
+        let mut total_work = 0.0;
+        for (handle, obj) in self.objects.iter_mut() {
             let body = self.physics.bodies.get(obj.body_handle).unwrap();
+            let old_pos = obj.pos;
             obj.pos = body.translation().convert();
+            let dpos = obj.pos - old_pos;
             obj.rot = body.rotation().angle();
+            // Calculate work
+            if dpos.length() > 0.0 {
+                if let Some(force) = forces.get(handle).copied() {
+                    let work_done = force.dot(dpos);
+                    if work_done.abs() > 0.0 {
+                        total_work += work_done
+                    }
+                }
+            }
         }
+        // Set player pos
         self.player_pos = self.objects[&self.player.body_handle].pos;
+        total_work
     }
     pub fn add_object(
         &mut self,

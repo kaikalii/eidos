@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use eframe::egui::*;
 use rapier2d::prelude::*;
 
-use crate::{field::*, math::rotate, physics::PhysicsContext};
+use crate::{field::*, game::TICK_RATE, math::rotate, physics::PhysicsContext};
 
 pub struct World {
     pub player_pos: Pos2,
@@ -14,8 +14,12 @@ pub struct World {
     pub outputs: OutputFields,
 }
 
+const MANA_REGEN_RATE: f32 = 0.1;
+
 pub struct Player {
     pub body_handle: RigidBodyHandle,
+    pub mana: f32,
+    pub max_mana: f32,
 }
 
 #[derive(Default)]
@@ -31,6 +35,8 @@ impl Default for World {
             player_pos: Pos2::ZERO,
             player: Player {
                 body_handle: RigidBodyHandle::default(),
+                mana: 1.0,
+                max_mana: 1.0,
             },
             physics: PhysicsContext::default(),
             objects: HashMap::new(),
@@ -137,5 +143,14 @@ impl World {
             .get(&kind)
             .map(|field| field.sample(self, pos))
             .unwrap_or_default()
+            * self.player.mana.clamp(0.0, 1.0)
+    }
+    pub fn update(&mut self) {
+        // Run physics
+        let work_done = self.run_physics();
+        // Update mana
+        self.player.mana -= work_done;
+        self.player.mana =
+            (self.player.mana + TICK_RATE * MANA_REGEN_RATE).min(self.player.max_mana);
     }
 }

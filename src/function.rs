@@ -52,6 +52,7 @@ impl FunctionCategory {
 pub enum Nullary {
     Zero,
     One,
+    Six,
     OneX,
     OneY,
     X,
@@ -65,6 +66,7 @@ impl Nullary {
         match self {
             Nullary::Zero => CommonField::Uniform(0.0).into(),
             Nullary::One => CommonField::Uniform(1.0).into(),
+            Nullary::Six => CommonField::Uniform(6.0).into(),
             Nullary::OneX => CommonField::Uniform(Vec2::X).into(),
             Nullary::OneY => CommonField::Uniform(Vec2::Y).into(),
             Nullary::X => ScalarField::Common(CommonField::X).into(),

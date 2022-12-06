@@ -1,7 +1,3 @@
-- Improve functions
-  - Make them easier to read
-  - Reorganize them
-  - Add more useful functions
-- Add mana
+- Add more useful functions
 - Add dialog system
 - Implement story

@@ -15,11 +15,14 @@ use crate::{
     world::World,
 };
 
+pub const TICK_RATE: f32 = 1.0 / 60.0;
+
 pub struct Game {
     pub world: World,
     ui_state: UiState,
     spell: SpellState,
     last_time: Instant,
+    ticker: f32,
 }
 
 impl Default for Game {
@@ -29,6 +32,7 @@ impl Default for Game {
             ui_state: UiState::default(),
             spell: SpellState::default(),
             last_time: Instant::now(),
+            ticker: 0.0,
         }
     }
 }
@@ -86,6 +90,7 @@ impl Game {
         // Fps
         let now = Instant::now();
         let dt = (now - self.last_time).as_secs_f32();
+        self.ticker += dt;
         self.last_time = now;
         ui.small(format!("{} fps", (1.0 / dt).round()));
         // Calculate fields
@@ -108,6 +113,11 @@ impl Game {
             }
         }
         // Draw ui
+        // Mana bar
+        ProgressBar::new(self.world.player.mana / self.world.player.max_mana)
+            .desired_width(300.0)
+            .ui(ui);
+        // World Fields
         Grid::new("fields").show(ui, |ui| {
             // Draw fields
             for field_kind in all::<FieldKind>() {
@@ -156,8 +166,11 @@ impl Game {
                 }
             });
         }
-        // Run physics
-        self.world.run_physics();
+        // Update world
+        while self.ticker >= TICK_RATE {
+            self.world.update();
+            self.ticker -= TICK_RATE;
+        }
     }
     fn init_plot(&self, size: f32, resolution: usize) -> MapPlot {
         MapPlot::new(&self.world, self.world.player_pos + Vec2::Y, 5.0)
