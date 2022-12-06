@@ -131,6 +131,15 @@ impl Runtime {
                         ),
                         _ => unreachable!(),
                     },
+                    GenericBinOp::Index => match (a, b) {
+                        (GenericField::Vector(a), GenericField::Scalar(b)) => {
+                            self.push(ScalarField::Index(a.into(), b.into()))
+                        }
+                        (GenericField::Vector(a), GenericField::Vector(b)) => {
+                            self.push(VectorField::Index(a.into(), b.into()))
+                        }
+                        _ => unreachable!(),
+                    },
                 }
             }
         }

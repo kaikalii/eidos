@@ -1,4 +1,3 @@
-- Add index function
 - Improve functions
   - Make them easier to read
   - Reorganize them

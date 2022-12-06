@@ -67,6 +67,7 @@ pub enum ScalarField {
     ScalarUn(UnOp<ScalarUnOp>, Box<Self>),
     VectorUn(VectorUnScalarOp, Box<VectorField>),
     Bin(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
+    Index(Box<VectorField>, Box<Self>),
     World(GenericScalarFieldKind),
 }
 
@@ -78,6 +79,7 @@ pub enum VectorField {
     BinSV(BinOp<NoOp<Vec2>>, ScalarField, Box<Self>),
     BinVS(BinOp<NoOp<Vec2>>, Box<Self>, ScalarField),
     BinVV(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
+    Index(Box<Self>, Box<Self>),
     World(GenericVectorFieldKind),
 }
 
@@ -169,6 +171,9 @@ impl ScalarField {
             ScalarField::ScalarUn(op, field) => op.operate(field.sample(world, pos)),
             ScalarField::VectorUn(op, field) => op.operate(field.sample(world, pos)),
             ScalarField::Bin(op, a, b) => op.operate(a.sample(world, pos), b.sample(world, pos)),
+            ScalarField::Index(index, field) => {
+                field.sample(world, index.sample(world, pos).to_pos2())
+            }
             ScalarField::World(kind) => world.sample_scalar_field(*kind, pos),
         }
     }
@@ -214,6 +219,9 @@ impl VectorField {
             VectorField::BinSV(op, a, b) => op.operate(a.sample(world, pos), b.sample(world, pos)),
             VectorField::BinVS(op, a, b) => op.operate(a.sample(world, pos), b.sample(world, pos)),
             VectorField::BinVV(op, a, b) => op.operate(a.sample(world, pos), b.sample(world, pos)),
+            VectorField::Index(index, field) => {
+                field.sample(world, index.sample(world, pos).to_pos2())
+            }
             VectorField::World(kind) => world.sample_vector_field(*kind, pos),
         }
     }

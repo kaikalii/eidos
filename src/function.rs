@@ -200,6 +200,7 @@ pub trait BinOperator<A, B> {
 pub enum GenericBinOp {
     Math(MathBinOp),
     Homo(HomoBinOp),
+    Index,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
@@ -313,7 +314,7 @@ impl BinOperator<Vec2, Vec2> for HomoBinOp {
 
 #[derive(Debug, Display, Clone, Copy)]
 pub enum TypeConstraint {
-    Field(ValueConstraint),
+    Constrain(ValueConstraint),
     Any,
 }
 
@@ -321,7 +322,6 @@ pub enum TypeConstraint {
 pub enum ValueConstraint {
     Exact(Type),
     Group(u8),
-    Any,
 }
 
 #[derive(Default)]
@@ -332,7 +332,7 @@ struct ConstraintContext {
 impl TypeConstraint {
     fn matches(&self, ty: Type, ctx: &mut ConstraintContext) -> bool {
         match (self, ty) {
-            (TypeConstraint::Field(constraint), vt) => constraint.matches(vt, ctx),
+            (TypeConstraint::Constrain(constraint), vt) => constraint.matches(vt, ctx),
             (TypeConstraint::Any, _) => true,
         }
     }
@@ -350,7 +350,6 @@ impl ValueConstraint {
                     true
                 }
             }
-            ValueConstraint::Any => true,
         }
     }
 }
@@ -363,29 +362,30 @@ impl Function {
             Function::ReadField(_) | Function::Nullary(_) => vec![],
             Function::WriteField(kind) => match kind {
                 GenericOutputFieldKind::Scalar(_) => {
-                    vec![Field(ValueConstraint::Exact(Type::Scalar))]
+                    vec![Constrain(ValueConstraint::Exact(Type::Scalar))]
                 }
                 GenericOutputFieldKind::Vector(_) => {
-                    vec![Field(ValueConstraint::Exact(Type::Vector))]
+                    vec![Constrain(ValueConstraint::Exact(Type::Vector))]
                 }
             },
             Function::Combinator1(_) => vec![Any],
             Function::Combinator2(_) => vec![Any; 2],
             Function::Un(op) => match op {
                 GenericUnOp::Math(_) => vec![Any],
-                GenericUnOp::Scalar(_) => vec![Field(ValueConstraint::Exact(Type::Scalar))],
+                GenericUnOp::Scalar(_) => vec![Constrain(ValueConstraint::Exact(Type::Scalar))],
                 GenericUnOp::VectorScalar(_) | GenericUnOp::VectorVector(_) => {
-                    vec![Field(ValueConstraint::Exact(Type::Vector))]
+                    vec![Constrain(ValueConstraint::Exact(Type::Vector))]
                 }
             },
             Function::Bin(op) => match op {
                 GenericBinOp::Math(_) => {
-                    vec![Field(ValueConstraint::Any), Field(ValueConstraint::Any)]
+                    vec![Any, Any]
                 }
                 GenericBinOp::Homo(_) => vec![
-                    Field(ValueConstraint::Group(0)),
-                    Field(ValueConstraint::Group(0)),
+                    Constrain(ValueConstraint::Group(0)),
+                    Constrain(ValueConstraint::Group(0)),
                 ],
+                GenericBinOp::Index => vec![Constrain(ValueConstraint::Exact(Type::Vector)), Any],
             },
         };
         // Validate stack size
