@@ -121,8 +121,8 @@ impl MapPlot {
             .show(ui, |plot_ui| {
                 let mut rng = SmallRng::seed_from_u64(0);
                 let resolution = ((self.resolution as f32) / F::Value::SCALE) as usize;
-                let point_radius = self.size / resolution as f32;
                 let step = 2.0 * self.range / resolution as f32;
+                let point_radius = self.range * self.size / resolution as f32 * 0.1;
                 let mut points = Vec::with_capacity(self.resolution * resolution);
                 for i in 0..self.resolution {
                     let x = (i as f32) * step + self.center.x - self.range;
@@ -170,18 +170,17 @@ impl MapPlot {
                 }
             });
     }
-    pub fn number_ui(&self, ui: &mut Ui, n: f32, key: FieldPlotKey) {
+    pub fn number_ui(ui: &mut Ui, size: f32, resolution: usize, n: f32, key: FieldPlotKey) {
         let time = time();
+        let plot = Self::new(Vec2::ZERO, 2.1).size(size).resolution(resolution);
         let rng = RefCell::new(SmallRng::seed_from_u64(0));
-        let resolution = ((self.resolution as f32) / f32::SCALE) as usize;
-        let point_radius = self.size / resolution as f32;
+        let point_radius = plot.range * plot.size / plot.resolution as f32 * 0.1;
         let delta = move || {
             (time + rng.borrow_mut().gen::<f64>() * 2.0 * f64::consts::PI).sin()
-                * 0.25
                 * f32::wiggle_delta(point_radius) as f64
         };
-        const SAMPLES: usize = 200;
-        self.init_plot(key, FieldPlotKind::Scalar)
+        let samples = (plot.resolution * 2).max(80);
+        plot.init_plot(key, FieldPlotKind::Scalar)
             .show(ui, |plot_ui| {
                 const FLOWER_MAX: f32 = 10.0;
                 let frac = (n as f64) % 1.0;
@@ -190,7 +189,7 @@ impl MapPlot {
                 let hundreds_part =
                     ((n / (FLOWER_MAX * FLOWER_MAX)).abs().floor() * n.signum()) as f64;
                 // Fractional circle
-                let frac_samples = (SAMPLES as f64 * frac) as usize;
+                let frac_samples = (samples as f64 * frac) as usize;
                 if frac_samples > 0 {
                     plot_ui.points(
                         Points::new(PlotPoints::from_parametric_callback(
@@ -218,7 +217,7 @@ impl MapPlot {
                                 (x, y)
                             },
                             0.0..=1.0,
-                            SAMPLES,
+                            samples,
                         ))
                         .color(Color32::YELLOW),
                     );
@@ -235,7 +234,7 @@ impl MapPlot {
                                 (x, y)
                             },
                             0.0..=1.0,
-                            SAMPLES,
+                            samples,
                         ))
                         .color(Color32::from_rgb(0, 100, 255)),
                     );
@@ -252,7 +251,7 @@ impl MapPlot {
                                 (x, y)
                             },
                             0.0..=1.0,
-                            SAMPLES,
+                            samples,
                         ))
                         .color(Color32::RED),
                     );

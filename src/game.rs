@@ -197,10 +197,9 @@ impl<'a> FieldsSource<'a> {
             .size(size)
             .resolution(resolution);
         match field {
-            GenericField::Scalar(ScalarField::Common(CommonField::Uniform(n))) => MapPlot::number()
-                .size(size)
-                .resolution(resolution)
-                .number_ui(ui, *n, key),
+            GenericField::Scalar(ScalarField::Common(CommonField::Uniform(n))) => {
+                MapPlot::number_ui(ui, size, resolution, *n, key)
+            }
             GenericField::Scalar(field) => plot.ui(ui, (field, key)),
             GenericField::Vector(field) => plot.ui(ui, (field, key)),
         }
