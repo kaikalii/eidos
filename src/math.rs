@@ -1,7 +1,17 @@
-use std::f32::consts::PI;
+use std::{
+    f32::consts::PI,
+    ops::{Add, Rem},
+};
 
 use eframe::epaint::{pos2, vec2, Pos2, Vec2};
 use rapier2d::{na::Vector2, prelude::*};
+
+pub fn modulus<T>(x: T, m: T) -> T
+where
+    T: Copy + Add<Output = T> + Rem<Output = T>,
+{
+    (x % m + m) % m
+}
 
 pub fn rotate(v: Vec2, theta: f32) -> Vec2 {
     vec2(

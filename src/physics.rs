@@ -1,12 +1,16 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    f32::consts::{PI, TAU},
+};
 
+use eframe::epaint::Vec2;
 use itertools::Itertools;
 use rapier2d::{na::Unit, prelude::*};
 
 use crate::{
     field::VectorOutputFieldKind,
-    math::Convert,
-    world::{GraphicalShape, Object, World},
+    math::{modulus, Convert},
+    world::{GraphicalShape, Object, OffsetShape, World},
 };
 
 pub struct PhysicsContext {
@@ -64,16 +68,26 @@ impl PhysicsContext {
 }
 
 impl World {
+    /// Run a physics step and return the amount of work done by output fields
     #[must_use]
     pub fn run_physics(&mut self) -> f32 {
         // Set forces
         let mut forces = HashMap::new();
         for &handle in self.objects.keys().collect_vec() {
+            if !self.physics.bodies[handle].is_dynamic() {
+                continue;
+            }
             let pos = self.objects[&handle].pos;
             let vector = self.sample_output_vector_field(VectorOutputFieldKind::Force, pos);
             let body = &mut self.physics.bodies[handle];
             body.reset_forces(true);
             body.add_force(vector.convert(), true);
+            if handle == self.player.body_handle {
+                body.reset_torques(true);
+                let angle = modulus(body.rotation().angle() + PI, TAU) - PI;
+                let torque = -(angle / PI) * 0.05;
+                body.add_torque(torque, true);
+            }
             forces.insert(handle, vector);
         }
         // Step physics
@@ -100,43 +114,85 @@ impl World {
         self.player_pos = self.objects[&self.player.body_handle].pos;
         total_work
     }
+}
+
+pub trait IntoShapes {
+    fn into_shapes(self) -> Vec<OffsetShape>;
+}
+
+impl IntoShapes for OffsetShape {
+    fn into_shapes(self) -> Vec<OffsetShape> {
+        vec![self]
+    }
+}
+
+impl IntoShapes for GraphicalShape {
+    fn into_shapes(self) -> Vec<OffsetShape> {
+        vec![OffsetShape {
+            shape: self,
+            offset: Vec2::ZERO,
+            density: 1.0,
+        }]
+    }
+}
+
+impl IntoShapes for Vec<OffsetShape> {
+    fn into_shapes(self) -> Vec<OffsetShape> {
+        self
+    }
+}
+
+fn graphical_shape_to_shared(shape: &GraphicalShape) -> SharedShape {
+    match shape {
+        GraphicalShape::Circle(radius) => SharedShape::new(Ball::new(*radius)),
+        GraphicalShape::Box(size) => SharedShape::new(Cuboid::new((*size * 0.5).convert())),
+        GraphicalShape::HalfSpace(normal) => {
+            SharedShape::new(HalfSpace::new(Unit::new_normalize(normal.convert())))
+        }
+        GraphicalShape::Capsule {
+            half_height,
+            radius,
+        } => SharedShape::new(Capsule::new(
+            [0.0, *half_height].into(),
+            [0.0, -*half_height].into(),
+            *radius,
+        )),
+    }
+}
+
+impl World {
     pub fn add_object(
         &mut self,
-        graphical_shape: GraphicalShape,
+        shapes: impl IntoShapes,
         body_builder: RigidBodyBuilder,
-        build_collider: impl FnOnce(ColliderBuilder) -> ColliderBuilder,
+        build_collider: impl Fn(ColliderBuilder) -> ColliderBuilder,
     ) -> RigidBodyHandle {
-        let body = body_builder.build();
-        let shape = match &graphical_shape {
-            GraphicalShape::Circle(radius) => SharedShape::new(Ball::new(*radius)),
-            GraphicalShape::Box(size) => SharedShape::new(Cuboid::new((*size * 0.5).convert())),
-            GraphicalShape::HalfSpace(normal) => {
-                SharedShape::new(HalfSpace::new(Unit::new_normalize(normal.convert())))
-            }
-            GraphicalShape::Capsule {
-                half_height,
-                radius,
-            } => SharedShape::new(Capsule::new(
-                [0.0, *half_height].into(),
-                [0.0, -*half_height].into(),
-                *radius,
-            )),
-        };
-        let collider = build_collider(ColliderBuilder::new(shape)).build();
+        let body = body_builder
+            .linear_damping(0.5)
+            .angular_damping(1.0)
+            .build();
+        let offset_shapes = shapes.into_shapes();
         let pos = body.translation().convert();
         let rot = body.rotation().angle();
         let body_handle = self.physics.bodies.insert(body);
+        for offset_shape in &offset_shapes {
+            let shared_shape = graphical_shape_to_shared(&offset_shape.shape);
+            let collider = build_collider(ColliderBuilder::new(shared_shape))
+                .translation(offset_shape.offset.convert())
+                .density(offset_shape.density)
+                .build();
+            self.physics.colliders.insert_with_parent(
+                collider,
+                body_handle,
+                &mut self.physics.bodies,
+            );
+        }
         let object = Object {
             pos,
             rot,
-            shape: graphical_shape,
-            shape_offset: collider.translation().convert(),
-            density: collider.density(),
+            shapes: offset_shapes,
             body_handle,
         };
-        self.physics
-            .colliders
-            .insert_with_parent(collider, body_handle, &mut self.physics.bodies);
         self.objects.insert(body_handle, object);
         body_handle
     }

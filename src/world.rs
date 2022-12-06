@@ -46,24 +46,30 @@ impl Default for World {
         // Add objects
         // Ground
         world.add_object(
-            GraphicalShape::HalfSpace(Vec2::Y),
+            GraphicalShape::HalfSpace(Vec2::Y)
+                .offset(Vec2::ZERO)
+                .density(3.0),
             RigidBodyBuilder::fixed(),
-            |c| c.density(3.0),
+            |c| c.restitution(0.5),
         );
         // Rock?
         world.add_object(
-            GraphicalShape::Circle(1.0),
+            GraphicalShape::Circle(1.0).offset(Vec2::ZERO).density(2.0),
             RigidBodyBuilder::dynamic().translation([3.0, 10.0].into()),
-            |c| c.density(2.0).restitution(1.0),
+            |c| c,
         );
         // Player
         world.player.body_handle = world.add_object(
-            GraphicalShape::Capsule {
-                half_height: 0.25,
-                radius: 0.25,
-            },
+            vec![
+                GraphicalShape::Capsule {
+                    half_height: 0.25,
+                    radius: 0.25,
+                }
+                .offset(Vec2::ZERO),
+                GraphicalShape::Circle(0.3).offset(vec2(0.0, 0.5)),
+            ],
             RigidBodyBuilder::dynamic().translation([2.0, 0.5].into()),
-            |c| c.density(1.0),
+            |c| c,
         );
         world
     }
@@ -71,10 +77,24 @@ impl Default for World {
 pub struct Object {
     pub pos: Pos2,
     pub rot: f32,
-    pub shape: GraphicalShape,
-    pub density: f32,
-    pub shape_offset: Vec2,
+    pub shapes: Vec<OffsetShape>,
     pub body_handle: RigidBodyHandle,
+}
+
+#[derive(Clone)]
+pub struct OffsetShape {
+    pub shape: GraphicalShape,
+    pub offset: Vec2,
+    pub density: f32,
+}
+
+impl OffsetShape {
+    pub fn contains(&self, pos: Pos2) -> bool {
+        self.shape.contains(pos - self.offset)
+    }
+    pub fn density(self, density: f32) -> Self {
+        Self { density, ..self }
+    }
 }
 
 #[derive(Clone)]
@@ -86,6 +106,13 @@ pub enum GraphicalShape {
 }
 
 impl GraphicalShape {
+    pub fn offset(self, offset: Vec2) -> OffsetShape {
+        OffsetShape {
+            shape: self,
+            offset,
+            density: 1.0,
+        }
+    }
     pub fn contains(&self, pos: Pos2) -> bool {
         match self {
             GraphicalShape::Circle(radius) => pos.distance(Pos2::ZERO) < *radius,
@@ -108,23 +135,21 @@ impl World {
         &self,
         p: Pos2,
         filter: impl Fn(&Object, &RigidBody) -> bool,
-    ) -> Option<&Object> {
-        self.objects.values().find(|obj| {
-            let body = &self.physics.bodies[obj.body_handle];
-            if !filter(obj, body) {
-                return false;
+    ) -> Option<(&Object, &OffsetShape)> {
+        self.objects.values().find_map(|obj| {
+            if !filter(obj, &self.physics.bodies[obj.body_handle]) {
+                return None;
             }
-            let transformed_point =
-                rotate(p.to_vec2() - obj.pos.to_vec2() - obj.shape_offset, -obj.rot).to_pos2();
-            obj.shape.contains(transformed_point)
+            let transformed_point = rotate(p.to_vec2() - obj.pos.to_vec2(), -obj.rot).to_pos2();
+            let shape = obj
+                .shapes
+                .iter()
+                .find(|shape| shape.contains(transformed_point))?;
+            Some((obj, shape))
         })
     }
-    pub fn find_object_at(&self, p: Pos2) -> Option<&Object> {
-        self.objects.values().find(|obj| {
-            let transformed_point =
-                rotate(p.to_vec2() - obj.pos.to_vec2() - obj.shape_offset, -obj.rot).to_pos2();
-            obj.shape.contains(transformed_point)
-        })
+    pub fn find_object_at(&self, p: Pos2) -> Option<(&Object, &OffsetShape)> {
+        self.find_object_filtered_at(p, |_, _| true)
     }
     pub fn sample_scalar_field(&self, kind: GenericScalarFieldKind, pos: Pos2) -> f32 {
         match kind {
@@ -142,7 +167,7 @@ impl World {
         match kind {
             ScalarInputFieldKind::Density => self
                 .find_object_at(pos)
-                .map(|obj| obj.density)
+                .map(|(_, shape)| shape.density)
                 .unwrap_or(0.0),
             ScalarInputFieldKind::Elevation => {
                 let mut test = pos;
