@@ -94,25 +94,27 @@ impl<'a> Runtime<'a> {
                 match op {
                     GenericUnOp::Math(op) => match a {
                         GenericField::Scalar(f) => {
-                            self.push(ScalarField::ScalarUn(UnOp::Math(op), f.into()))
+                            self.push(ScalarField::ScalarUn(UnOp::Math(op), f.into()).reduce())
                         }
                         GenericField::Vector(f) => {
-                            self.push(VectorField::Un(UnOp::Math(op), f.into()))
+                            self.push(VectorField::Un(UnOp::Math(op), f.into()).reduce())
                         }
                     },
                     GenericUnOp::Scalar(op) => match a {
                         GenericField::Scalar(f) => {
-                            self.push(ScalarField::ScalarUn(UnOp::Typed(op), f.into()))
+                            self.push(ScalarField::ScalarUn(UnOp::Typed(op), f.into()).reduce())
                         }
                         _ => unreachable!(),
                     },
                     GenericUnOp::VectorScalar(op) => match a {
-                        GenericField::Vector(f) => self.push(ScalarField::VectorUn(op, f.into())),
+                        GenericField::Vector(f) => {
+                            self.push(ScalarField::VectorUn(op, f.into()).reduce())
+                        }
                         _ => unreachable!(),
                     },
                     GenericUnOp::VectorVector(op) => match a {
                         GenericField::Vector(f) => {
-                            self.push(VectorField::Un(UnOp::Typed(op), f.into()))
+                            self.push(VectorField::Un(UnOp::Typed(op), f.into()).reduce())
                         }
                         _ => unreachable!(),
                     },
@@ -124,25 +126,28 @@ impl<'a> Runtime<'a> {
                 match op {
                     GenericBinOp::Math(op) => match (a, b) {
                         (GenericField::Scalar(a), GenericField::Scalar(b)) => {
-                            self.push(ScalarField::Bin(BinOp::Math(op), a.into(), b.into()));
+                            self.push(
+                                ScalarField::Bin(BinOp::Math(op), a.into(), b.into()).reduce(),
+                            );
                         }
                         (GenericField::Scalar(a), GenericField::Vector(b)) => {
-                            self.push(VectorField::BinSV(BinOp::Math(op), a.into(), b.into()));
+                            self.push(VectorField::BinSV(BinOp::Math(op), a, b.into()).reduce());
                         }
                         (GenericField::Vector(a), GenericField::Scalar(b)) => {
-                            self.push(VectorField::BinVS(BinOp::Math(op), a.into(), b.into()));
+                            self.push(VectorField::BinVS(BinOp::Math(op), a.into(), b).reduce());
                         }
                         (GenericField::Vector(a), GenericField::Vector(b)) => {
-                            self.push(VectorField::BinVV(BinOp::Math(op), a.into(), b.into()));
+                            self.push(
+                                VectorField::BinVV(BinOp::Math(op), a.into(), b.into()).reduce(),
+                            );
                         }
                     },
                     GenericBinOp::Homo(op) => match (a, b) {
-                        (GenericField::Scalar(a), GenericField::Scalar(b)) => {
-                            self.push(ScalarField::Bin(BinOp::Typed(op), a.into(), b.into()))
-                        }
-                        (GenericField::Vector(a), GenericField::Vector(b)) => {
-                            self.push(VectorField::BinVV(BinOp::Typed(op), a.into(), b.into()))
-                        }
+                        (GenericField::Scalar(a), GenericField::Scalar(b)) => self
+                            .push(ScalarField::Bin(BinOp::Typed(op), a.into(), b.into()).reduce()),
+                        (GenericField::Vector(a), GenericField::Vector(b)) => self.push(
+                            VectorField::BinVV(BinOp::Typed(op), a.into(), b.into()).reduce(),
+                        ),
                         _ => unreachable!(),
                     },
                 }

@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use eframe::{
     egui::*,
     epaint::{ahash::HashMap, color::Hsva},
@@ -14,11 +16,22 @@ use crate::{
     world::World,
 };
 
-#[derive(Default)]
 pub struct Game {
     world: World,
     ui_state: UiState,
     spell: SpellState<Vec<Function>>,
+    last_time: Instant,
+}
+
+impl Default for Game {
+    fn default() -> Self {
+        Game {
+            world: World::default(),
+            ui_state: UiState::default(),
+            spell: SpellState::default(),
+            last_time: Instant::now(),
+        }
+    }
 }
 
 struct UiState {
@@ -74,6 +87,11 @@ impl eframe::App for Game {
 
 impl Game {
     fn ui(&mut self, ui: &mut Ui) {
+        // Fps
+        let now = Instant::now();
+        let elapsed = (now - self.last_time).as_secs_f32();
+        self.last_time = now;
+        ui.small(format!("{} fps", (1.0 / elapsed).round()));
         // Calculate fields
         let mut rt = Runtime::default();
         let mut error = None;
@@ -173,6 +191,9 @@ impl<'a> FieldsSource<'a> {
                     AnyFieldKind::Staging => &self.spell_state.staging,
                 };
                 match field {
+                    GenericField::Scalar(ScalarField::Common(CommonField::Uniform(n))) => {
+                        MapPlot::number_ui(ui, *n, FieldKind::Any(kind))
+                    }
                     GenericField::Scalar(field) => plot.ui(ui, (field, kind)),
                     GenericField::Vector(field) => plot.ui(ui, (field, kind)),
                 }
