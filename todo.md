@@ -1,0 +1,10 @@
+- Fix sampling offset
+- Remove function values
+- Add index function
+- Improve functions
+  - Make them easier to read
+  - Reorganize them
+  - Add more useful functions
+- Add mana
+- Add dialog system
+- Implement story
