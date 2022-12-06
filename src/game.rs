@@ -100,9 +100,9 @@ impl Game {
     fn ui(&mut self, ui: &mut Ui) {
         // Fps
         let now = Instant::now();
-        let elapsed = (now - self.last_time).as_secs_f32();
+        let dt = (now - self.last_time).as_secs_f32();
         self.last_time = now;
-        ui.small(format!("{} fps", (1.0 / elapsed).round()));
+        ui.small(format!("{} fps", (1.0 / dt).round()));
         // Calculate fields
         let mut rt = Runtime::default();
         let mut error = None;
@@ -188,7 +188,7 @@ impl Game {
 impl Game {
     fn init_plot(&self, size: f32, resolution: usize) -> MapPlot {
         let player_pos = self.world.objects[&self.player.body_handle].pos;
-        MapPlot::new(&self.world, player_pos + vec2(0.0, 1.0), 5.0)
+        MapPlot::new(&self.world, player_pos + Vec2::Y, 5.0)
             .size(size)
             .resolution(resolution)
     }
@@ -203,7 +203,7 @@ impl Game {
         let plot = self.init_plot(size, resolution);
         match field {
             GenericField::Scalar(ScalarField::Common(CommonField::Uniform(n))) => {
-                MapPlot::number_ui(&self.world, ui, size, resolution, *n, key)
+                MapPlot::number_ui(&self.world, ui, size, resolution, *n)
             }
             GenericField::Scalar(field) => plot.ui(ui, (field, key)),
             GenericField::Vector(field) => plot.ui(ui, (field, key)),

@@ -22,11 +22,6 @@ pub enum FieldPlotKey {
     Kind(FieldKind<GenericInputFieldKind>),
     Staging(usize),
 }
-#[derive(PartialEq, Eq, Hash)]
-enum FieldPlotKind {
-    Field,
-    Scalar,
-}
 
 pub trait FieldPlot {
     type Value: PartitionAndPlottable;
@@ -98,8 +93,8 @@ impl<'w> MapPlot<'w> {
     pub fn resolution(self, resolution: usize) -> Self {
         Self { resolution, ..self }
     }
-    fn init_plot(&self, key: FieldPlotKey, kind: FieldPlotKind) -> Plot {
-        Plot::new((key, kind, random::<usize>()))
+    fn init_plot(&self) -> Plot {
+        Plot::new(random::<u64>())
             .width(self.size)
             .view_aspect(1.0)
             .include_x(self.center.x - self.range)
@@ -119,67 +114,61 @@ impl<'w> MapPlot<'w> {
         F: FieldPlot,
     {
         let time = time();
-        self.init_plot(field_plot.key(), FieldPlotKind::Field)
-            .show(ui, |plot_ui| {
-                let mut rng = SmallRng::seed_from_u64(0);
-                let resolution = ((self.resolution as f32) / F::Value::SCALE) as usize;
-                let step = 2.0 * self.range / resolution as f32;
-                let point_radius = self.range * self.size / resolution as f32 * 0.1;
-                let mut points = Vec::with_capacity(self.resolution * resolution);
-                for i in 0..self.resolution {
-                    let x = (i as f32) * step + self.center.x - self.range;
-                    for j in 0..self.resolution {
-                        let y = (j as f32) * step + self.center.y - self.range;
-                        if pos2(x, y).distance(self.center) > self.range {
-                            continue;
-                        }
-                        let z = field_plot.get_z(self.world, x, y);
-                        let dx = (time + rng.gen::<f64>() * 2.0 * f64::consts::PI).sin() as f32
-                            * F::Value::wiggle_delta(point_radius);
-                        let dy = (time + rng.gen::<f64>() * 2.0 * f64::consts::PI).sin() as f32
-                            * F::Value::wiggle_delta(point_radius);
-                        points.push((x + dx, y + dy, z));
+        self.init_plot().show(ui, |plot_ui| {
+            let mut rng = SmallRng::seed_from_u64(0);
+            let resolution = ((self.resolution as f32) / F::Value::SCALE) as usize;
+            let step = 2.0 * self.range / resolution as f32;
+            let point_radius = self.range * self.size / resolution as f32 * 0.1;
+            let mut points = Vec::with_capacity(self.resolution * resolution);
+            for i in 0..self.resolution {
+                let x = (i as f32) * step + self.center.x - self.range;
+                for j in 0..self.resolution {
+                    let y = (j as f32) * step + self.center.y - self.range;
+                    let dxt = rng.gen::<f64>();
+                    let dyt = rng.gen::<f64>();
+                    if pos2(x, y).distance(self.center) > self.range {
+                        continue;
                     }
+                    let z = field_plot.get_z(self.world, x, y);
+                    let dx = (time + dxt * 2.0 * f64::consts::PI).sin() as f32
+                        * F::Value::wiggle_delta(point_radius);
+                    let dy = (time + dyt * 2.0 * f64::consts::PI).sin() as f32
+                        * F::Value::wiggle_delta(point_radius);
+                    points.push((x + dx, y + dy, z));
                 }
-                F::Value::partition_and_plot(plot_ui, &field_plot, point_radius, points);
-                if let Some(p) = plot_ui.pointer_coordinate() {
-                    if p.to_vec2().length() < self.range {
-                        let x = p.x as f32;
-                        let y = p.y as f32;
-                        let z = field_plot.get_z(self.world, x, y);
-                        let anchor = if y > self.range * 0.9 {
-                            Align2::RIGHT_TOP
-                        } else if x < -self.range * 0.5 {
-                            Align2::LEFT_BOTTOM
-                        } else if x > self.range * 0.5 {
-                            Align2::RIGHT_BOTTOM
-                        } else {
-                            Align2::CENTER_BOTTOM
-                        };
-                        plot_ui.text(
-                            Text::new(
-                                p,
-                                format!(
-                                    " ({}, {}): {} ",
-                                    (x * 10.0).round() / 10.0,
-                                    (y * 10.0).round() / 10.0,
-                                    z.format(|z| (z * 10.0).round() / 10.0),
-                                ),
-                            )
-                            .anchor(anchor),
-                        );
-                    }
+            }
+            F::Value::partition_and_plot(plot_ui, &field_plot, point_radius, points);
+            if let Some(p) = plot_ui.pointer_coordinate() {
+                if p.to_vec2().length() < self.range {
+                    let x = p.x as f32;
+                    let y = p.y as f32;
+                    let z = field_plot.get_z(self.world, x, y);
+                    let anchor = if y > self.range * 0.9 {
+                        Align2::RIGHT_TOP
+                    } else if x < -self.range * 0.5 {
+                        Align2::LEFT_BOTTOM
+                    } else if x > self.range * 0.5 {
+                        Align2::RIGHT_BOTTOM
+                    } else {
+                        Align2::CENTER_BOTTOM
+                    };
+                    plot_ui.text(
+                        Text::new(
+                            p,
+                            format!(
+                                " ({}, {}): {} ",
+                                (x * 10.0).round() / 10.0,
+                                (y * 10.0).round() / 10.0,
+                                z.format(|z| (z * 10.0).round() / 10.0),
+                            ),
+                        )
+                        .anchor(anchor),
+                    );
                 }
-            });
+            }
+        });
     }
-    pub fn number_ui(
-        world: &'w World,
-        ui: &mut Ui,
-        size: f32,
-        resolution: usize,
-        n: f32,
-        key: FieldPlotKey,
-    ) {
+    pub fn number_ui(world: &'w World, ui: &mut Ui, size: f32, resolution: usize, n: f32) {
         let time = time();
         let plot = Self::new(world, Pos2::ZERO, 2.1)
             .size(size)
@@ -191,83 +180,81 @@ impl<'w> MapPlot<'w> {
                 * f32::wiggle_delta(point_radius) as f64
         };
         let samples = (plot.resolution * 2).max(80);
-        plot.init_plot(key, FieldPlotKind::Scalar)
-            .show(ui, |plot_ui| {
-                const FLOWER_MAX: f32 = 10.0;
-                let frac = (n as f64) % 1.0;
-                let ones_part = ((n % FLOWER_MAX).abs().floor() * n.signum()) as f64;
-                let tens_part = ((n / FLOWER_MAX % FLOWER_MAX).abs().floor() * n.signum()) as f64;
-                let hundreds_part =
-                    ((n / (FLOWER_MAX * FLOWER_MAX)).abs().floor() * n.signum()) as f64;
-                // Fractional circle
-                let frac_samples = (samples as f64 * frac) as usize;
-                if frac_samples > 0 {
-                    plot_ui.points(
-                        Points::new(PlotPoints::from_parametric_callback(
-                            |t| {
-                                let theta = t * 2.0 * f64::consts::PI;
-                                let x = theta.cos() * 0.8 + delta();
-                                let y = theta.sin() * 0.8 + delta();
-                                (x, y)
-                            },
-                            0.0..=frac,
-                            frac_samples,
-                        ))
-                        .color(Color32::GREEN),
-                    );
-                }
-                // Hundreds flower
-                if hundreds_part.abs() >= 1.0 {
-                    plot_ui.points(
-                        Points::new(PlotPoints::from_parametric_callback(
-                            |t| {
-                                let theta = t * 2.0 * f64::consts::PI;
-                                let r = 1.0 + (theta * hundreds_part / 2.0).cos().powf(16.0);
-                                let x = r * theta.cos() + delta();
-                                let y = r * theta.sin() + delta();
-                                (x, y)
-                            },
-                            0.0..=1.0,
-                            samples,
-                        ))
-                        .color(Color32::YELLOW),
-                    );
-                }
-                // Tens flower
-                if tens_part.abs() >= 1.0 {
-                    plot_ui.points(
-                        Points::new(PlotPoints::from_parametric_callback(
-                            |t| {
-                                let theta = t * 2.0 * f64::consts::PI;
-                                let r = (1.0 + (theta * tens_part * 0.5).cos().powf(2.0)) * 0.9;
-                                let x = r * theta.cos() + delta();
-                                let y = r * theta.sin() + delta();
-                                (x, y)
-                            },
-                            0.0..=1.0,
-                            samples,
-                        ))
-                        .color(Color32::from_rgb(0, 100, 255)),
-                    );
-                }
-                // Ones flower
-                if n == 0.0 || ones_part.abs() >= 1.0 {
-                    plot_ui.points(
-                        Points::new(PlotPoints::from_parametric_callback(
-                            |t| {
-                                let theta = t * 2.0 * f64::consts::PI;
-                                let r = (1.0 + (theta * ones_part).cos()) * 0.8;
-                                let x = r * theta.cos() + delta();
-                                let y = r * theta.sin() + delta();
-                                (x, y)
-                            },
-                            0.0..=1.0,
-                            samples,
-                        ))
-                        .color(Color32::RED),
-                    );
-                }
-            });
+        plot.init_plot().show(ui, |plot_ui| {
+            const FLOWER_MAX: f32 = 10.0;
+            let frac = (n as f64) % 1.0;
+            let ones_part = ((n % FLOWER_MAX).abs().floor() * n.signum()) as f64;
+            let tens_part = ((n / FLOWER_MAX % FLOWER_MAX).abs().floor() * n.signum()) as f64;
+            let hundreds_part = ((n / (FLOWER_MAX * FLOWER_MAX)).abs().floor() * n.signum()) as f64;
+            // Fractional circle
+            let frac_samples = (samples as f64 * frac) as usize;
+            if frac_samples > 0 {
+                plot_ui.points(
+                    Points::new(PlotPoints::from_parametric_callback(
+                        |t| {
+                            let theta = t * 2.0 * f64::consts::PI;
+                            let x = theta.cos() * 0.8 + delta();
+                            let y = theta.sin() * 0.8 + delta();
+                            (x, y)
+                        },
+                        0.0..=frac,
+                        frac_samples,
+                    ))
+                    .color(Color32::GREEN),
+                );
+            }
+            // Hundreds flower
+            if hundreds_part.abs() >= 1.0 {
+                plot_ui.points(
+                    Points::new(PlotPoints::from_parametric_callback(
+                        |t| {
+                            let theta = t * 2.0 * f64::consts::PI;
+                            let r = 1.0 + (theta * hundreds_part / 2.0).cos().powf(16.0);
+                            let x = r * theta.cos() + delta();
+                            let y = r * theta.sin() + delta();
+                            (x, y)
+                        },
+                        0.0..=1.0,
+                        samples,
+                    ))
+                    .color(Color32::YELLOW),
+                );
+            }
+            // Tens flower
+            if tens_part.abs() >= 1.0 {
+                plot_ui.points(
+                    Points::new(PlotPoints::from_parametric_callback(
+                        |t| {
+                            let theta = t * 2.0 * f64::consts::PI;
+                            let r = (1.0 + (theta * tens_part * 0.5).cos().powf(2.0)) * 0.9;
+                            let x = r * theta.cos() + delta();
+                            let y = r * theta.sin() + delta();
+                            (x, y)
+                        },
+                        0.0..=1.0,
+                        samples,
+                    ))
+                    .color(Color32::from_rgb(0, 100, 255)),
+                );
+            }
+            // Ones flower
+            if n == 0.0 || ones_part.abs() >= 1.0 {
+                plot_ui.points(
+                    Points::new(PlotPoints::from_parametric_callback(
+                        |t| {
+                            let theta = t * 2.0 * f64::consts::PI;
+                            let r = (1.0 + (theta * ones_part).cos()) * 0.8;
+                            let x = r * theta.cos() + delta();
+                            let y = r * theta.sin() + delta();
+                            (x, y)
+                        },
+                        0.0..=1.0,
+                        samples,
+                    ))
+                    .color(Color32::RED),
+                );
+            }
+        });
     }
 }
 
