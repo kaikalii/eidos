@@ -63,7 +63,7 @@ pub fn default_vector_color(t: Vec2) -> Color32 {
 }
 
 pub struct MapPlot {
-    center: Vec2,
+    center: Pos2,
     range: f32,
     size: f32,
     resolution: usize,
@@ -79,16 +79,13 @@ fn time() -> f64 {
 }
 
 impl MapPlot {
-    pub fn new(center: Vec2, range: f32) -> Self {
+    pub fn new(center: Pos2, range: f32) -> Self {
         Self {
             center,
             range,
             size: 200.0,
             resolution: 100,
         }
-    }
-    pub fn number() -> Self {
-        Self::new(Vec2::ZERO, 2.1)
     }
     pub fn size(self, size: f32) -> Self {
         Self { size, ..self }
@@ -128,7 +125,7 @@ impl MapPlot {
                     let x = (i as f32) * step + self.center.x - self.range;
                     for j in 0..self.resolution {
                         let y = (j as f32) * step + self.center.y - self.range;
-                        if vec2(x, y).length() > self.range {
+                        if pos2(x, y).distance(self.center) > self.range {
                             continue;
                         }
                         let z = field_plot.get_z(x, y);
@@ -172,7 +169,7 @@ impl MapPlot {
     }
     pub fn number_ui(ui: &mut Ui, size: f32, resolution: usize, n: f32, key: FieldPlotKey) {
         let time = time();
-        let plot = Self::new(Vec2::ZERO, 2.1).size(size).resolution(resolution);
+        let plot = Self::new(Pos2::ZERO, 2.1).size(size).resolution(resolution);
         let rng = RefCell::new(SmallRng::seed_from_u64(0));
         let point_radius = plot.range * plot.size / plot.resolution as f32 * 0.1;
         let delta = move || {

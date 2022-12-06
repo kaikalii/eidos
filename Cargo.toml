@@ -8,5 +8,7 @@ derive_more = '0.99.17'
 eframe = '0.19.0'
 enum-iterator = '1'
 itertools = '0.10.5'
+mint = '0.5.9'
 rand.features = ['small_rng']
 rand.version = '0.8.5'
+rapier2d = '0.16.1'

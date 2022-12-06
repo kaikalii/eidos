@@ -6,6 +6,7 @@ pub mod field;
 pub mod function;
 pub mod game;
 pub mod math;
+pub mod physics;
 pub mod plot;
 pub mod runtime;
 pub mod value;

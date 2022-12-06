@@ -1,32 +1,51 @@
+use std::collections::HashMap;
+
 use eframe::egui::*;
+use rapier2d::prelude::*;
 
-use crate::math::{rect_poly, regular_poly};
-
+#[derive(Default)]
 pub struct World {
-    pub static_objects: Vec<Object>,
+    pub objects: HashMap<RigidBodyHandle, Object>,
 }
 
 pub struct Object {
-    pub shape: Vec<Vec2>,
+    pub pos: Pos2,
+    pub shape: GraphicalShape,
     pub density: f32,
+    pub shape_offset: Vec2,
+    pub body_handle: RigidBodyHandle,
 }
 
-impl Object {
-    pub fn new(shape: impl IntoIterator<Item = Vec2>, density: f32) -> Self {
-        Object {
-            shape: shape.into_iter().collect(),
-            density,
+#[derive(Clone)]
+pub enum GraphicalShape {
+    Circle(f32),
+    Box(Vec2),
+    HalfSpace(Vec2),
+    Capsule { half_height: f32, radius: f32 },
+}
+
+impl GraphicalShape {
+    pub fn contains(&self, pos: Pos2) -> bool {
+        match self {
+            GraphicalShape::Circle(radius) => pos.distance(Pos2::ZERO) < *radius,
+            GraphicalShape::Box(size) => pos.x.abs() < size.x / 2.0 && pos.y.abs() < size.x / 2.0,
+            GraphicalShape::HalfSpace(normal) => pos.y < -normal.x / normal.y * pos.x,
+            GraphicalShape::Capsule {
+                half_height,
+                radius,
+            } => {
+                pos.x.abs() < *radius && pos.y.abs() < *half_height
+                    || pos.distance(pos2(0.0, *half_height)) < *radius
+                    || pos.distance(pos2(0.0, -*half_height)) < *radius
+            }
         }
     }
 }
 
-impl Default for World {
-    fn default() -> Self {
-        World {
-            static_objects: vec![
-                Object::new(rect_poly(vec2(2.0, 3.0), vec2(6.0, 6.0)), 1.0),
-                Object::new(regular_poly(vec2(-3.0, -3.0), 1.5, 5, 0.0), 0.8),
-            ],
-        }
+impl World {
+    pub fn find_object_at(&self, p: Pos2) -> Option<&Object> {
+        self.objects
+            .values()
+            .find(|obj| obj.shape.contains(p - obj.pos.to_vec2() - obj.shape_offset))
     }
 }

@@ -5,11 +5,12 @@ use eframe::{
     epaint::{ahash::HashMap, color::Hsva},
 };
 use enum_iterator::all;
+use rapier2d::prelude::RigidBodyHandle;
 
 use crate::{
     field::*,
     function::{Function, FunctionCategory},
-    math::polygon_contains,
+    physics::PhysicsContext,
     plot::{default_scalar_color, default_vector_color, FieldPlot, FieldPlotKey, MapPlot},
     runtime::Runtime,
     value::Value,
@@ -18,21 +19,33 @@ use crate::{
 };
 
 pub struct Game {
-    world: World,
+    pub world: World,
+    pub physics: PhysicsContext,
     ui_state: UiState,
     spell: SpellState,
     last_time: Instant,
+    pub player: Player,
 }
 
 impl Default for Game {
     fn default() -> Self {
-        Game {
+        let mut game = Game {
             world: World::default(),
             ui_state: UiState::default(),
             spell: SpellState::default(),
             last_time: Instant::now(),
-        }
+            physics: PhysicsContext::default(),
+            player: Player {
+                body_handle: Default::default(),
+            },
+        };
+        game.initialize_physics();
+        game
     }
+}
+
+pub struct Player {
+    pub body_handle: RigidBodyHandle,
 }
 
 struct UiState {
@@ -57,6 +70,7 @@ impl Default for UiState {
 pub struct FieldsSource<'a> {
     pub world: &'a World,
     pub spell_field: Option<&'a GenericField<'a>>,
+    pub player_pos: Pos2,
 }
 
 #[derive(Clone, Default)]
@@ -98,9 +112,11 @@ impl Game {
         // Calculate fields
         let mut rt = Runtime::default();
         let mut error = None;
-        let source = FieldsSource {
+        let player_pos = self.world.objects[&self.player.body_handle].pos;
+        let mut source = FieldsSource {
             world: &self.world,
             spell_field: None,
+            player_pos,
         };
         // Calculate spell field
         for function in &self.spell.spell {
@@ -119,10 +135,7 @@ impl Game {
             }
         }
         // Build fields source
-        let source = FieldsSource {
-            world: &self.world,
-            spell_field: spell_field.as_ref(),
-        };
+        source.spell_field = spell_field.as_ref();
         // Draw ui
         Grid::new("fields").show(ui, |ui| {
             // Draw fields
@@ -181,10 +194,17 @@ impl Game {
                 }
             });
         }
+        // Run physics
+        self.run_physics();
     }
 }
 
 impl<'a> FieldsSource<'a> {
+    fn init_plot(&self, size: f32, resolution: usize) -> MapPlot {
+        MapPlot::new(self.player_pos + vec2(0.0, 1.0), 5.0)
+            .size(size)
+            .resolution(resolution)
+    }
     pub fn plot_generic_field(
         &self,
         ui: &mut Ui,
@@ -193,9 +213,7 @@ impl<'a> FieldsSource<'a> {
         key: FieldPlotKey,
         field: &GenericField,
     ) {
-        let plot = MapPlot::new(Vec2::ZERO, 10.0)
-            .size(size)
-            .resolution(resolution);
+        let plot = self.init_plot(size, resolution);
         match field {
             GenericField::Scalar(ScalarField::Common(CommonField::Uniform(n))) => {
                 MapPlot::number_ui(ui, size, resolution, *n, key)
@@ -211,9 +229,7 @@ impl<'a> FieldsSource<'a> {
         resolution: usize,
         kind: FieldKind<GenericFieldKind>,
     ) {
-        let plot = MapPlot::new(Vec2::ZERO, 10.0)
-            .size(size)
-            .resolution(resolution);
+        let plot = self.init_plot(size, resolution);
         match kind {
             FieldKind::Uncasted => {
                 if let Some(field) = self.spell_field {
@@ -242,9 +258,7 @@ impl<'a> FieldsSource<'a> {
         match kind {
             ScalarFieldKind::Density => self
                 .world
-                .static_objects
-                .iter()
-                .find(|obj| polygon_contains(&obj.shape, vec2(x, y) + Vec2::splat(1e-5)))
+                .find_object_at(pos2(x, y))
                 .map(|obj| obj.density)
                 .unwrap_or(0.0),
         }
