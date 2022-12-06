@@ -14,7 +14,7 @@ pub struct World {
     pub outputs: OutputFields,
 }
 
-const MANA_REGEN_RATE: f32 = 0.1;
+const MANA_REGEN_RATE: f32 = 0.5;
 
 pub struct Player {
     pub body_handle: RigidBodyHandle,
@@ -104,6 +104,21 @@ impl GraphicalShape {
 }
 
 impl World {
+    pub fn find_object_filtered_at(
+        &self,
+        p: Pos2,
+        filter: impl Fn(&Object, &RigidBody) -> bool,
+    ) -> Option<&Object> {
+        self.objects.values().find(|obj| {
+            let body = &self.physics.bodies[obj.body_handle];
+            if !filter(obj, body) {
+                return false;
+            }
+            let transformed_point =
+                rotate(p.to_vec2() - obj.pos.to_vec2() - obj.shape_offset, -obj.rot).to_pos2();
+            obj.shape.contains(transformed_point)
+        })
+    }
     pub fn find_object_at(&self, p: Pos2) -> Option<&Object> {
         self.objects.values().find(|obj| {
             let transformed_point =
@@ -129,6 +144,19 @@ impl World {
                 .find_object_at(pos)
                 .map(|obj| obj.density)
                 .unwrap_or(0.0),
+            ScalarInputFieldKind::Elevation => {
+                let mut test = pos;
+                while test.y > 0.0 {
+                    if self
+                        .find_object_filtered_at(test, |_, body| body.body_type().is_fixed())
+                        .is_some()
+                    {
+                        return pos.y - test.y;
+                    }
+                    test.y -= 0.5;
+                }
+                pos.y
+            }
         }
     }
     pub fn sample_input_vector_field(&self, kind: VectorInputFieldKind, _pos: Pos2) -> Vec2 {

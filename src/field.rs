@@ -120,6 +120,8 @@ pub enum GenericVectorFieldKind {
 pub enum ScalarInputFieldKind {
     #[display(fmt = "ρ Density")]
     Density,
+    #[display(fmt = "🗻Elevation")]
+    Elevation,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
