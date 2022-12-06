@@ -11,10 +11,10 @@ pub enum Function {
     ReadField(GenericFieldKind),
     WriteField(GenericOutputFieldKind),
     Nullary(Nullary),
+    Bin(GenericBinOp),
+    Un(GenericUnOp),
     Combinator1(Combinator1),
     Combinator2(Combinator2),
-    Un(GenericUnOp),
-    Bin(GenericBinOp),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
@@ -22,9 +22,9 @@ pub enum FunctionCategory {
     ReadField,
     WriteField,
     Nullary,
-    Combinator,
-    Unary,
     Binary,
+    Unary,
+    Combinator,
 }
 
 impl FunctionCategory {
@@ -77,13 +77,17 @@ impl Nullary {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Combinator1 {
+    #[display(fmt = "⏺⏺")]
     Duplicate,
+    #[display(fmt = "⤵")]
     Drop,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum Combinator2 {
+    #[display(fmt = "🔄")]
     Swap,
+    #[display(fmt = "↗↘")]
     Over,
 }
 
@@ -108,20 +112,27 @@ pub enum UnOp<T> {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum MathUnOp {
+    #[display(fmt = "0-")]
     Neg,
+    #[display(fmt = "|x|")]
     Abs,
+    #[display(fmt = "+-?")]
     Sign,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum ScalarUnOp {
+    #[display(fmt = "~Sin")]
     Sin,
+    #[display(fmt = "~Cos")]
     Cos,
+    #[display(fmt = "~Tan")]
     Tan,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum VectorUnScalarOp {
+    #[display(fmt = "📏Length")]
     Length,
 }
 
@@ -200,6 +211,7 @@ pub trait BinOperator<A, B> {
 pub enum GenericBinOp {
     Math(MathBinOp),
     Homo(HomoBinOp),
+    #[display(fmt = "🔀Index")]
     Index,
 }
 
@@ -211,15 +223,21 @@ pub enum BinOp<T> {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum MathBinOp {
+    #[display(fmt = "+")]
     Add,
+    #[display(fmt = "-")]
     Sub,
+    #[display(fmt = "×")]
     Mul,
+    #[display(fmt = "÷")]
     Div,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum HomoBinOp {
+    #[display(fmt = "⬇Min")]
     Min,
+    #[display(fmt = "⬆Max")]
     Max,
 }
 

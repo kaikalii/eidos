@@ -118,6 +118,7 @@ pub enum GenericVectorFieldKind {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
 pub enum ScalarInputFieldKind {
+    #[display(fmt = "ρ Density")]
     Density,
 }
 
@@ -129,6 +130,7 @@ pub enum ScalarOutputFieldKind {}
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
 pub enum VectorOutputFieldKind {
+    #[display(fmt = "↗ Force")]
     Force,
 }
 
