@@ -102,6 +102,7 @@ impl Stack {
                     .stack
                     .iter_mut()
                     .flat_map(|item| item.words.drain(..))
+                    .chain([word])
                     .collect_vec();
                 let item = self.pop();
                 match (field_kind, item.field) {
@@ -113,6 +114,7 @@ impl Stack {
                     }
                     _ => unreachable!(),
                 }
+                world.player.spell.clear();
             }
             Function::Control(kind) => self.push(word, ScalarField::Control(kind)),
             Function::Nullary(nullary) => self.push(word, nullary.field()),

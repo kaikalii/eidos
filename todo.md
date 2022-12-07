@@ -1,4 +1,3 @@
-- Make output field setting clear the spell
 - Don't draw output fields when unnecessary
 - Improve elevation test efficiency
   - Maybe just cache it?
