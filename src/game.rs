@@ -175,12 +175,18 @@ impl Game {
                 let enabled = &mut self.ui_state.fields_visible.entry(kind).or_insert(false);
                 ui.toggle_value(enabled, kind.to_string());
             }
-            for kind in all::<GenericOutputFieldKind>() {
-                let kind = GenericFieldKind::from(kind);
+            for output_kind in all::<GenericOutputFieldKind>() {
+                let kind = GenericFieldKind::from(output_kind);
                 let enabled = self.ui_state.fields_visible.entry(kind).or_insert(false);
                 ui.toggle_value(enabled, kind.to_string());
                 if *enabled {
-                    ui.label("");
+                    if self.world.outputs.contains(output_kind) {
+                        if ui.button("Dispel").clicked() {
+                            self.world.outputs.remove(output_kind);
+                        }
+                    } else {
+                        ui.label("");
+                    }
                 }
             }
             ui.end_row();

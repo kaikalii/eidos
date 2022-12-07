@@ -33,6 +33,19 @@ pub struct OutputFields {
 }
 
 impl OutputFields {
+    pub fn contains(&self, kind: GenericOutputFieldKind) -> bool {
+        self.spell(kind).is_some()
+    }
+    pub fn remove(&mut self, kind: GenericOutputFieldKind) {
+        match kind {
+            GenericOutputFieldKind::Scalar(kind) => {
+                self.scalars.remove(&kind);
+            }
+            GenericOutputFieldKind::Vector(kind) => {
+                self.vectors.remove(&kind);
+            }
+        }
+    }
     pub fn spell(&self, kind: GenericOutputFieldKind) -> Option<&[Word]> {
         match kind {
             GenericOutputFieldKind::Scalar(kind) => self
