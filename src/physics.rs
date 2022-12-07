@@ -68,6 +68,7 @@ impl World {
     /// Run a physics step and return the amount of work done by output fields
     #[must_use]
     pub fn run_physics(&mut self) -> f32 {
+        puffin::profile_function!();
         // Set forces
         let mut forces = HashMap::new();
         for &handle in self.objects.keys().collect_vec() {

@@ -117,6 +117,7 @@ pub enum ControlKind {
 
 impl ScalarField {
     pub fn sample(&self, world: &World, pos: Pos2) -> f32 {
+        puffin::profile_function!();
         match self {
             ScalarField::Uniform(v) => *v,
             ScalarField::X => pos.x - world.player_pos.x,
@@ -181,6 +182,7 @@ impl ScalarField {
 
 impl VectorField {
     pub fn sample(&self, world: &World, pos: Pos2) -> Vec2 {
+        puffin::profile_function!();
         match self {
             VectorField::Uniform(v) => *v,
             VectorField::Un(op, field) => op.operate(field.sample(world, pos)),

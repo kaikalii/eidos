@@ -55,6 +55,23 @@ impl Default for UiState {
 
 impl eframe::App for Game {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+        puffin::GlobalProfiler::lock().new_frame();
+
+        #[cfg(all(feature = "profile", not(debug_assertions)))]
+        Window::new("Profiler").collapsible(true).show(ctx, |ui| {
+            puffin_egui::profiler_ui(ui);
+        });
+
+        self.ui(ctx);
+    }
+}
+
+const BIG_PLOT_SIZE: f32 = 200.0;
+const SMALL_PLOT_SIZE: f32 = 100.0;
+
+impl Game {
+    fn ui(&mut self, ctx: &Context) {
+        puffin::profile_function!();
         // Calculate fields
         let mut stack = Stack::default();
         let mut error = None;
@@ -111,12 +128,6 @@ impl eframe::App for Game {
 
         ctx.request_repaint();
     }
-}
-
-const BIG_PLOT_SIZE: f32 = 200.0;
-const SMALL_PLOT_SIZE: f32 = 100.0;
-
-impl Game {
     fn top_ui(&mut self, ui: &mut Ui) {
         // Fps
         let now = Instant::now();

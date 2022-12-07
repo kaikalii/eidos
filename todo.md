@@ -1,5 +1,8 @@
 - Make output field setting clear the spell
+- Don't draw output fields when unnecessary
 - Show spell next to output fields
+- Improve elevation test efficiency
+  - Maybe just cache it?
 - Make uncast words take mana
 - Fix mana regen checking
 - Add dialog system

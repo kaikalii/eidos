@@ -77,6 +77,7 @@ impl Stack {
         self.stack.last()
     }
     pub fn call(&mut self, world: &mut World, word: Word) -> Result<(), EidosError> {
+        puffin::profile_function!();
         let function = word.function();
         self.validate_function_use(function)?;
         match function {

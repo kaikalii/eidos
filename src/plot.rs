@@ -10,6 +10,7 @@ use eframe::{
     epaint::{color::Hsva, util::hash},
 };
 use itertools::Itertools;
+use puffin::profile_scope;
 use rand::prelude::*;
 
 use crate::{math::round_to, world::World};
@@ -108,6 +109,7 @@ impl<'w> MapPlot<'w> {
     where
         F: FieldPlot,
     {
+        puffin::profile_function!();
         let time = time();
         self.init_plot().show(ui, |plot_ui| {
             let resolution = ((self.resolution as f32) * field_plot.precision()) as usize;
@@ -117,6 +119,7 @@ impl<'w> MapPlot<'w> {
             let mut points = Vec::with_capacity(self.resolution * resolution);
             let center = pos2(round_to(self.center.x, step), round_to(self.center.y, step));
             for i in 0..self.resolution {
+                puffin::profile_scope!("point collection");
                 let x = (i as f32) * step + center.x - self.range;
                 let rounded_x = round_to(x, step * 0.5);
                 for j in 0..self.resolution {
@@ -271,6 +274,7 @@ impl PartitionAndPlottable for f32 {
         point_radius: f32,
         points: Vec<(f32, f32, Self)>,
     ) {
+        puffin::profile_function!("f32");
         let (min_z, max_z) = points
             .iter()
             .map(|(_, _, z)| *z)
@@ -302,6 +306,7 @@ impl PartitionAndPlottable for f32 {
             if color.a() < 1.0 / 255.0 {
                 continue;
             }
+            profile_scope!("point drawing", "f32");
             for (a, points) in points.into_iter().enumerate() {
                 let color = Rgba::from_rgba_unmultiplied(
                     color.r(),
@@ -330,6 +335,7 @@ impl PartitionAndPlottable for Vec2 {
         point_radius: f32,
         points: Vec<(f32, f32, Self)>,
     ) {
+        puffin::profile_function!("Vec2");
         let (min_zx, max_zx) = points
             .iter()
             .map(|(_, _, z)| z.x)
@@ -380,6 +386,7 @@ impl PartitionAndPlottable for Vec2 {
                 if color.a() < 1.0 / 255.0 {
                     continue;
                 }
+                profile_scope!("point drawing", "Vec2");
                 let t = (t - Vec2::splat(0.5)) * 2.0;
                 for (a, points) in points.into_iter().enumerate() {
                     let arrow_length = point_radius * 0.1;

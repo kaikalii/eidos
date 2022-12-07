@@ -16,6 +16,7 @@ use eframe::egui::*;
 use game::Game;
 
 fn main() {
+    puffin::set_scopes_on(cfg!(all(feature = "profile", not(debug_assertions))));
     eframe::run_native(
         "Eidos",
         eframe::NativeOptions {
@@ -23,7 +24,7 @@ fn main() {
             ..Default::default()
         },
         Box::new(|cc| {
-            cc.egui_ctx.set_pixels_per_point(2.0);
+            cc.egui_ctx.set_pixels_per_point(1.5);
             Box::new(Game::default())
         }),
     );

@@ -185,7 +185,9 @@ impl World {
         p: Pos2,
         filter: impl Fn(&Object, &RigidBody) -> bool,
     ) -> Option<(&Object, &OffsetShape)> {
+        puffin::profile_function!();
         self.objects.values().find_map(|obj| {
+            puffin::profile_function!();
             if !filter(obj, &self.physics.bodies[obj.body_handle]) {
                 return None;
             }
@@ -201,18 +203,21 @@ impl World {
         self.find_object_filtered_at(p, |_, _| true)
     }
     pub fn sample_scalar_field(&self, kind: GenericScalarFieldKind, pos: Pos2) -> f32 {
+        puffin::profile_function!(kind.to_string());
         match kind {
             GenericScalarFieldKind::Input(kind) => self.sample_input_scalar_field(kind, pos),
             GenericScalarFieldKind::Output(kind) => self.sample_output_scalar_field(kind, pos),
         }
     }
     pub fn sample_vector_field(&self, kind: GenericVectorFieldKind, pos: Pos2) -> Vec2 {
+        puffin::profile_function!(kind.to_string());
         match kind {
             GenericVectorFieldKind::Input(kind) => self.sample_input_vector_field(kind, pos),
             GenericVectorFieldKind::Output(kind) => self.sample_output_vector_field(kind, pos),
         }
     }
     pub fn sample_input_scalar_field(&self, kind: ScalarInputFieldKind, pos: Pos2) -> f32 {
+        puffin::profile_function!(kind.to_string());
         match kind {
             ScalarInputFieldKind::Density => self
                 .find_object_at(pos)
@@ -221,6 +226,7 @@ impl World {
             ScalarInputFieldKind::Elevation => {
                 let mut test = pos;
                 while test.y > 0.0 {
+                    puffin::profile_scope!("elevation test");
                     if self
                         .find_object_filtered_at(test, |_, body| body.body_type().is_fixed())
                         .is_some()
@@ -240,6 +246,7 @@ impl World {
         match kind {}
     }
     pub fn sample_output_vector_field(&self, kind: VectorOutputFieldKind, pos: Pos2) -> Vec2 {
+        puffin::profile_function!(kind.to_string());
         self.outputs
             .vectors
             .get(&kind)
