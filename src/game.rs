@@ -156,39 +156,68 @@ impl Game {
     }
     fn fields_ui(&mut self, ui: &mut Ui) {
         Grid::new("fields").show(ui, |ui| {
-            // Draw fields
-            for field_kind in all::<GenericFieldKind>() {
-                ui.toggle_value(
-                    self.ui_state
-                        .fields_visible
-                        .entry(field_kind)
-                        .or_insert(false),
-                    field_kind.to_string(),
-                );
+            // Draw toggler buttons
+            for kind in all::<GenericInputFieldKind>() {
+                let kind = GenericFieldKind::from(kind);
+                let enabled = &mut self.ui_state.fields_visible.entry(kind).or_insert(false);
+                ui.toggle_value(enabled, kind.to_string());
+            }
+            for kind in all::<GenericOutputFieldKind>() {
+                let kind = GenericFieldKind::from(kind);
+                let enabled = self.ui_state.fields_visible.entry(kind).or_insert(false);
+                ui.toggle_value(enabled, kind.to_string());
+                if *enabled {
+                    ui.label("");
+                }
             }
             ui.end_row();
-            for field_kind in all::<GenericFieldKind>() {
-                if self.ui_state.fields_visible[&field_kind] {
-                    self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, field_kind);
+            // Draw the fields themselves
+            for kind in all::<GenericInputFieldKind>() {
+                let kind = GenericFieldKind::from(kind);
+                if self.ui_state.fields_visible[&kind] {
+                    self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, kind);
+                } else {
+                    ui.label("");
+                }
+            }
+            for output_kind in all::<GenericOutputFieldKind>() {
+                let kind = GenericFieldKind::from(output_kind);
+                if self.ui_state.fields_visible[&kind] {
+                    self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, kind);
+                    if let Some(words) = self.world.outputs.spell(output_kind) {
+                        Self::spell_words_ui(ui, words, BIG_PLOT_SIZE);
+                    }
                 } else {
                     ui.label("");
                 }
             }
         });
     }
+    fn spell_words_ui(ui: &mut Ui, words: &[Word], max_height: f32) {
+        let font_id = &ui.style().text_styles[&TextStyle::Body];
+        let row_height = ui.fonts().row_height(font_id);
+        let vert_spacing = ui.spacing().item_spacing.y;
+        let per_column = ((max_height / (row_height + vert_spacing)) as usize).max(1);
+        for chunk in words.chunks(per_column) {
+            ui.vertical(|ui| {
+                ui.add_space(
+                    (max_height
+                        - chunk.len() as f32 * row_height
+                        - per_column.saturating_sub(1) as f32 * vert_spacing)
+                        / 2.0,
+                );
+                for word in chunk {
+                    ui.label(word.to_string());
+                }
+            });
+        }
+    }
     fn stack_ui(&mut self, ui: &mut Ui, stack: &Stack) {
         ui.horizontal_wrapped(|ui| {
             ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
             for item in stack.iter() {
                 self.plot_generic_field(ui, SMALL_PLOT_SIZE, 50, &item.field);
-                for chunk in item.words.chunks(5) {
-                    ui.vertical(|ui| {
-                        ui.add_space((SMALL_PLOT_SIZE - chunk.len() as f32 * 15.0) / 2.0);
-                        for word in chunk {
-                            ui.label(word.to_string());
-                        }
-                    });
-                }
+                Self::spell_words_ui(ui, &item.words, SMALL_PLOT_SIZE);
             }
         });
     }
@@ -246,8 +275,14 @@ impl Game {
         // Controls
         let stack_controls = stack.iter().flat_map(|item| item.field.controls());
         let outputs = &mut self.world.outputs;
-        let scalar_output_controls = outputs.scalars.values().flat_map(ScalarField::controls);
-        let vector_output_controls = outputs.vectors.values().flat_map(VectorField::controls);
+        let scalar_output_controls = outputs
+            .scalars
+            .values()
+            .flat_map(|output| output.field.controls());
+        let vector_output_controls = outputs
+            .vectors
+            .values()
+            .flat_map(|output| output.field.controls());
         let used_controls: BTreeSet<ControlKind> = stack_controls
             .chain(scalar_output_controls)
             .chain(vector_output_controls)

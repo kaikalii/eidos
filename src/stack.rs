@@ -1,4 +1,12 @@
-use crate::{error::EidosError, field::*, function::*, word::Word, world::World};
+use itertools::Itertools;
+
+use crate::{
+    error::EidosError,
+    field::*,
+    function::*,
+    word::Word,
+    world::{OutputField, World},
+};
 
 #[derive(Default)]
 pub struct Stack {
@@ -90,10 +98,18 @@ impl Stack {
                 }
             },
             Function::WriteField(field_kind) => {
-                let item = self.top().unwrap();
-                match (field_kind, &item.field) {
+                let spell = self
+                    .stack
+                    .iter_mut()
+                    .flat_map(|item| item.words.drain(..))
+                    .collect_vec();
+                let item = self.pop();
+                match (field_kind, item.field) {
                     (GenericOutputFieldKind::Vector(kind), GenericField::Vector(field)) => {
-                        world.outputs.vectors.insert(kind, field.clone());
+                        world
+                            .outputs
+                            .vectors
+                            .insert(kind, OutputField { field, spell });
                     }
                     _ => unreachable!(),
                 }

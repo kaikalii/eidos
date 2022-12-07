@@ -28,8 +28,28 @@ pub struct Player {
 
 #[derive(Default)]
 pub struct OutputFields {
-    pub scalars: HashMap<ScalarOutputFieldKind, ScalarField>,
-    pub vectors: HashMap<VectorOutputFieldKind, VectorField>,
+    pub scalars: HashMap<ScalarOutputFieldKind, OutputField<ScalarField>>,
+    pub vectors: HashMap<VectorOutputFieldKind, OutputField<VectorField>>,
+}
+
+impl OutputFields {
+    pub fn spell(&self, kind: GenericOutputFieldKind) -> Option<&[Word]> {
+        match kind {
+            GenericOutputFieldKind::Scalar(kind) => self
+                .scalars
+                .get(&kind)
+                .map(|output| output.spell.as_slice()),
+            GenericOutputFieldKind::Vector(kind) => self
+                .vectors
+                .get(&kind)
+                .map(|output| output.spell.as_slice()),
+        }
+    }
+}
+
+pub struct OutputField<T> {
+    pub field: T,
+    pub spell: Vec<Word>,
 }
 
 #[derive(Default)]
@@ -250,7 +270,7 @@ impl World {
         self.outputs
             .vectors
             .get(&kind)
-            .map(|field| field.sample(self, pos))
+            .map(|output| output.field.sample(self, pos))
             .unwrap_or_default()
             * self.player.field_scale()
     }

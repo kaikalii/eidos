@@ -65,6 +65,24 @@ pub enum GenericFieldKind {
     Vector(GenericVectorFieldKind),
 }
 
+impl From<GenericInputFieldKind> for GenericFieldKind {
+    fn from(kind: GenericInputFieldKind) -> Self {
+        match kind {
+            GenericInputFieldKind::Scalar(kind) => kind.into(),
+            GenericInputFieldKind::Vector(kind) => kind.into(),
+        }
+    }
+}
+
+impl From<GenericOutputFieldKind> for GenericFieldKind {
+    fn from(kind: GenericOutputFieldKind) -> Self {
+        match kind {
+            GenericOutputFieldKind::Scalar(kind) => kind.into(),
+            GenericOutputFieldKind::Vector(kind) => kind.into(),
+        }
+    }
+}
+
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From, Sequence)]
 pub enum GenericInputFieldKind {
     Scalar(ScalarInputFieldKind),
