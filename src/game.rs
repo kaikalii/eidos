@@ -245,6 +245,13 @@ impl Game {
             .collect();
         if used_controls.contains(&ControlKind::Slider) {
             let value = self.world.controls.slider.get_or_insert(0.0);
+            let input = ui.input();
+            if input.key_down(Key::D) || input.key_down(Key::A) {
+                *value = input.key_down(Key::D) as u8 as f32 - input.key_down(Key::A) as u8 as f32
+            } else if input.key_released(Key::D) || input.key_released(Key::A) {
+                *value = 0.0;
+            }
+            drop(input);
             Slider::new(value, -1.0..=1.0)
                 .fixed_decimals(1)
                 .show_value(false)
