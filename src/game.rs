@@ -183,9 +183,11 @@ impl Game {
             for output_kind in all::<GenericOutputFieldKind>() {
                 let kind = GenericFieldKind::from(output_kind);
                 if self.ui_state.fields_visible[&kind] {
-                    self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, kind);
                     if let Some(words) = self.world.outputs.spell(output_kind) {
+                        self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, kind);
                         Self::spell_words_ui(ui, words, BIG_PLOT_SIZE);
+                    } else {
+                        ui.label("");
                     }
                 } else {
                     ui.label("");

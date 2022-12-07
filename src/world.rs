@@ -38,18 +38,18 @@ impl OutputFields {
             GenericOutputFieldKind::Scalar(kind) => self
                 .scalars
                 .get(&kind)
-                .map(|output| output.spell.as_slice()),
+                .map(|output| output.words.as_slice()),
             GenericOutputFieldKind::Vector(kind) => self
                 .vectors
                 .get(&kind)
-                .map(|output| output.spell.as_slice()),
+                .map(|output| output.words.as_slice()),
         }
     }
 }
 
 pub struct OutputField<T> {
     pub field: T,
-    pub spell: Vec<Word>,
+    pub words: Vec<Word>,
 }
 
 #[derive(Default)]

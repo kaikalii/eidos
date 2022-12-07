@@ -98,7 +98,7 @@ impl Stack {
                 }
             },
             Function::WriteField(field_kind) => {
-                let spell = self
+                let words = self
                     .stack
                     .iter_mut()
                     .flat_map(|item| item.words.drain(..))
@@ -110,7 +110,7 @@ impl Stack {
                         world
                             .outputs
                             .vectors
-                            .insert(kind, OutputField { field, spell });
+                            .insert(kind, OutputField { field, words });
                     }
                     _ => unreachable!(),
                 }
