@@ -8,7 +8,6 @@ use enum_iterator::all;
 
 use crate::{
     field::*,
-    function::Function,
     plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
     runtime::Runtime,
     word::SpellCommand,
@@ -37,7 +36,7 @@ impl Default for Game {
 }
 
 struct UiState {
-    fields_visible: HashMap<FieldKind, bool>,
+    fields_visible: HashMap<GenericFieldKind, bool>,
 }
 
 impl Default for UiState {
@@ -46,7 +45,6 @@ impl Default for UiState {
             fields_visible: [
                 ScalarInputFieldKind::Density.into(),
                 VectorOutputFieldKind::Force.into(),
-                FieldKind::Uncasted,
             ]
             .map(|kind| (kind, true))
             .into_iter()
@@ -77,8 +75,8 @@ impl Game {
         let mut rt = Runtime::default();
         let mut error = None;
         // Calculate spell field
-        for function in self.world.player.spell.clone() {
-            if let Err(e) = rt.call(&mut self.world, function, true) {
+        for word in self.world.player.spell.clone() {
+            if let Err(e) = rt.call(&mut self.world, word.function(), true) {
                 error = Some(e);
                 break;
             }
@@ -106,7 +104,7 @@ impl Game {
         // World Fields
         Grid::new("fields").show(ui, |ui| {
             // Draw fields
-            for field_kind in all::<FieldKind>() {
+            for field_kind in all::<GenericFieldKind>() {
                 ui.toggle_value(
                     self.ui_state
                         .fields_visible
@@ -116,7 +114,7 @@ impl Game {
                 );
             }
             ui.end_row();
-            for field_kind in all::<FieldKind>() {
+            for field_kind in all::<GenericFieldKind>() {
                 if self.ui_state.fields_visible[&field_kind] {
                     self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, field_kind);
                 } else {
@@ -145,18 +143,19 @@ impl Game {
             }
         });
         Grid::new("words").show(ui, |ui| {
-            fn button(
+            fn button<W: Copy + Into<Word> + ToString>(
                 ui: &mut Ui,
                 rt: &mut Runtime,
-                w: impl Into<Word> + ToString,
-            ) -> Option<Function> {
+                w: W,
+            ) -> Option<Word> {
                 let name = w.to_string();
-                let f = w.into().function();
+                let word = w.into();
+                let f = word.function();
                 let enabled = rt.validate_function_use(f).is_ok();
                 ui.add_enabled(enabled, Button::new(name))
                     .on_hover_text(f.to_string())
                     .clicked()
-                    .then_some(f)
+                    .then_some(word)
             }
             let spell = &mut self.world.player.spell;
             spell.extend(all::<ScalarWord>().filter_map(|w| button(ui, &mut rt, w)));
@@ -199,18 +198,17 @@ impl Game {
             GenericField::Vector(field) => plot.ui(ui, field),
         }
     }
-    pub fn plot_field_kind(&self, ui: &mut Ui, size: f32, resolution: usize, kind: FieldKind) {
+    pub fn plot_field_kind(
+        &self,
+        ui: &mut Ui,
+        size: f32,
+        resolution: usize,
+        kind: GenericFieldKind,
+    ) {
         let plot = self.init_plot(size, resolution);
         match kind {
-            FieldKind::Uncasted => {
-                if let Some(field) = &self.world.spell_field {
-                    self.plot_generic_field(ui, size, resolution, field)
-                } else {
-                    ui.allocate_exact_size(vec2(size, size), Sense::hover());
-                }
-            }
-            FieldKind::Typed(GenericFieldKind::Scalar(kind)) => plot.ui(ui, &kind),
-            FieldKind::Typed(GenericFieldKind::Vector(kind)) => plot.ui(ui, &kind),
+            GenericFieldKind::Scalar(kind) => plot.ui(ui, &kind),
+            GenericFieldKind::Vector(kind) => plot.ui(ui, &kind),
         }
     }
 }

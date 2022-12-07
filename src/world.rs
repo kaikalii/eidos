@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use eframe::egui::*;
 use rapier2d::prelude::*;
 
-use crate::{field::*, function::Function, game::TICK_RATE, math::rotate, physics::PhysicsContext};
+use crate::{field::*, game::TICK_RATE, math::rotate, physics::PhysicsContext, word::Word};
 
 pub struct World {
     pub player_pos: Pos2,
@@ -22,7 +22,7 @@ pub struct Player {
     pub mana: f32,
     pub max_mana: f32,
     pub mana_exhaustion: f32,
-    pub spell: Vec<Function>,
+    pub spell: Vec<Word>,
 }
 
 #[derive(Default)]
