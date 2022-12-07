@@ -9,7 +9,7 @@ use enum_iterator::all;
 use crate::{
     field::*,
     plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
-    runtime::Stack,
+    stack::Stack,
     word::SpellCommand,
     word::*,
     world::{World, MAX_MANA_EXHAUSTION},

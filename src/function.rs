@@ -4,7 +4,7 @@ use derive_more::{Display, From};
 use eframe::epaint::{vec2, Vec2};
 use enum_iterator::{all, Sequence};
 
-use crate::{error::EidosError, field::*, runtime::Stack};
+use crate::{error::EidosError, field::*, stack::Stack};
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From, Sequence)]
 pub enum Function {

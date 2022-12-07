@@ -8,7 +8,7 @@ pub mod game;
 pub mod math;
 pub mod physics;
 pub mod plot;
-pub mod runtime;
+pub mod stack;
 pub mod word;
 pub mod world;
 
