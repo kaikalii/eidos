@@ -4,7 +4,7 @@ use eframe::{
     egui::{style::Margin, *},
     epaint::{ahash::HashMap, color::Hsva},
 };
-use enum_iterator::all;
+use enum_iterator::{all, Sequence};
 
 use crate::{
     field::*,
@@ -189,32 +189,38 @@ impl Game {
             }
         });
         Grid::new("words").show(ui, |ui| {
-            fn button<W: Copy + Into<Word> + ToString>(
+            fn button<W: Copy + Into<Word> + ToString + Sequence>(
                 ui: &mut Ui,
                 stack: &Stack,
-                w: W,
+                hilight: bool,
             ) -> Option<Word> {
-                let name = w.to_string();
-                let word = w.into();
-                let f = word.function();
-                let enabled = stack.validate_function_use(f).is_ok();
-                ui.add_enabled(enabled, SelectableLabel::new(false, name))
-                    .on_hover_text(f.to_string())
-                    .clicked()
-                    .then_some(word)
+                let mut res = None;
+                for w in all::<W>() {
+                    let name = w.to_string();
+                    let word = w.into();
+                    let f = word.function();
+                    let enabled = stack.validate_function_use(f).is_ok();
+                    if ui
+                        .add_enabled(enabled, SelectableLabel::new(hilight, name))
+                        .on_hover_text(f.to_string())
+                        .clicked()
+                    {
+                        res = Some(word);
+                    }
+                }
+                res
             }
             let spell = &mut self.world.player.spell;
-            spell.extend(all::<ScalarWord>().filter_map(|w| button(ui, stack, w)));
+            spell.extend(button::<ScalarWord>(ui, stack, false));
             ui.end_row();
-            spell.extend(all::<VectorWord>().filter_map(|w| button(ui, stack, w)));
-            spell.extend(all::<AxisWord>().filter_map(|w| button(ui, stack, w)));
+            spell.extend(button::<VectorWord>(ui, stack, false));
+            spell.extend(button::<InputWord>(ui, stack, false));
             ui.end_row();
-            spell.extend(all::<InputWord>().filter_map(|w| button(ui, stack, w)));
-            spell.extend(all::<OutputWord>().filter_map(|w| button(ui, stack, w)));
+            spell.extend(button::<OperatorWord>(ui, stack, false));
+            spell.extend(button::<AxisWord>(ui, stack, false));
             ui.end_row();
-            spell.extend(all::<OperatorWord>().filter_map(|w| button(ui, stack, w)));
-            ui.end_row();
-            spell.extend(all::<CombinatorWord>().filter_map(|w| button(ui, stack, w)));
+            spell.extend(button::<OutputWord>(ui, stack, true));
+            spell.extend(button::<CombinatorWord>(ui, stack, false));
             ui.end_row();
         });
     }

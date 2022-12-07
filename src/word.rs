@@ -13,10 +13,10 @@ pub enum Word {
     Scalar(ScalarWord),
     Vector(VectorWord),
     Axis(AxisWord),
-    Input(InputWord),
-    Output(OutputWord),
     Operator(OperatorWord),
     Combinator(CombinatorWord),
+    Input(InputWord),
+    Output(OutputWord),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
@@ -44,6 +44,7 @@ pub enum AxisWord {
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum InputWord {
     Le,
+    Po,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
@@ -63,6 +64,7 @@ pub enum CombinatorWord {
     Ne,
     Mo,
     Re,
+    Rovo,
 }
 
 impl Word {
@@ -80,6 +82,7 @@ impl Word {
             Axis(AxisWord::Seva) => Nullary::X.into(),
             Axis(AxisWord::Sevi) => Nullary::Y.into(),
             Input(InputWord::Le) => ScalarInputFieldKind::Elevation.into(),
+            Input(InputWord::Po) => ScalarInputFieldKind::Density.into(),
             Output(OutputWord::Ke) => VectorOutputFieldKind::Force.into(),
             Operator(OperatorWord::Ma) => MathBinOp::Add.into(),
             Operator(OperatorWord::Sa) => MathBinOp::Mul.into(),
@@ -87,6 +90,7 @@ impl Word {
             Combinator(CombinatorWord::Ne) => Combinator1::Drop.into(),
             Combinator(CombinatorWord::Mo) => Combinator1::Duplicate.into(),
             Combinator(CombinatorWord::Re) => Combinator2::Swap.into(),
+            Combinator(CombinatorWord::Rovo) => Combinator2::Over.into(),
         }
     }
 }
