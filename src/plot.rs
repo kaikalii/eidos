@@ -33,8 +33,7 @@ pub trait PartitionAndPlottable: Sized {
     fn partition_and_plot(
         plot_ui: &mut PlotUi,
         field_plot: &impl FieldPlot<Value = Self>,
-        point_radius: f32,
-        points: Vec<(f32, f32, Self)>,
+        data: PlotData<Self>,
     );
     fn format(&self, round: fn(f32) -> f32) -> String;
 }
@@ -73,6 +72,12 @@ fn time() -> f64 {
         .as_secs_f64()
 }
 
+pub struct PlotData<V> {
+    points: Vec<(f32, f32, V)>,
+    center: Pos2,
+    point_radius: f32,
+}
+
 impl<'w> MapPlot<'w> {
     pub fn new(world: &'w World, center: Pos2, range: f32) -> Self {
         Self {
@@ -105,42 +110,54 @@ impl<'w> MapPlot<'w> {
             .show_y(false)
             .show_background(false)
     }
+    fn get_data<F>(&self, field_plot: &F) -> PlotData<F::Value>
+    where
+        F: FieldPlot,
+    {
+        let time = time();
+        let resolution = ((self.resolution as f32) * field_plot.precision()) as usize;
+        let step = 2.0 * self.range / resolution as f32;
+        let point_radius = self.range * self.size / resolution as f32 * 0.1;
+        let wiggle_delta = field_plot.wiggle_delta(point_radius);
+        let mut points = Vec::with_capacity(self.resolution * resolution);
+        let center = pos2(round_to(self.center.x, step), round_to(self.center.y, step));
+        for i in 0..self.resolution {
+            puffin::profile_scope!("point collection");
+            let x = (i as f32) * step + center.x - self.range;
+            let rounded_x = round_to(x, step * 0.5);
+            for j in 0..self.resolution {
+                let y = (j as f32) * step + center.y - self.range;
+                if pos2(x, y).distance(self.center) > self.range {
+                    continue;
+                }
+                let rounded_y = round_to(y, step * 0.5);
+                let mut rng = SmallRng::seed_from_u64(hash((
+                    (rounded_x * 1e6) as i64,
+                    (rounded_y * 1e6) as i64,
+                )));
+                let dxt = rng.gen::<f32>() + rounded_x - x;
+                let dyt = rng.gen::<f32>() + rounded_x - x;
+                let z = field_plot.get_z(self.world, pos2(x, y));
+                let dx = (time + dxt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
+                let dy = (time + dyt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
+                points.push((x + dx, y + dy, z));
+            }
+        }
+        PlotData {
+            points,
+            center,
+            point_radius,
+        }
+    }
     pub fn ui<F>(&self, ui: &mut Ui, field_plot: &F)
     where
         F: FieldPlot,
     {
         puffin::profile_function!();
-        let time = time();
         self.init_plot().show(ui, |plot_ui| {
-            let resolution = ((self.resolution as f32) * field_plot.precision()) as usize;
-            let step = 2.0 * self.range / resolution as f32;
-            let point_radius = self.range * self.size / resolution as f32 * 0.1;
-            let wiggle_delta = field_plot.wiggle_delta(point_radius);
-            let mut points = Vec::with_capacity(self.resolution * resolution);
-            let center = pos2(round_to(self.center.x, step), round_to(self.center.y, step));
-            for i in 0..self.resolution {
-                puffin::profile_scope!("point collection");
-                let x = (i as f32) * step + center.x - self.range;
-                let rounded_x = round_to(x, step * 0.5);
-                for j in 0..self.resolution {
-                    let y = (j as f32) * step + center.y - self.range;
-                    if pos2(x, y).distance(self.center) > self.range {
-                        continue;
-                    }
-                    let rounded_y = round_to(y, step * 0.5);
-                    let mut rng = SmallRng::seed_from_u64(hash((
-                        (rounded_x * 1e6) as i64,
-                        (rounded_y * 1e6) as i64,
-                    )));
-                    let dxt = rng.gen::<f32>() + rounded_x - x;
-                    let dyt = rng.gen::<f32>() + rounded_x - x;
-                    let z = field_plot.get_z(self.world, pos2(x, y));
-                    let dx = (time + dxt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
-                    let dy = (time + dyt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
-                    points.push((x + dx, y + dy, z));
-                }
-            }
-            F::Value::partition_and_plot(plot_ui, field_plot, point_radius, points);
+            let data = self.get_data(field_plot);
+            let center = data.center;
+            F::Value::partition_and_plot(plot_ui, field_plot, data);
             // Show coordinate tooltip
             if let Some(p) = plot_ui.pointer_coordinate() {
                 let ppos = pos2(p.x as f32, p.y as f32);
@@ -271,11 +288,11 @@ impl PartitionAndPlottable for f32 {
     fn partition_and_plot(
         plot_ui: &mut PlotUi,
         field_plot: &impl FieldPlot<Value = Self>,
-        point_radius: f32,
-        points: Vec<(f32, f32, Self)>,
+        data: PlotData<Self>,
     ) {
         puffin::profile_function!("f32");
-        let (min_z, max_z) = points
+        let (min_z, max_z) = data
+            .points
             .iter()
             .map(|(_, _, z)| *z)
             .minmax()
@@ -285,7 +302,7 @@ impl PartitionAndPlottable for f32 {
         let center = plot_ui.plot_bounds().center().to_pos2();
         let radius = plot_ui.plot_bounds().width() as f32 * 0.5;
         let mut grouped_points = vec![vec![Vec::new(); ALPHA_BUCKETS]; Z_BUCKETS];
-        for (x, y, z) in points {
+        for (x, y, z) in data.points {
             let group = ((z / max_abs_z * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
                 .max(0.0)
                 .round() as usize)
@@ -317,7 +334,7 @@ impl PartitionAndPlottable for f32 {
                 plot_ui.points(
                     Points::new(PlotPoints::Owned(points))
                         .shape(MarkerShape::Circle)
-                        .radius(point_radius)
+                        .radius(data.point_radius)
                         .color(color),
                 );
             }
@@ -332,17 +349,18 @@ impl PartitionAndPlottable for Vec2 {
     fn partition_and_plot(
         plot_ui: &mut PlotUi,
         field_plot: &impl FieldPlot<Value = Self>,
-        point_radius: f32,
-        points: Vec<(f32, f32, Self)>,
+        data: PlotData<Self>,
     ) {
         puffin::profile_function!("Vec2");
-        let (min_zx, max_zx) = points
+        let (min_zx, max_zx) = data
+            .points
             .iter()
             .map(|(_, _, z)| z.x)
             .minmax()
             .into_option()
             .unwrap();
-        let (min_zy, max_zy) = points
+        let (min_zy, max_zy) = data
+            .points
             .iter()
             .map(|(_, _, z)| z.y)
             .minmax()
@@ -354,7 +372,7 @@ impl PartitionAndPlottable for Vec2 {
         let center = plot_ui.plot_bounds().center().to_pos2();
         let radius = plot_ui.plot_bounds().width() as f32 * 0.5;
         let mut grouped_points = vec![vec![vec![Vec::new(); ALPHA_BUCKETS]; Z_BUCKETS]; Z_BUCKETS];
-        for (x, y, z) in points {
+        for (x, y, z) in data.points {
             let x_group = ((z.x / max_abs * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
                 .max(0.0)
                 .round() as usize)
@@ -389,7 +407,7 @@ impl PartitionAndPlottable for Vec2 {
                 profile_scope!("point drawing", "Vec2");
                 let t = (t - Vec2::splat(0.5)) * 2.0;
                 for (a, points) in points.into_iter().enumerate() {
-                    let arrow_length = point_radius * 0.1;
+                    let arrow_length = data.point_radius * 0.1;
                     let tips = points
                         .iter()
                         .map(|p| {
