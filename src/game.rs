@@ -160,7 +160,7 @@ impl Game {
                 let word = w.into();
                 let f = word.function();
                 let enabled = rt.validate_function_use(f).is_ok();
-                ui.add_enabled(enabled, Button::new(name))
+                ui.add_enabled(enabled, SelectableLabel::new(false, name))
                     .on_hover_text(f.to_string())
                     .clicked()
                     .then_some(word)

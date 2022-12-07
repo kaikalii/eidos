@@ -36,7 +36,7 @@ impl Player {
         if self.mana_exhaustion > 0.0 {
             0.0
         } else {
-            self.mana.clamp(0.1, 1.0)
+            (self.mana / self.max_mana * 4.0).clamp(0.2, 1.0)
         }
     }
     pub fn do_work(&mut self, work: f32) {
