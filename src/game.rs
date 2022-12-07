@@ -5,8 +5,10 @@ use eframe::{
     epaint::{ahash::HashMap, color::Hsva},
 };
 use enum_iterator::{all, Sequence};
+use itertools::Itertools;
 
 use crate::{
+    dialog::{DialogFragment, DIALOG_SCENES},
     field::*,
     plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
     stack::Stack,
@@ -26,17 +28,27 @@ pub struct Game {
 
 impl Default for Game {
     fn default() -> Self {
-        Game {
+        let mut game = Game {
             world: World::default(),
             ui_state: UiState::default(),
             last_time: Instant::now(),
             ticker: 0.0,
-        }
+        };
+        game.set_dialog("intro");
+        game
     }
 }
 
 struct UiState {
     fields_visible: HashMap<GenericFieldKind, bool>,
+    dialog: Option<DialogState>,
+}
+
+struct DialogState {
+    scene: String,
+    node: String,
+    line: usize,
+    character: usize,
 }
 
 impl Default for UiState {
@@ -49,18 +61,18 @@ impl Default for UiState {
             .map(|kind| (kind, true))
             .into_iter()
             .collect(),
+            dialog: None,
         }
     }
 }
 
 impl eframe::App for Game {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        puffin::GlobalProfiler::lock().new_frame();
-
         #[cfg(all(feature = "profile", not(debug_assertions)))]
         Window::new("Profiler").collapsible(true).show(ctx, |ui| {
             puffin_egui::profiler_ui(ui);
         });
+        puffin::GlobalProfiler::lock().new_frame();
 
         self.ui(ctx);
     }
@@ -96,15 +108,18 @@ impl Game {
             Color32::from_rgba_unmultiplied(panel_color.r(), panel_color.g(), panel_color.b(), 128);
         TopBottomPanel::bottom("words")
             .frame(Frame {
-                inner_margin: Margin::same(20.0),
+                inner_margin: Margin::symmetric(100.0, 20.0),
                 fill: panel_color,
                 ..Default::default()
             })
+            .min_height(100.0)
             .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    self.words_ui(ui, &stack);
-                    self.controls_ui(ui, &stack);
-                });
+                if !self.dialog_ui(ui) {
+                    ui.horizontal(|ui| {
+                        self.words_ui(ui, &stack);
+                        self.controls_ui(ui, &stack);
+                    });
+                }
             });
         TopBottomPanel::bottom("stack")
             .frame(Frame {
@@ -450,5 +465,86 @@ impl FieldPlot for GenericVectorFieldKind {
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
         default_vector_color(t)
+    }
+}
+
+impl Game {
+    fn set_dialog(&mut self, scene_name: &str) {
+        let scene = &DIALOG_SCENES[scene_name];
+        let dialog = DialogState {
+            scene: scene_name.into(),
+            node: scene.nodes.first().unwrap().0.clone(),
+            line: 0,
+            character: 0,
+        };
+        self.ui_state.dialog = Some(dialog);
+    }
+    fn dialog_ui(&mut self, ui: &mut Ui) -> bool {
+        if self.ui_state.dialog.is_none() {
+            return false;
+        }
+        ui.group(|ui| {
+            // Get dialog scene data
+            let dialog = self.ui_state.dialog.as_mut().unwrap();
+            let scene = &DIALOG_SCENES[&dialog.scene];
+            let node = &scene.nodes[&dialog.node];
+            let line = &node.lines[dialog.line];
+            // Space the group
+            ui.allocate_at_least(vec2(ui.max_rect().width(), 0.0), Sense::hover());
+            // Show line text
+            let line_text = self.world.format_dialog_fragments(line);
+            let char_indices = line_text.char_indices().collect_vec();
+            let line_text = &line_text[..=char_indices[dialog.character].0];
+            ui.horizontal_wrapped(|ui| ui.label(line_text));
+            // Show continue or choices
+            let max_char_index = char_indices.len() - 1;
+            dialog.character = (dialog.character + 1).min(max_char_index);
+            let mut next = || {
+                ui.with_layout(Layout::bottom_up(Align::Min), |ui| ui.button(">").clicked())
+                    .inner
+            };
+            if dialog.character < max_char_index {
+                // Revealing the text
+                if next() {
+                    dialog.character = max_char_index;
+                }
+            } else if node.children.is_empty() {
+                // No choices
+                if next() {
+                    if dialog.line < node.lines.len() - 1 {
+                        dialog.line += 1;
+                        dialog.character = 0;
+                    } else {
+                        self.ui_state.dialog = None;
+                    }
+                }
+            } else {
+                // Choices
+                for (name, choice) in &node.children {
+                    if ui
+                        .button(self.world.format_dialog_fragments(choice))
+                        .clicked()
+                    {
+                        dialog.node = name.clone();
+                        dialog.line = 0;
+                        dialog.character = 0;
+                    }
+                }
+            }
+        });
+        true
+    }
+}
+impl World {
+    fn format_dialog_fragments(&self, fragments: &[DialogFragment]) -> String {
+        let mut formatted = String::new();
+        for frag in fragments {
+            match frag {
+                DialogFragment::String(s) => {
+                    formatted.push_str(s);
+                }
+            }
+        }
+        formatted
     }
 }

@@ -4,17 +4,24 @@ name = 'eidos'
 version = '0.1.0'
 
 [dependencies]
+anyhow = '1'
+chumsky = '0.8.0'
 derive_more = '0.99.17'
 eframe = '0.19.0'
 enum-iterator = '1'
+indexmap = '1'
 itertools = '0.10.5'
 mint = '0.5.9'
+once_cell = '1'
 puffin = '0.14.0'
 puffin_egui.optional = true
 puffin_egui.version = '0.18.0'
 rand.features = ['small_rng']
 rand.version = '0.8.5'
 rapier2d = '0.16.1'
+serde.features = ['derive']
+serde.version = '1'
+serde_yaml = '0.8.3'
 
 [features]
 default = ['profile']
