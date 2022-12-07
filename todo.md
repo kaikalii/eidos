@@ -1,4 +1,6 @@
-- Revamp UI
-- Add more useful functions
+- Make output field setting clear the spell
+- Show spell next to output fields
+- Make uncast words take mana
+- Fix mana regen checking
 - Add dialog system
 - Implement story
