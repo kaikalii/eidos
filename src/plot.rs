@@ -16,12 +16,19 @@ use crate::{math::round_to, world::World};
 
 pub trait FieldPlot {
     type Value: PartitionAndPlottable;
+    fn precision(&self) -> f32;
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value;
-    fn get_color(&self, t: Self::Value) -> Color32;
+    fn get_color(&self, t: Self::Value) -> Rgba;
+    fn wiggle_delta(&self, point_radius: f32) -> f32 {
+        wiggle_delta(point_radius, self.precision())
+    }
+}
+
+fn wiggle_delta(point_radius: f32, precision: f32) -> f32 {
+    point_radius * 0.05 * precision
 }
 
 pub trait PartitionAndPlottable: Sized {
-    const SCALE: f32;
     fn partition_and_plot(
         plot_ui: &mut PlotUi,
         field_plot: &impl FieldPlot<Value = Self>,
@@ -29,19 +36,16 @@ pub trait PartitionAndPlottable: Sized {
         points: Vec<(f32, f32, Self)>,
     );
     fn format(&self, round: fn(f32) -> f32) -> String;
-    fn wiggle_delta(point_radius: f32) -> f32 {
-        point_radius * 0.05 / Self::SCALE
-    }
 }
 
-pub fn default_scalar_color(t: f32) -> Color32 {
+pub fn default_scalar_color(t: f32) -> Rgba {
     let h = 0.9 * (1.0 - t);
     let v = (2.0 * t - 1.0).abs();
     let s = v.powf(0.5);
     Hsva::new(h, s, v, 1.0).into()
 }
 
-pub fn default_vector_color(t: Vec2) -> Color32 {
+pub fn default_vector_color(t: Vec2) -> Rgba {
     let t = (t - Vec2::splat(0.5)) * 2.0;
     let s = t.length();
     let v = 0.9 * t.length() + 0.1;
@@ -58,7 +62,8 @@ pub struct MapPlot<'w> {
     resolution: usize,
 }
 
-const Z_BUCKETS: usize = 51;
+const Z_BUCKETS: usize = if cfg!(debug_assertions) { 31 } else { 51 };
+const ALPHA_BUCKETS: usize = if cfg!(debug_assertions) { 10 } else { 20 };
 
 fn time() -> f64 {
     SystemTime::now()
@@ -105,10 +110,10 @@ impl<'w> MapPlot<'w> {
     {
         let time = time();
         self.init_plot().show(ui, |plot_ui| {
-            let resolution = ((self.resolution as f32) / F::Value::SCALE) as usize;
+            let resolution = ((self.resolution as f32) * field_plot.precision()) as usize;
             let step = 2.0 * self.range / resolution as f32;
             let point_radius = self.range * self.size / resolution as f32 * 0.1;
-            let wiggle_delta = F::Value::wiggle_delta(point_radius);
+            let wiggle_delta = field_plot.wiggle_delta(point_radius);
             let mut points = Vec::with_capacity(self.resolution * resolution);
             let center = pos2(round_to(self.center.x, step), round_to(self.center.y, step));
             for i in 0..self.resolution {
@@ -175,7 +180,7 @@ impl<'w> MapPlot<'w> {
         let point_radius = plot.range * plot.size / plot.resolution as f32 * 0.1;
         let delta = move || {
             (time + rng.borrow_mut().gen::<f64>() * 2.0 * f64::consts::PI).sin()
-                * f32::wiggle_delta(point_radius) as f64
+                * wiggle_delta(point_radius, 1.0) as f64
         };
         let samples = (plot.resolution * 2).max(80);
         plot.init_plot().show(ui, |plot_ui| {
@@ -257,7 +262,6 @@ impl<'w> MapPlot<'w> {
 }
 
 impl PartitionAndPlottable for f32 {
-    const SCALE: f32 = 1.0;
     fn format(&self, round: fn(f32) -> f32) -> String {
         round(*self).to_string()
     }
@@ -274,13 +278,20 @@ impl PartitionAndPlottable for f32 {
             .into_option()
             .unwrap();
         let max_abs_z = min_z.abs().max(max_z.abs()).max(0.1);
-        let mut grouped_points = vec![Vec::new(); Z_BUCKETS];
+        let center = plot_ui.plot_bounds().center().to_pos2();
+        let radius = plot_ui.plot_bounds().width() as f32 * 0.5;
+        let mut grouped_points = vec![vec![Vec::new(); ALPHA_BUCKETS]; Z_BUCKETS];
         for (x, y, z) in points {
             let group = ((z / max_abs_z * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
                 .max(0.0)
                 .round() as usize)
                 .min(Z_BUCKETS - 1);
-            grouped_points[group].push(PlotPoint::new(x, y));
+            let alpha = 1.0
+                - (pos2(x, y).distance(center) / radius)
+                    .powf(2.0)
+                    .clamp(0.0, 1.0);
+            let alpha = ((alpha * ALPHA_BUCKETS as f32) as usize).min(ALPHA_BUCKETS - 1);
+            grouped_points[group][alpha].push(PlotPoint::new(x, y));
         }
         for (i, points) in grouped_points.into_iter().enumerate() {
             if points.is_empty() {
@@ -288,21 +299,28 @@ impl PartitionAndPlottable for f32 {
             }
             let t = i as f32 / (Z_BUCKETS + 1) as f32;
             let color = field_plot.get_color(t);
-            if color.a() == 0 {
+            if color.a() < 1.0 / 255.0 {
                 continue;
             }
-            plot_ui.points(
-                Points::new(PlotPoints::Owned(points))
-                    .shape(MarkerShape::Circle)
-                    .radius(point_radius)
-                    .color(color),
-            );
+            for (a, points) in points.into_iter().enumerate() {
+                let color = Rgba::from_rgba_unmultiplied(
+                    color.r(),
+                    color.g(),
+                    color.b(),
+                    color.a() * (a as f32 + 0.1) / ALPHA_BUCKETS as f32,
+                );
+                plot_ui.points(
+                    Points::new(PlotPoints::Owned(points))
+                        .shape(MarkerShape::Circle)
+                        .radius(point_radius)
+                        .color(color),
+                );
+            }
         }
     }
 }
 
 impl PartitionAndPlottable for Vec2 {
-    const SCALE: f32 = 3.0;
     fn format(&self, round: fn(f32) -> f32) -> String {
         format!("({}, {})", round(self.x), round(self.y))
     }
@@ -326,7 +344,9 @@ impl PartitionAndPlottable for Vec2 {
             .unwrap();
         let max_abs_zx = min_zx.abs().max(max_zx.abs()).max(0.1);
         let max_abs_zy = min_zy.abs().max(max_zy.abs()).max(0.1);
-        let mut grouped_points = vec![vec![Vec::new(); Z_BUCKETS]; Z_BUCKETS];
+        let center = plot_ui.plot_bounds().center().to_pos2();
+        let radius = plot_ui.plot_bounds().width() as f32 * 0.5;
+        let mut grouped_points = vec![vec![vec![Vec::new(); ALPHA_BUCKETS]; Z_BUCKETS]; Z_BUCKETS];
         for (x, y, z) in points {
             let x_group = ((z.x / max_abs_zx * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
                 .max(0.0)
@@ -336,7 +356,12 @@ impl PartitionAndPlottable for Vec2 {
                 .max(0.0)
                 .round() as usize)
                 .min(Z_BUCKETS - 1);
-            grouped_points[x_group][y_group].push(PlotPoint::new(x, y));
+            let alpha = 1.0
+                - (pos2(x, y).distance(center) / radius)
+                    .powf(2.0)
+                    .clamp(0.0, 1.0);
+            let alpha = ((alpha * ALPHA_BUCKETS as f32) as usize).min(ALPHA_BUCKETS - 1);
+            grouped_points[x_group][y_group][alpha].push(PlotPoint::new(x, y));
         }
         for (i, points) in grouped_points.into_iter().enumerate() {
             if points.is_empty() {
@@ -351,23 +376,32 @@ impl PartitionAndPlottable for Vec2 {
                     j as f32 / (Z_BUCKETS + 1) as f32,
                 );
                 let color = field_plot.get_color(t);
-                if color.a() == 0 {
+                if color.a() < 1.0 / 255.0 {
                     continue;
                 }
                 let t = (t - Vec2::splat(0.5)) * 2.0;
-                let arrow_length = point_radius * 0.1;
-                let tips = points
-                    .iter()
-                    .map(|p| {
-                        PlotPoint::new(
-                            p.x as f32 + t.x * arrow_length,
-                            p.y as f32 + t.y * arrow_length,
-                        )
-                    })
-                    .collect_vec();
-                plot_ui.arrows(
-                    Arrows::new(PlotPoints::Owned(points), PlotPoints::Owned(tips)).color(color),
-                );
+                for (a, points) in points.into_iter().enumerate() {
+                    let arrow_length = point_radius * 0.1;
+                    let tips = points
+                        .iter()
+                        .map(|p| {
+                            PlotPoint::new(
+                                p.x as f32 + t.x * arrow_length,
+                                p.y as f32 + t.y * arrow_length,
+                            )
+                        })
+                        .collect_vec();
+                    let color = Rgba::from_rgba_unmultiplied(
+                        color.r(),
+                        color.g(),
+                        color.b(),
+                        color.a() * (a as f32 + 0.1) / ALPHA_BUCKETS as f32,
+                    );
+                    plot_ui.arrows(
+                        Arrows::new(PlotPoints::Owned(points), PlotPoints::Owned(tips))
+                            .color(color),
+                    );
+                }
             }
         }
     }

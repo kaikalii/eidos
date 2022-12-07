@@ -12,3 +12,6 @@ mint = '0.5.9'
 rand.features = ['small_rng']
 rand.version = '0.8.5'
 rapier2d = '0.16.1'
+
+[profile.dev.package."*"]
+opt-level = 3

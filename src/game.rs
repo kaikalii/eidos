@@ -223,10 +223,13 @@ impl Game {
 
 impl FieldPlot for ScalarField {
     type Value = f32;
+    fn precision(&self) -> f32 {
+        1.0
+    }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
         self.sample(world, pos)
     }
-    fn get_color(&self, t: Self::Value) -> Color32 {
+    fn get_color(&self, t: Self::Value) -> Rgba {
         let h = 0.9 * (1.0 - t);
         let v = (2.0 * t - 1.0).abs();
         let s = v.powf(0.5) * 0.8;
@@ -236,30 +239,42 @@ impl FieldPlot for ScalarField {
 
 impl FieldPlot for VectorField {
     type Value = Vec2;
+    fn precision(&self) -> f32 {
+        0.35
+    }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
         self.sample(world, pos)
     }
-    fn get_color(&self, t: Self::Value) -> Color32 {
+    fn get_color(&self, t: Self::Value) -> Rgba {
         default_vector_color(t)
     }
 }
 
 impl FieldPlot for GenericScalarFieldKind {
     type Value = f32;
+    fn precision(&self) -> f32 {
+        match self {
+            GenericScalarFieldKind::Input(ScalarInputFieldKind::Elevation) => 0.7,
+            _ => 1.0,
+        }
+    }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
         world.sample_scalar_field(*self, pos)
     }
-    fn get_color(&self, t: Self::Value) -> Color32 {
+    fn get_color(&self, t: Self::Value) -> Rgba {
         default_scalar_color(t)
     }
 }
 
 impl FieldPlot for GenericVectorFieldKind {
     type Value = Vec2;
+    fn precision(&self) -> f32 {
+        0.35
+    }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
         world.sample_vector_field(*self, pos)
     }
-    fn get_color(&self, t: Self::Value) -> Color32 {
+    fn get_color(&self, t: Self::Value) -> Rgba {
         default_vector_color(t)
     }
 }
