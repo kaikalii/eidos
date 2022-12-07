@@ -72,6 +72,7 @@ pub enum CombinatorWord {
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum ControlWord {
     Sila,
+    Vila,
 }
 
 impl Word {
@@ -99,7 +100,8 @@ impl Word {
             Combinator(CombinatorWord::Mo) => Combinator1::Duplicate.into(),
             Combinator(CombinatorWord::Re) => Combinator2::Swap.into(),
             Combinator(CombinatorWord::Rovo) => Combinator2::Over.into(),
-            Control(ControlWord::Sila) => ControlKind::Slider.into(),
+            Control(ControlWord::Sila) => ControlKind::XSlider.into(),
+            Control(ControlWord::Vila) => ControlKind::YSlider.into(),
         }
     }
 }

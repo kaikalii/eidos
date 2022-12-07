@@ -111,7 +111,8 @@ pub enum VectorOutputFieldKind {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ControlKind {
-    Slider,
+    XSlider,
+    YSlider,
 }
 
 impl ScalarField {

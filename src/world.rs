@@ -34,13 +34,15 @@ pub struct OutputFields {
 
 #[derive(Default)]
 pub struct Controls {
-    pub slider: Option<f32>,
+    pub x_slider: Option<f32>,
+    pub y_slider: Option<f32>,
 }
 
 impl Controls {
     pub fn get(&self, kind: ControlKind) -> f32 {
         match kind {
-            ControlKind::Slider => self.slider.unwrap_or(0.0),
+            ControlKind::XSlider => self.x_slider.unwrap_or(0.0),
+            ControlKind::YSlider => self.y_slider.unwrap_or(0.0),
         }
     }
 }
@@ -50,7 +52,7 @@ impl Player {
         if self.mana_exhaustion > 0.0 {
             0.0
         } else {
-            (self.mana / self.max_mana * 4.0).clamp(0.2, 1.0)
+            1.0
         }
     }
     pub fn do_work(&mut self, work: f32) {
@@ -79,8 +81,8 @@ impl Default for World {
             player_pos: Pos2::ZERO,
             player: Player {
                 body_handle: RigidBodyHandle::default(),
-                mana: 25.0,
-                max_mana: 25.0,
+                mana: 40.0,
+                max_mana: 40.0,
                 mana_exhaustion: 0.0,
                 spell: Vec::new(),
             },
