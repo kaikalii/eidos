@@ -1,4 +1,3 @@
-- Add dialog system
 - Implement story
 - Improve elevation test efficiency
   - Maybe just cache it?

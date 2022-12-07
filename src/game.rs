@@ -491,22 +491,30 @@ impl Game {
             let line = &node.lines[dialog.line];
             // Space the group
             ui.allocate_at_least(vec2(ui.max_rect().width(), 0.0), Sense::hover());
-            // Show line text
-            let line_text = self.world.format_dialog_fragments(line);
+            let line_text = self.world.format_dialog_fragments(&line.fragments);
             let char_indices = line_text.char_indices().collect_vec();
-            let line_text = &line_text[..=char_indices[dialog.character].0];
-            ui.horizontal_wrapped(|ui| ui.label(line_text));
+            const DIALOG_SPEED: usize = 2;
+            let char_index = dialog.character / DIALOG_SPEED;
+            ui.horizontal(|ui| {
+                // Show speaker
+                if let Some(speaker) = &line.speaker {
+                    ui.label(format!("{speaker}:"));
+                }
+                // Show line text
+                let line_text = &line_text[..=char_indices[char_index].0];
+                ui.horizontal_wrapped(|ui| ui.label(line_text));
+            });
             // Show continue or choices
-            let max_char_index = char_indices.len() - 1;
-            dialog.character = (dialog.character + 1).min(max_char_index);
+            let max_dialog_char = (char_indices.len() - 1) * DIALOG_SPEED;
+            dialog.character = (dialog.character + 1).min(max_dialog_char);
             let mut next = || {
                 ui.with_layout(Layout::bottom_up(Align::Min), |ui| ui.button(">").clicked())
                     .inner
             };
-            if dialog.character < max_char_index {
+            if dialog.character < max_dialog_char {
                 // Revealing the text
                 if next() {
-                    dialog.character = max_char_index;
+                    dialog.character = max_dialog_char;
                 }
             } else if node.children.is_empty() {
                 // No choices
@@ -520,16 +528,18 @@ impl Game {
                 }
             } else {
                 // Choices
-                for (name, choice) in &node.children {
-                    if ui
-                        .button(self.world.format_dialog_fragments(choice))
-                        .clicked()
-                    {
-                        dialog.node = name.clone();
-                        dialog.line = 0;
-                        dialog.character = 0;
+                ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+                    for (name, line) in &node.children {
+                        if ui
+                            .button(self.world.format_dialog_fragments(&line.fragments))
+                            .clicked()
+                        {
+                            dialog.node = name.clone();
+                            dialog.line = 0;
+                            dialog.character = 0;
+                        }
                     }
-                }
+                });
             }
         });
         true

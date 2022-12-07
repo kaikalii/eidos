@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::anyhow;
-use chumsky::prelude::*;
+use chumsky::{prelude::*, text::whitespace};
 use eframe::egui::*;
 use indexmap::IndexMap;
 use once_cell::sync::Lazy;
@@ -64,7 +64,7 @@ impl eframe::App for FatalErrorWindow {
     }
 }
 
-type DialogScenes = HashMap<String, DialogScene<Vec<DialogFragment>>>;
+type DialogScenes = HashMap<String, DialogScene<Line>>;
 
 pub static DIALOG_SCENES: Lazy<DialogScenes> =
     Lazy::new(|| load_scenes().map_err(fatal_error).unwrap());
@@ -83,6 +83,9 @@ fn load_scenes() -> anyhow::Result<DialogScenes> {
                 let name = path.file_stem().unwrap().to_string_lossy().into_owned();
                 let scene: DialogScene<String> = serde_yaml::from_str(&yaml)
                     .map_err(|e| anyhow!("Unable to read {name} dialog: {e}"))?;
+                if scene.nodes.is_empty() {
+                    continue;
+                }
                 map.insert(name, scene.try_into()?);
             }
         }
@@ -99,28 +102,36 @@ pub struct DialogScene<T> {
 #[derive(Deserialize)]
 pub struct DialogNode<T> {
     pub lines: Vec<T>,
-    #[serde(default = "Vec::new")]
-    pub children: Vec<(String, T)>,
+    #[serde(default = "IndexMap::new")]
+    pub children: IndexMap<String, T>,
+}
+
+pub struct Line {
+    pub speaker: Option<String>,
+    pub fragments: Vec<DialogFragment>,
 }
 
 pub enum DialogFragment {
     String(String),
 }
 
-impl TryFrom<DialogScene<String>> for DialogScene<Vec<DialogFragment>> {
+impl TryFrom<DialogScene<String>> for DialogScene<Line> {
     type Error = anyhow::Error;
     fn try_from(scene: DialogScene<String>) -> Result<Self, Self::Error> {
         let parser = fragments_parser();
         let mut nodes = IndexMap::new();
         for (name, node) in scene.nodes {
+            if node.lines.is_empty() {
+                continue;
+            }
             let mut lines = Vec::new();
             for line in node.lines {
                 lines.push(parser.parse(line).map_err(|mut e| anyhow!(e.remove(0)))?);
             }
-            let mut children = Vec::new();
+            let mut children = IndexMap::new();
             for (name, text) in node.children {
                 let text = parser.parse(text).map_err(|mut e| anyhow!(e.remove(0)))?;
-                children.push((name, text));
+                children.insert(name, text);
             }
             nodes.insert(name, DialogNode { lines, children });
         }
@@ -132,15 +143,25 @@ trait FragmentParser<T>: Parser<char, T, Error = Simple<char>> {}
 
 impl<P, T> FragmentParser<T> for P where P: Parser<char, T, Error = Simple<char>> {}
 
-fn fragments_parser() -> impl FragmentParser<Vec<DialogFragment>> {
-    string_fragment()
-        .map(DialogFragment::String)
-        .repeated()
+fn fragments_parser() -> impl FragmentParser<Line> {
+    let speaker = bracketed(string_fragment())
+        .then_ignore(whitespace())
+        .or_not();
+    let fragments = string_fragment().map(DialogFragment::String).repeated();
+    speaker
+        .then(fragments)
         .then_ignore(end())
+        .map(|(speaker, fragments)| Line { speaker, fragments })
+}
+
+fn bracketed<T>(inner: impl FragmentParser<T>) -> impl FragmentParser<T> {
+    just('(')
+        .ignore_then(inner.padded_by(whitespace()))
+        .then_ignore(just(')'))
 }
 
 fn string_fragment() -> impl FragmentParser<String> {
-    none_of("[").repeated().at_least(1).collect()
+    none_of("()").repeated().at_least(1).collect()
 }
 
 #[test]

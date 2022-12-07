@@ -1,2 +1,8 @@
 start:
-  lines: [Hello there! How are you? I am doing very well, thank you.]
+  lines:
+    - (Dan) Hello there! How are you? I am doing very well, thank you.
+  children:
+    n1: Click me!
+n1:
+  lines:
+    - The next node
