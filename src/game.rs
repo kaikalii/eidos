@@ -60,7 +60,7 @@ impl eframe::App for Game {
         let mut error = None;
         // Calculate spell field
         for word in self.world.player.spell.clone() {
-            if let Err(e) = stack.call(&mut self.world, word, true) {
+            if let Err(e) = stack.call(&mut self.world, word) {
                 error = Some(e);
                 break;
             }

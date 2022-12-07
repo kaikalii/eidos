@@ -14,7 +14,7 @@ pub struct World {
     pub outputs: OutputFields,
 }
 
-pub const MANA_REGEN_RATE: f32 = 0.5;
+pub const MANA_REGEN_RATE: f32 = 1.0;
 pub const MAX_MANA_EXHAUSTION: f32 = 5.0;
 
 pub struct Player {
@@ -45,6 +45,8 @@ impl Player {
             self.mana = 0.0;
             self.mana_exhaustion = MAX_MANA_EXHAUSTION;
         }
+    }
+    fn regen_mana(&mut self) {
         if self.mana_exhaustion > 0.0 {
             self.mana_exhaustion = (self.mana_exhaustion - TICK_RATE * MANA_REGEN_RATE).max(0.0);
         } else {
@@ -63,8 +65,8 @@ impl Default for World {
             player_pos: Pos2::ZERO,
             player: Player {
                 body_handle: RigidBodyHandle::default(),
-                mana: 100.0,
-                max_mana: 100.0,
+                mana: 25.0,
+                max_mana: 25.0,
                 mana_exhaustion: 0.0,
                 spell: Vec::new(),
             },
@@ -236,6 +238,9 @@ impl World {
         if !self.player.can_cast() {
             self.outputs.scalars.clear();
             self.outputs.vectors.clear();
+        }
+        if work_done.abs() == 0.0 {
+            self.player.regen_mana();
         }
     }
 }

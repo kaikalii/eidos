@@ -76,12 +76,7 @@ impl Stack {
     pub fn top(&self) -> Option<&StackItem> {
         self.stack.last()
     }
-    pub fn call(
-        &mut self,
-        world: &mut World,
-        word: Word,
-        write_outputs: bool,
-    ) -> Result<(), EidosError> {
+    pub fn call(&mut self, world: &mut World, word: Word) -> Result<(), EidosError> {
         let function = word.function();
         self.validate_function_use(function)?;
         match function {
@@ -95,13 +90,11 @@ impl Stack {
             },
             Function::WriteField(field_kind) => {
                 let item = self.top().unwrap();
-                if write_outputs {
-                    match (field_kind, &item.field) {
-                        (GenericOutputFieldKind::Vector(kind), GenericField::Vector(field)) => {
-                            world.outputs.vectors.insert(kind, field.clone());
-                        }
-                        _ => unreachable!(),
+                match (field_kind, &item.field) {
+                    (GenericOutputFieldKind::Vector(kind), GenericField::Vector(field)) => {
+                        world.outputs.vectors.insert(kind, field.clone());
                     }
+                    _ => unreachable!(),
                 }
             }
             Function::Nullary(nullary) => self.push(word, nullary.field()),
