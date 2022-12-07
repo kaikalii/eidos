@@ -311,35 +311,42 @@ impl Game {
         // Vertical slider
         if used_controls.contains(&ControlKind::YSlider) {
             let value = self.world.controls.y_slider.get_or_insert(0.0);
-            if let Some(i) = [
-                Key::Num0,
-                Key::Num1,
-                Key::Num2,
-                Key::Num3,
-                Key::Num4,
-                Key::Num5,
-                Key::Num6,
-                Key::Num7,
-                Key::Num8,
-                Key::Num9,
-            ]
-            .into_iter()
-            .position(|key| ui.input().key_pressed(key))
-            {
-                *value = i as f32 / 9.0;
+            if ui.memory().focus().is_none() {
+                if let Some(i) = [
+                    Key::Num0,
+                    Key::Num1,
+                    Key::Num2,
+                    Key::Num3,
+                    Key::Num4,
+                    Key::Num5,
+                    Key::Num6,
+                    Key::Num7,
+                    Key::Num8,
+                    Key::Num9,
+                ]
+                .into_iter()
+                .position(|key| ui.input().key_pressed(key))
+                {
+                    *value = i as f32 / 9.0;
+                }
             }
             Slider::new(value, 0.0..=1.0)
                 .vertical()
                 .fixed_decimals(1)
                 .show_value(false)
                 .ui(ui);
+        } else {
+            self.world.controls.y_slider = None;
         }
         // Horizontal slider
         if used_controls.contains(&ControlKind::XSlider) {
             let value = self.world.controls.x_slider.get_or_insert(0.0);
             let input = ui.input();
             if input.key_down(Key::D) || input.key_down(Key::A) {
-                *value = input.key_down(Key::D) as u8 as f32 - input.key_down(Key::A) as u8 as f32
+                if ui.memory().focus().is_none() {
+                    *value =
+                        input.key_down(Key::D) as u8 as f32 - input.key_down(Key::A) as u8 as f32;
+                }
             } else if input.key_released(Key::D) || input.key_released(Key::A) {
                 *value = 0.0;
             }
