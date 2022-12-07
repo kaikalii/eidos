@@ -2,7 +2,7 @@ use std::{collections::HashMap, marker::PhantomData, ops::*};
 
 use derive_more::{Display, From};
 use eframe::epaint::{vec2, Vec2};
-use enum_iterator::{all, Sequence};
+use enum_iterator::Sequence;
 
 use crate::{error::EidosError, field::*, stack::Stack};
 
@@ -22,37 +22,6 @@ pub enum Function {
     Combinator1(Combinator1),
     #[from]
     Combinator2(Combinator2),
-}
-
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
-pub enum FunctionCategory {
-    ReadField,
-    WriteField,
-    Nullary,
-    Binary,
-    Unary,
-    Combinator,
-}
-
-impl FunctionCategory {
-    pub fn functions(&self) -> Box<dyn Iterator<Item = Function>> {
-        match self {
-            FunctionCategory::ReadField => {
-                Box::new(all::<GenericInputFieldKind>().map(Function::ReadField))
-            }
-            FunctionCategory::WriteField => {
-                Box::new(all::<GenericOutputFieldKind>().map(Function::WriteField))
-            }
-            FunctionCategory::Nullary => Box::new(all::<Nullary>().map(Function::Nullary)),
-            FunctionCategory::Combinator => Box::new(
-                all::<Combinator1>()
-                    .map(Function::Combinator1)
-                    .chain(all::<Combinator2>().map(Function::Combinator2)),
-            ),
-            FunctionCategory::Unary => Box::new(all::<GenericUnOp>().map(Function::Un)),
-            FunctionCategory::Binary => Box::new(all::<GenericBinOp>().map(Function::Bin)),
-        }
-    }
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]

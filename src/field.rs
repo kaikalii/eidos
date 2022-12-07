@@ -27,29 +27,6 @@ pub enum Type {
     Vector,
 }
 
-pub trait FieldValue: Copy + Default {
-    fn x(x: f32) -> Self;
-    fn y(y: f32) -> Self;
-}
-
-impl FieldValue for f32 {
-    fn x(x: f32) -> Self {
-        x
-    }
-    fn y(y: f32) -> Self {
-        y
-    }
-}
-
-impl FieldValue for Vec2 {
-    fn x(x: f32) -> Self {
-        Vec2::X * x
-    }
-    fn y(y: f32) -> Self {
-        Vec2::Y * y
-    }
-}
-
 #[derive(Debug, Clone, From)]
 pub enum ScalarField {
     Uniform(f32),

@@ -46,9 +46,6 @@ impl Default for PhysicsContext {
 }
 
 impl PhysicsContext {
-    pub fn step_time(&self) -> f32 {
-        self.pipline.counters.step_time() as f32
-    }
     pub fn step(&mut self) {
         self.pipline.step(
             &self.gravity,
