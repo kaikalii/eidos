@@ -6,6 +6,10 @@ use std::{
 use eframe::epaint::{pos2, vec2, Pos2, Vec2};
 use rapier2d::{na::Vector2, prelude::*};
 
+pub fn round_to(x: f32, dx: f32) -> f32 {
+    (x / dx).round() * dx
+}
+
 pub fn modulus<T>(x: T, m: T) -> T
 where
     T: Copy + Add<Output = T> + Rem<Output = T>,

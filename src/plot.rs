@@ -7,12 +7,12 @@ use std::{
 
 use eframe::{
     egui::{plot::*, *},
-    epaint::color::Hsva,
+    epaint::{color::Hsva, util::hash},
 };
 use itertools::Itertools;
 use rand::prelude::*;
 
-use crate::world::World;
+use crate::{math::round_to, world::World};
 
 pub trait FieldPlot {
     type Value: PartitionAndPlottable;
@@ -105,32 +105,38 @@ impl<'w> MapPlot<'w> {
     {
         let time = time();
         self.init_plot().show(ui, |plot_ui| {
-            let mut rng = SmallRng::seed_from_u64(0);
             let resolution = ((self.resolution as f32) / F::Value::SCALE) as usize;
             let step = 2.0 * self.range / resolution as f32;
             let point_radius = self.range * self.size / resolution as f32 * 0.1;
+            let wiggle_delta = F::Value::wiggle_delta(point_radius);
             let mut points = Vec::with_capacity(self.resolution * resolution);
+            let center = pos2(round_to(self.center.x, step), round_to(self.center.y, step));
             for i in 0..self.resolution {
-                let x = (i as f32) * step + self.center.x - self.range;
+                let x = (i as f32) * step + center.x - self.range;
+                let rounded_x = round_to(x, step * 0.5);
                 for j in 0..self.resolution {
-                    let y = (j as f32) * step + self.center.y - self.range;
-                    let dxt = rng.gen::<f64>();
-                    let dyt = rng.gen::<f64>();
+                    let y = (j as f32) * step + center.y - self.range;
                     if pos2(x, y).distance(self.center) > self.range {
                         continue;
                     }
+                    let rounded_y = round_to(y, step * 0.5);
+                    let mut rng = SmallRng::seed_from_u64(hash((
+                        (rounded_x * 1e6) as i64,
+                        (rounded_y * 1e6) as i64,
+                    )));
+                    let dxt = rng.gen::<f32>() + rounded_x - x;
+                    let dyt = rng.gen::<f32>() + rounded_x - x;
                     let z = field_plot.get_z(self.world, pos2(x, y));
-                    let dx = (time + dxt * 2.0 * f64::consts::PI).sin() as f32
-                        * F::Value::wiggle_delta(point_radius);
-                    let dy = (time + dyt * 2.0 * f64::consts::PI).sin() as f32
-                        * F::Value::wiggle_delta(point_radius);
+                    let dx = (time + dxt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
+                    let dy = (time + dyt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
                     points.push((x + dx, y + dy, z));
                 }
             }
             F::Value::partition_and_plot(plot_ui, field_plot, point_radius, points);
+            // Show coordinate tooltip
             if let Some(p) = plot_ui.pointer_coordinate() {
                 let ppos = pos2(p.x as f32, p.y as f32);
-                let relative_pos = ppos - self.center;
+                let relative_pos = ppos - center;
                 if relative_pos.length() < self.range {
                     let z = field_plot.get_z(self.world, ppos);
                     let anchor = if relative_pos.y > self.range * 0.9 {

@@ -82,12 +82,12 @@ impl Default for World {
             RigidBodyBuilder::fixed(),
             |c| c.restitution(0.5),
         );
-        // // Rock?
-        // world.add_object(
-        //     GraphicalShape::Circle(1.0).offset(Vec2::ZERO).density(2.0),
-        //     RigidBodyBuilder::dynamic().translation([3.0, 10.0].into()),
-        //     |c| c,
-        // );
+        // Rock?
+        world.add_object(
+            GraphicalShape::Circle(1.0).offset(Vec2::ZERO).density(2.0),
+            RigidBodyBuilder::dynamic().translation([3.0, 10.0].into()),
+            |c| c,
+        );
         // Player
         world.player.body_handle = world.add_object(
             vec![
@@ -98,7 +98,7 @@ impl Default for World {
                 .offset(Vec2::ZERO),
                 GraphicalShape::Circle(0.3).offset(vec2(0.0, 0.5)),
             ],
-            RigidBodyBuilder::dynamic().translation([2.0, 0.5].into()),
+            RigidBodyBuilder::dynamic().translation([0.0, 0.5].into()),
             |c| c,
         );
         world
