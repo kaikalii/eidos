@@ -97,6 +97,7 @@ impl Stack {
                     _ => unreachable!(),
                 }
             }
+            Function::Control(kind) => self.push(word, ScalarField::Control(kind)),
             Function::Nullary(nullary) => self.push(word, nullary.field()),
             Function::Combinator1(com1) => {
                 let a = self.pop();

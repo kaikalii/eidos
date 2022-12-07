@@ -8,13 +8,14 @@ pub enum SpellCommand {
     Clear,
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From)]
 pub enum Word {
     Scalar(ScalarWord),
     Vector(VectorWord),
     Axis(AxisWord),
     Operator(OperatorWord),
     Combinator(CombinatorWord),
+    Control(ControlWord),
     Input(InputWord),
     Output(OutputWord),
 }
@@ -57,14 +58,20 @@ pub enum OperatorWord {
     Ma,
     Sa,
     Na,
+    Neka,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum CombinatorWord {
-    Ne,
+    No,
     Mo,
     Re,
     Rovo,
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum ControlWord {
+    Sila,
 }
 
 impl Word {
@@ -87,10 +94,12 @@ impl Word {
             Operator(OperatorWord::Ma) => MathBinOp::Add.into(),
             Operator(OperatorWord::Sa) => MathBinOp::Mul.into(),
             Operator(OperatorWord::Na) => MathBinOp::Sub.into(),
-            Combinator(CombinatorWord::Ne) => Combinator1::Drop.into(),
+            Operator(OperatorWord::Neka) => MathUnOp::Neg.into(),
+            Combinator(CombinatorWord::No) => Combinator1::Drop.into(),
             Combinator(CombinatorWord::Mo) => Combinator1::Duplicate.into(),
             Combinator(CombinatorWord::Re) => Combinator2::Swap.into(),
             Combinator(CombinatorWord::Rovo) => Combinator2::Over.into(),
+            Control(ControlWord::Sila) => ControlKind::Slider.into(),
         }
     }
 }

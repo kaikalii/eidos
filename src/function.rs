@@ -6,12 +6,14 @@ use enum_iterator::Sequence;
 
 use crate::{error::EidosError, field::*, stack::Stack};
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From)]
 pub enum Function {
     #[from(types(ScalarInputFieldKind, VectorInputFieldKind))]
     ReadField(GenericInputFieldKind),
     #[from(types(ScalarOutputFieldKind, VectorOutputFieldKind))]
     WriteField(GenericOutputFieldKind),
+    #[from]
+    Control(ControlKind),
     #[from]
     Nullary(Nullary),
     #[from(types(MathBinOp, HomoBinOp))]
@@ -365,7 +367,7 @@ impl Function {
         // Collect constraints
         use TypeConstraint::*;
         let constraints = match self {
-            Function::ReadField(_) | Function::Nullary(_) => vec![],
+            Function::ReadField(_) | Function::Control(_) | Function::Nullary(_) => vec![],
             Function::WriteField(kind) => match kind {
                 GenericOutputFieldKind::Scalar(_) => {
                     vec![Constrain(ValueConstraint::Exact(Type::Scalar))]

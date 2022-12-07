@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{collections::BTreeSet, time::Instant};
 
 use eframe::{
     egui::{style::Margin, *},
@@ -84,7 +84,12 @@ impl eframe::App for Game {
                 ..Default::default()
             })
             .show(ctx, |ui| {
-                self.words_ui(ui, &stack);
+                ui.horizontal(|ui| {
+                    self.words_ui(ui, &stack);
+                    ui.vertical(|ui| {
+                        self.controls_ui(ui, &stack);
+                    });
+                });
             });
         TopBottomPanel::bottom("stack")
             .frame(Frame {
@@ -179,16 +184,19 @@ impl Game {
         });
     }
     fn words_ui(&mut self, ui: &mut Ui, stack: &Stack) {
-        ui.horizontal_wrapped(|ui| {
-            for command in all::<SpellCommand>() {
-                if ui.button(command.to_string()).clicked() {
-                    match command {
-                        SpellCommand::Clear => self.world.player.spell.clear(),
+        Grid::new("words").show(ui, |ui| {
+            // Commands
+            ui.horizontal_wrapped(|ui| {
+                for command in all::<SpellCommand>() {
+                    if ui.button(command.to_string()).clicked() {
+                        match command {
+                            SpellCommand::Clear => self.world.player.spell.clear(),
+                        }
                     }
                 }
-            }
-        });
-        Grid::new("words").show(ui, |ui| {
+            });
+            ui.end_row();
+            // Words
             fn button<W: Copy + Into<Word> + ToString + Sequence>(
                 ui: &mut Ui,
                 stack: &Stack,
@@ -215,6 +223,7 @@ impl Game {
             ui.end_row();
             spell.extend(button::<VectorWord>(ui, stack, false));
             spell.extend(button::<InputWord>(ui, stack, false));
+            spell.extend(button::<ControlWord>(ui, stack, false));
             ui.end_row();
             spell.extend(button::<OperatorWord>(ui, stack, false));
             spell.extend(button::<AxisWord>(ui, stack, false));
@@ -223,6 +232,26 @@ impl Game {
             spell.extend(button::<CombinatorWord>(ui, stack, false));
             ui.end_row();
         });
+    }
+    fn controls_ui(&mut self, ui: &mut Ui, stack: &Stack) {
+        // Controls
+        let stack_controls = stack.iter().flat_map(|item| item.field.controls());
+        let outputs = &mut self.world.outputs;
+        let scalar_output_controls = outputs.scalars.values().flat_map(ScalarField::controls);
+        let vector_output_controls = outputs.vectors.values().flat_map(VectorField::controls);
+        let used_controls: BTreeSet<ControlKind> = stack_controls
+            .chain(scalar_output_controls)
+            .chain(vector_output_controls)
+            .collect();
+        if used_controls.contains(&ControlKind::Slider) {
+            let value = self.world.controls.slider.get_or_insert(0.0);
+            Slider::new(value, -1.0..=1.0)
+                .fixed_decimals(1)
+                .show_value(false)
+                .ui(ui);
+        } else {
+            self.world.controls.slider = None;
+        }
     }
     fn init_plot(&self, size: f32, resolution: usize) -> MapPlot {
         MapPlot::new(&self.world, self.world.player_pos + Vec2::Y, 5.0)

@@ -12,6 +12,7 @@ pub struct World {
     pub physics: PhysicsContext,
     pub spell_field: Option<GenericField>,
     pub outputs: OutputFields,
+    pub controls: Controls,
 }
 
 pub const MANA_REGEN_RATE: f32 = 1.0;
@@ -29,6 +30,19 @@ pub struct Player {
 pub struct OutputFields {
     pub scalars: HashMap<ScalarOutputFieldKind, ScalarField>,
     pub vectors: HashMap<VectorOutputFieldKind, VectorField>,
+}
+
+#[derive(Default)]
+pub struct Controls {
+    pub slider: Option<f32>,
+}
+
+impl Controls {
+    pub fn get(&self, kind: ControlKind) -> f32 {
+        match kind {
+            ControlKind::Slider => self.slider.unwrap_or(0.0),
+        }
+    }
 }
 
 impl Player {
@@ -74,6 +88,7 @@ impl Default for World {
             objects: HashMap::new(),
             outputs: OutputFields::default(),
             spell_field: None,
+            controls: Controls::default(),
         };
         // Add objects
         // Ground

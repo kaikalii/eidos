@@ -19,6 +19,12 @@ impl GenericField {
             GenericField::Vector(_) => Type::Vector,
         }
     }
+    pub fn controls(&self) -> Vec<ControlKind> {
+        match self {
+            GenericField::Scalar(field) => field.controls(),
+            GenericField::Vector(field) => field.controls(),
+        }
+    }
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -37,6 +43,7 @@ pub enum ScalarField {
     Bin(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
     Index(Box<VectorField>, Box<Self>),
     World(GenericScalarFieldKind),
+    Control(ControlKind),
 }
 
 #[derive(Debug, Clone, From)]
@@ -102,6 +109,11 @@ pub enum VectorOutputFieldKind {
     Force,
 }
 
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ControlKind {
+    Slider,
+}
+
 impl ScalarField {
     pub fn sample(&self, world: &World, pos: Pos2) -> f32 {
         match self {
@@ -115,6 +127,7 @@ impl ScalarField {
                 field.sample(world, index.sample(world, pos).to_pos2())
             }
             ScalarField::World(kind) => world.sample_scalar_field(*kind, pos),
+            ScalarField::Control(kind) => world.controls.get(*kind),
         }
     }
     fn uniform(&self) -> Option<f32> {
@@ -147,6 +160,20 @@ impl ScalarField {
                 }
             }
             field => field,
+        }
+    }
+    pub fn controls(&self) -> Vec<ControlKind> {
+        match self {
+            ScalarField::ScalarUn(_, field) => field.controls(),
+            ScalarField::VectorUn(_, field) => field.controls(),
+            ScalarField::Bin(_, a, b) => {
+                [a.controls(), b.controls()].into_iter().flatten().collect()
+            }
+            ScalarField::Index(a, b) => {
+                [a.controls(), b.controls()].into_iter().flatten().collect()
+            }
+            ScalarField::Control(kind) => vec![*kind],
+            _ => Vec::new(),
         }
     }
 }
@@ -202,6 +229,24 @@ impl VectorField {
                 }
             }
             field => field,
+        }
+    }
+    pub fn controls(&self) -> Vec<ControlKind> {
+        match self {
+            VectorField::Un(_, field) => field.controls(),
+            VectorField::BinSV(_, a, b) => {
+                [a.controls(), b.controls()].into_iter().flatten().collect()
+            }
+            VectorField::BinVS(_, a, b) => {
+                [a.controls(), b.controls()].into_iter().flatten().collect()
+            }
+            VectorField::BinVV(_, a, b) => {
+                [a.controls(), b.controls()].into_iter().flatten().collect()
+            }
+            VectorField::Index(a, b) => {
+                [a.controls(), b.controls()].into_iter().flatten().collect()
+            }
+            _ => Vec::new(),
         }
     }
 }

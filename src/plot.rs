@@ -277,7 +277,7 @@ impl PartitionAndPlottable for f32 {
             .minmax()
             .into_option()
             .unwrap();
-        let max_abs_z = min_z.abs().max(max_z.abs()).max(0.1);
+        let max_abs_z = min_z.abs().max(max_z.abs()).max(1.0);
         let center = plot_ui.plot_bounds().center().to_pos2();
         let radius = plot_ui.plot_bounds().width() as f32 * 0.5;
         let mut grouped_points = vec![vec![Vec::new(); ALPHA_BUCKETS]; Z_BUCKETS];
