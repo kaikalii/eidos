@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use eframe::{
-    egui::*,
+    egui::{style::Margin, *},
     epaint::{ahash::HashMap, color::Hsva},
 };
 use enum_iterator::all;
@@ -55,22 +55,6 @@ impl Default for UiState {
 
 impl eframe::App for Game {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        CentralPanel::default().show(ctx, |ui| self.ui(ui));
-        ctx.request_repaint();
-    }
-}
-
-const BIG_PLOT_SIZE: f32 = 200.0;
-const SMALL_PLOT_SIZE: f32 = 100.0;
-
-impl Game {
-    fn ui(&mut self, ui: &mut Ui) {
-        // Fps
-        let now = Instant::now();
-        let dt = (now - self.last_time).as_secs_f32();
-        self.ticker += dt;
-        self.last_time = now;
-        ui.small(format!("{} fps", (1.0 / dt).round()));
         // Calculate fields
         let mut stack = Stack::default();
         let mut error = None;
@@ -82,7 +66,61 @@ impl Game {
             }
         }
         self.world.spell_field = stack.top().map(|item| item.field.clone());
-        // Draw ui
+
+        CentralPanel::default().show(ctx, |ui| {
+            self.top_ui(ui);
+            self.fields_ui(ui);
+            if let Some(e) = error {
+                ui.label(RichText::new(e.to_string()).color(Color32::RED));
+            }
+        });
+        let mut panel_color = ctx.style().visuals.window_fill();
+        panel_color =
+            Color32::from_rgba_unmultiplied(panel_color.r(), panel_color.g(), panel_color.b(), 128);
+        TopBottomPanel::bottom("words")
+            .frame(Frame {
+                inner_margin: Margin::same(20.0),
+                fill: panel_color,
+                ..Default::default()
+            })
+            .show(ctx, |ui| {
+                self.words_ui(ui, &stack);
+            });
+        TopBottomPanel::bottom("stack")
+            .frame(Frame {
+                inner_margin: Margin {
+                    left: 20.0,
+                    right: 20.0,
+                    top: 20.0,
+                    bottom: 0.0,
+                },
+                ..Default::default()
+            })
+            .show(ctx, |ui| {
+                self.stack_ui(ui, &stack);
+            });
+
+        // Update world
+        while self.ticker >= TICK_RATE {
+            self.world.update();
+            self.ticker -= TICK_RATE;
+        }
+
+        ctx.request_repaint();
+    }
+}
+
+const BIG_PLOT_SIZE: f32 = 200.0;
+const SMALL_PLOT_SIZE: f32 = 100.0;
+
+impl Game {
+    fn top_ui(&mut self, ui: &mut Ui) {
+        // Fps
+        let now = Instant::now();
+        let dt = (now - self.last_time).as_secs_f32();
+        self.ticker += dt;
+        self.last_time = now;
+        ui.small(format!("{} fps", (1.0 / dt).round()));
         // Mana bar
         ui.scope(|ui| {
             let player = &self.world.player;
@@ -101,7 +139,8 @@ impl Game {
                 .desired_width(300.0)
                 .ui(ui);
         });
-        // World Fields
+    }
+    fn fields_ui(&mut self, ui: &mut Ui) {
         Grid::new("fields").show(ui, |ui| {
             // Draw fields
             for field_kind in all::<GenericFieldKind>() {
@@ -122,7 +161,8 @@ impl Game {
                 }
             }
         });
-        // Draw stack
+    }
+    fn stack_ui(&mut self, ui: &mut Ui, stack: &Stack) {
         ui.horizontal_wrapped(|ui| {
             ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
             for item in stack.iter() {
@@ -137,10 +177,8 @@ impl Game {
                 }
             }
         });
-        if let Some(e) = error {
-            ui.label(RichText::new(e.to_string()).color(Color32::RED));
-        }
-        // Draw word buttons
+    }
+    fn words_ui(&mut self, ui: &mut Ui, stack: &Stack) {
         ui.horizontal_wrapped(|ui| {
             for command in all::<SpellCommand>() {
                 if ui.button(command.to_string()).clicked() {
@@ -153,37 +191,32 @@ impl Game {
         Grid::new("words").show(ui, |ui| {
             fn button<W: Copy + Into<Word> + ToString>(
                 ui: &mut Ui,
-                rt: &mut Stack,
+                stack: &Stack,
                 w: W,
             ) -> Option<Word> {
                 let name = w.to_string();
                 let word = w.into();
                 let f = word.function();
-                let enabled = rt.validate_function_use(f).is_ok();
+                let enabled = stack.validate_function_use(f).is_ok();
                 ui.add_enabled(enabled, SelectableLabel::new(false, name))
                     .on_hover_text(f.to_string())
                     .clicked()
                     .then_some(word)
             }
             let spell = &mut self.world.player.spell;
-            spell.extend(all::<ScalarWord>().filter_map(|w| button(ui, &mut stack, w)));
+            spell.extend(all::<ScalarWord>().filter_map(|w| button(ui, stack, w)));
             ui.end_row();
-            spell.extend(all::<VectorWord>().filter_map(|w| button(ui, &mut stack, w)));
-            spell.extend(all::<AxisWord>().filter_map(|w| button(ui, &mut stack, w)));
+            spell.extend(all::<VectorWord>().filter_map(|w| button(ui, stack, w)));
+            spell.extend(all::<AxisWord>().filter_map(|w| button(ui, stack, w)));
             ui.end_row();
-            spell.extend(all::<InputWord>().filter_map(|w| button(ui, &mut stack, w)));
-            spell.extend(all::<OutputWord>().filter_map(|w| button(ui, &mut stack, w)));
+            spell.extend(all::<InputWord>().filter_map(|w| button(ui, stack, w)));
+            spell.extend(all::<OutputWord>().filter_map(|w| button(ui, stack, w)));
             ui.end_row();
-            spell.extend(all::<OperatorWord>().filter_map(|w| button(ui, &mut stack, w)));
+            spell.extend(all::<OperatorWord>().filter_map(|w| button(ui, stack, w)));
             ui.end_row();
-            spell.extend(all::<CombinatorWord>().filter_map(|w| button(ui, &mut stack, w)));
+            spell.extend(all::<CombinatorWord>().filter_map(|w| button(ui, stack, w)));
             ui.end_row();
         });
-        // Update world
-        while self.ticker >= TICK_RATE {
-            self.world.update();
-            self.ticker -= TICK_RATE;
-        }
     }
     fn init_plot(&self, size: f32, resolution: usize) -> MapPlot {
         MapPlot::new(&self.world, self.world.player_pos + Vec2::Y, 5.0)
