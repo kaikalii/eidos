@@ -1,5 +1,4 @@
 - Improve elevation test efficiency
   - Maybe just cache it?
-- Fix mana regen checking
 - Add dialog system
 - Implement story

@@ -289,7 +289,7 @@ impl World {
             self.outputs.scalars.clear();
             self.outputs.vectors.clear();
         }
-        if work_done.abs() == 0.0 {
+        if self.outputs.scalars.is_empty() && self.outputs.vectors.is_empty() {
             self.player.regen_mana();
         }
     }
