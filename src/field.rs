@@ -1,5 +1,3 @@
-use std::fmt;
-
 use derive_more::{Display, From};
 use eframe::epaint::{Pos2, Vec2};
 use enum_iterator::Sequence;
@@ -8,9 +6,9 @@ use crate::{function::*, world::World};
 
 #[derive(Debug, Clone, From)]
 pub enum GenericField {
-    #[from(types(f32, "CommonField<f32>"))]
+    #[from(types(f32))]
     Scalar(ScalarField),
-    #[from(types(Vec2, "CommonField<Vec2>"))]
+    #[from(types(Vec2))]
     Vector(VectorField),
 }
 
@@ -53,17 +51,10 @@ impl FieldValue for Vec2 {
 }
 
 #[derive(Debug, Clone, From)]
-pub enum CommonField<T> {
-    Uniform(T),
+pub enum ScalarField {
+    Uniform(f32),
     X,
     Y,
-    Array(Vec<Vec<T>>),
-}
-
-#[derive(Debug, Clone, From)]
-pub enum ScalarField {
-    #[from(types(f32))]
-    Common(CommonField<f32>),
     ScalarUn(UnOp<ScalarUnOp>, Box<Self>),
     VectorUn(VectorUnScalarOp, Box<VectorField>),
     Bin(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
@@ -73,8 +64,7 @@ pub enum ScalarField {
 
 #[derive(Debug, Clone, From)]
 pub enum VectorField {
-    #[from(types(Vec2))]
-    Common(CommonField<Vec2>),
+    Uniform(Vec2),
     Un(UnOp<VectorUnVectorOp>, Box<Self>),
     BinSV(BinOp<NoOp<Vec2>>, ScalarField, Box<Self>),
     BinVS(BinOp<NoOp<Vec2>>, Box<Self>, ScalarField),
@@ -135,42 +125,12 @@ pub enum VectorOutputFieldKind {
     Force,
 }
 
-impl<T> CommonField<T>
-where
-    T: FieldValue,
-{
-    pub fn array<const N: usize>(columns: impl IntoIterator<Item = [impl Into<T>; N]>) -> Self {
-        CommonField::Array(
-            columns
-                .into_iter()
-                .map(|arr| arr.map(Into::into).into())
-                .collect(),
-        )
-    }
-    pub fn sample(&self, world: &World, pos: Pos2) -> T {
-        match self {
-            CommonField::Uniform(k) => *k,
-            CommonField::X => T::x(pos.x - world.player_pos.x),
-            CommonField::Y => T::y(pos.y - world.player_pos.y),
-            CommonField::Array(data) => {
-                let x = pos.x.round();
-                let y = pos.y.round();
-                if x < 0.0 || y < 0.0 {
-                    return T::default();
-                }
-                data.get(x as usize)
-                    .and_then(|column| column.get(y as usize as usize))
-                    .copied()
-                    .unwrap_or_default()
-            }
-        }
-    }
-}
-
 impl ScalarField {
     pub fn sample(&self, world: &World, pos: Pos2) -> f32 {
         match self {
-            ScalarField::Common(field) => field.sample(world, pos),
+            ScalarField::Uniform(v) => *v,
+            ScalarField::X => pos.x - world.player_pos.x,
+            ScalarField::Y => pos.y - world.player_pos.y,
             ScalarField::ScalarUn(op, field) => op.operate(field.sample(world, pos)),
             ScalarField::VectorUn(op, field) => op.operate(field.sample(world, pos)),
             ScalarField::Bin(op, a, b) => op.operate(a.sample(world, pos), b.sample(world, pos)),
@@ -182,7 +142,7 @@ impl ScalarField {
     }
     fn uniform(&self) -> Option<f32> {
         match self {
-            ScalarField::Common(CommonField::Uniform(n)) => Some(*n),
+            ScalarField::Uniform(n) => Some(*n),
             _ => None,
         }
     }
@@ -190,21 +150,21 @@ impl ScalarField {
         match self {
             ScalarField::ScalarUn(op, field) => {
                 if let Some(n) = field.uniform() {
-                    CommonField::Uniform(op.operate(n)).into()
+                    ScalarField::Uniform(op.operate(n))
                 } else {
                     ScalarField::ScalarUn(op, field)
                 }
             }
             ScalarField::Bin(op, a, b) => {
                 if let (Some(a), Some(b)) = (a.uniform(), b.uniform()) {
-                    CommonField::Uniform(op.operate(a, b)).into()
+                    ScalarField::Uniform(op.operate(a, b))
                 } else {
                     ScalarField::Bin(op, a, b)
                 }
             }
             ScalarField::VectorUn(op, field) => {
                 if let Some(n) = field.uniform() {
-                    CommonField::Uniform(op.operate(n)).into()
+                    ScalarField::Uniform(op.operate(n))
                 } else {
                     ScalarField::VectorUn(op, field)
                 }
@@ -217,7 +177,7 @@ impl ScalarField {
 impl VectorField {
     pub fn sample(&self, world: &World, pos: Pos2) -> Vec2 {
         match self {
-            VectorField::Common(field) => field.sample(world, pos),
+            VectorField::Uniform(v) => *v,
             VectorField::Un(op, field) => op.operate(field.sample(world, pos)),
             VectorField::BinSV(op, a, b) => op.operate(a.sample(world, pos), b.sample(world, pos)),
             VectorField::BinVS(op, a, b) => op.operate(a.sample(world, pos), b.sample(world, pos)),
@@ -230,7 +190,7 @@ impl VectorField {
     }
     fn uniform(&self) -> Option<Vec2> {
         match self {
-            VectorField::Common(CommonField::Uniform(v)) => Some(*v),
+            VectorField::Uniform(v) => Some(*v),
             _ => None,
         }
     }
@@ -238,47 +198,33 @@ impl VectorField {
         match self {
             VectorField::Un(op, field) => {
                 if let Some(v) = field.uniform() {
-                    CommonField::Uniform(op.operate(v)).into()
+                    VectorField::Uniform(op.operate(v))
                 } else {
                     VectorField::Un(op, field)
                 }
             }
             VectorField::BinSV(op, a, b) => {
                 if let (Some(a), Some(b)) = (a.uniform(), b.uniform()) {
-                    CommonField::Uniform(op.operate(a, b)).into()
+                    VectorField::Uniform(op.operate(a, b))
                 } else {
                     VectorField::BinSV(op, a, b)
                 }
             }
             VectorField::BinVV(op, a, b) => {
                 if let (Some(a), Some(b)) = (a.uniform(), b.uniform()) {
-                    CommonField::Uniform(op.operate(a, b)).into()
+                    VectorField::Uniform(op.operate(a, b))
                 } else {
                     VectorField::BinVV(op, a, b)
                 }
             }
             VectorField::BinVS(op, a, b) => {
                 if let (Some(a), Some(b)) = (a.uniform(), b.uniform()) {
-                    CommonField::Uniform(op.operate(a, b)).into()
+                    VectorField::Uniform(op.operate(a, b))
                 } else {
                     VectorField::BinVS(op, a, b)
                 }
             }
             field => field,
-        }
-    }
-}
-
-impl<T> fmt::Display for CommonField<T>
-where
-    T: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CommonField::Array(_) => "Array".fmt(f),
-            CommonField::X => "X".fmt(f),
-            CommonField::Y => "Y".fmt(f),
-            CommonField::Uniform(k) => write!(f, "{k:?}"),
         }
     }
 }

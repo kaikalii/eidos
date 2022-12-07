@@ -238,7 +238,7 @@ impl Game {
     ) {
         let plot = self.init_plot(size, resolution);
         match field {
-            GenericField::Scalar(ScalarField::Common(CommonField::Uniform(n))) => {
+            GenericField::Scalar(ScalarField::Uniform(n)) => {
                 MapPlot::number_ui(&self.world, ui, size, resolution, *n)
             }
             GenericField::Scalar(field) => plot.ui(ui, field),

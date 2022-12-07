@@ -80,16 +80,16 @@ pub enum Nullary {
 impl Nullary {
     pub fn field(&self) -> GenericField {
         match self {
-            Nullary::Zero => CommonField::Uniform(0.0).into(),
-            Nullary::One => CommonField::Uniform(1.0).into(),
-            Nullary::Two => CommonField::Uniform(2.0).into(),
-            Nullary::Five => CommonField::Uniform(5.0).into(),
-            Nullary::Ten => CommonField::Uniform(10.0).into(),
-            Nullary::ZeroVector => CommonField::Uniform(Vec2::ZERO).into(),
-            Nullary::OneX => CommonField::Uniform(Vec2::X).into(),
-            Nullary::OneY => CommonField::Uniform(Vec2::Y).into(),
-            Nullary::X => ScalarField::Common(CommonField::X).into(),
-            Nullary::Y => ScalarField::Common(CommonField::Y).into(),
+            Nullary::Zero => ScalarField::Uniform(0.0).into(),
+            Nullary::One => ScalarField::Uniform(1.0).into(),
+            Nullary::Two => ScalarField::Uniform(2.0).into(),
+            Nullary::Five => ScalarField::Uniform(5.0).into(),
+            Nullary::Ten => ScalarField::Uniform(10.0).into(),
+            Nullary::ZeroVector => VectorField::Uniform(Vec2::ZERO).into(),
+            Nullary::OneX => VectorField::Uniform(Vec2::X).into(),
+            Nullary::OneY => VectorField::Uniform(Vec2::Y).into(),
+            Nullary::X => ScalarField::X.into(),
+            Nullary::Y => ScalarField::Y.into(),
         }
     }
 }
