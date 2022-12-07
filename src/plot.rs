@@ -344,15 +344,16 @@ impl PartitionAndPlottable for Vec2 {
             .unwrap();
         let max_abs_zx = min_zx.abs().max(max_zx.abs()).max(0.1);
         let max_abs_zy = min_zy.abs().max(max_zy.abs()).max(0.1);
+        let max_abs = max_abs_zx.max(max_abs_zy);
         let center = plot_ui.plot_bounds().center().to_pos2();
         let radius = plot_ui.plot_bounds().width() as f32 * 0.5;
         let mut grouped_points = vec![vec![vec![Vec::new(); ALPHA_BUCKETS]; Z_BUCKETS]; Z_BUCKETS];
         for (x, y, z) in points {
-            let x_group = ((z.x / max_abs_zx * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
+            let x_group = ((z.x / max_abs * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
                 .max(0.0)
                 .round() as usize)
                 .min(Z_BUCKETS - 1);
-            let y_group = ((z.y / max_abs_zy * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
+            let y_group = ((z.y / max_abs * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
                 .max(0.0)
                 .round() as usize)
                 .min(Z_BUCKETS - 1);
