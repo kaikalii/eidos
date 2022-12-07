@@ -13,6 +13,8 @@ use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
+use crate::word::Word;
+
 pub fn fatal_error(message: impl ToString) -> ! {
     fatal_error_impl(message.to_string())
 }
@@ -86,7 +88,10 @@ fn load_scenes() -> anyhow::Result<DialogScenes> {
                 if scene.nodes.is_empty() {
                     continue;
                 }
-                map.insert(name, scene.try_into()?);
+                let scene: DialogScene<Line> = scene
+                    .try_into()
+                    .map_err(|e| anyhow!("Error parsing fragment in {name}: {e}"))?;
+                map.insert(name, scene);
             }
         }
     }
@@ -111,8 +116,15 @@ pub struct Line {
     pub fragments: Vec<DialogFragment>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DialogCommand {
+    RevealWord(Word),
+}
+
 pub enum DialogFragment {
     String(String),
+    Command(DialogCommand),
 }
 
 impl TryFrom<DialogScene<String>> for DialogScene<Line> {
@@ -147,11 +159,19 @@ fn fragments_parser() -> impl FragmentParser<Line> {
     let speaker = bracketed(string_fragment())
         .then_ignore(whitespace())
         .or_not();
-    let fragments = string_fragment().map(DialogFragment::String).repeated();
+    let fragments = choice((
+        string_fragment().map(DialogFragment::String),
+        command().map(DialogFragment::Command),
+    ))
+    .repeated();
     speaker
         .then(fragments)
         .then_ignore(end())
         .map(|(speaker, fragments)| Line { speaker, fragments })
+}
+
+fn start_with_command() -> impl FragmentParser<Line> {
+    todo!()
 }
 
 fn bracketed<T>(inner: impl FragmentParser<T>) -> impl FragmentParser<T> {
@@ -162,6 +182,15 @@ fn bracketed<T>(inner: impl FragmentParser<T>) -> impl FragmentParser<T> {
 
 fn string_fragment() -> impl FragmentParser<String> {
     none_of("()").repeated().at_least(1).collect()
+}
+
+fn command() -> impl FragmentParser<DialogCommand> {
+    string_fragment().try_map(
+        |string, span| match serde_yaml::from_str::<DialogCommand>(&string) {
+            Ok(command) => Ok(command),
+            Err(e) => Err(Simple::<char>::custom(span, e)),
+        },
+    )
 }
 
 #[test]

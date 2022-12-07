@@ -1,5 +1,6 @@
 use derive_more::{Display, From};
 use enum_iterator::Sequence;
+use serde::Deserialize;
 
 use crate::{field::*, function::*};
 
@@ -8,7 +9,8 @@ pub enum SpellCommand {
     Clear,
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From, Deserialize)]
+#[serde(untagged)]
 pub enum Word {
     Scalar(ScalarWord),
     Vector(VectorWord),
@@ -20,7 +22,7 @@ pub enum Word {
     Output(OutputWord),
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence, Deserialize)]
 pub enum ScalarWord {
     Sero,
     Ti,
@@ -29,31 +31,31 @@ pub enum ScalarWord {
     Te,
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence, Deserialize)]
 pub enum VectorWord {
     Kovo,
     Kova,
     Kovi,
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence, Deserialize)]
 pub enum AxisWord {
     Seva,
     Sevi,
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence, Deserialize)]
 pub enum InputWord {
     Le,
     Po,
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence, Deserialize)]
 pub enum OutputWord {
     Ke,
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence, Deserialize)]
 pub enum OperatorWord {
     Ma,
     Sa,
@@ -61,7 +63,7 @@ pub enum OperatorWord {
     Neka,
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence, Deserialize)]
 pub enum CombinatorWord {
     No,
     Mo,
@@ -69,7 +71,7 @@ pub enum CombinatorWord {
     Rovo,
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence, Deserialize)]
 pub enum ControlWord {
     Sila,
     Vila,

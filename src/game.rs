@@ -8,7 +8,7 @@ use enum_iterator::{all, Sequence};
 use itertools::Itertools;
 
 use crate::{
-    dialog::{DialogFragment, DIALOG_SCENES},
+    dialog::{DialogCommand, DialogFragment, DIALOG_SCENES},
     field::*,
     plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
     stack::Stack,
@@ -501,8 +501,10 @@ impl Game {
                     ui.label(format!("{speaker}:"));
                 }
                 // Show line text
-                let line_text = &line_text[..=char_indices[char_index].0];
-                ui.horizontal_wrapped(|ui| ui.label(line_text));
+                if !line_text.is_empty() {
+                    let line_text = &line_text[..=char_indices[char_index].0];
+                    ui.horizontal_wrapped(|ui| ui.label(line_text));
+                }
             });
             // Show continue or choices
             let max_dialog_char = (char_indices.len() - 1) * DIALOG_SPEED;
@@ -553,6 +555,9 @@ impl World {
                 DialogFragment::String(s) => {
                     formatted.push_str(s);
                 }
+                DialogFragment::Command(command) => match command {
+                    DialogCommand::RevealWord(_) => {}
+                },
             }
         }
         formatted
