@@ -1,42 +1,102 @@
-use crate::{error::EidosError, field::*, function::*, world::World};
-
-pub type Stack = Vec<GenericField>;
+use crate::{error::EidosError, field::*, function::*, word::Word, world::World};
 
 #[derive(Default)]
-pub struct Runtime {
-    pub stack: Stack,
+pub struct Stack {
+    stack: Vec<StackItem>,
 }
 
-impl Runtime {
+pub struct StackItem {
+    pub field: GenericField,
+    pub words: Vec<Word>,
+}
+
+trait IntoWords {
+    fn into_words(self) -> Vec<Word>;
+}
+
+impl IntoWords for Word {
+    fn into_words(self) -> Vec<Word> {
+        vec![self]
+    }
+}
+
+impl IntoWords for Vec<Word> {
+    fn into_words(self) -> Vec<Word> {
+        self
+    }
+}
+
+impl<A, B> IntoWords for (A, B)
+where
+    A: IntoWords,
+    B: IntoWords,
+{
+    fn into_words(self) -> Vec<Word> {
+        let mut words = self.0.into_words();
+        words.append(&mut self.1.into_words());
+        words
+    }
+}
+
+impl<A, B, C> IntoWords for (A, B, C)
+where
+    A: IntoWords,
+    B: IntoWords,
+    C: IntoWords,
+{
+    fn into_words(self) -> Vec<Word> {
+        let mut words = self.0.into_words();
+        words.append(&mut self.1.into_words());
+        words.append(&mut self.2.into_words());
+        words
+    }
+}
+
+impl Stack {
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.stack.len()
+    }
+    pub fn iter(&self) -> std::slice::Iter<StackItem> {
+        self.stack.iter()
+    }
     pub fn validate_function_use(&self, function: Function) -> Result<(), EidosError> {
-        function.validate_use(&self.stack)
+        function.validate_use(self)
     }
     #[track_caller]
-    pub fn pop(&mut self) -> GenericField {
+    fn pop(&mut self) -> StackItem {
         self.stack.pop().expect("Nothing to pop")
     }
-    pub fn push(&mut self, value: impl Into<GenericField>) {
-        self.stack.push(value.into())
+    fn push(&mut self, words: impl IntoWords, field: impl Into<GenericField>) {
+        self.stack.push(StackItem {
+            field: field.into(),
+            words: words.into_words(),
+        })
     }
-    pub fn top(&self) -> Option<&GenericField> {
+    pub fn top(&self) -> Option<&StackItem> {
         self.stack.last()
     }
     pub fn call(
         &mut self,
         world: &mut World,
-        function: Function,
+        word: Word,
         write_outputs: bool,
     ) -> Result<(), EidosError> {
+        let function = word.function();
         self.validate_function_use(function)?;
         match function {
             Function::ReadField(field_kind) => match field_kind {
-                GenericInputFieldKind::Scalar(kind) => self.push(ScalarField::World(kind.into())),
-                GenericInputFieldKind::Vector(kind) => self.push(VectorField::World(kind.into())),
+                GenericInputFieldKind::Scalar(kind) => {
+                    self.push(word, ScalarField::World(kind.into()))
+                }
+                GenericInputFieldKind::Vector(kind) => {
+                    self.push(word, VectorField::World(kind.into()))
+                }
             },
             Function::WriteField(field_kind) => {
-                let field = self.top().unwrap();
+                let item = self.top().unwrap();
                 if write_outputs {
-                    match (field_kind, field) {
+                    match (field_kind, &item.field) {
                         (GenericOutputFieldKind::Vector(kind), GenericField::Vector(field)) => {
                             world.outputs.vectors.insert(kind, field.clone());
                         }
@@ -44,13 +104,13 @@ impl Runtime {
                     }
                 }
             }
-            Function::Nullary(nullary) => self.push(nullary.field()),
+            Function::Nullary(nullary) => self.push(word, nullary.field()),
             Function::Combinator1(com1) => {
                 let a = self.pop();
                 match com1 {
                     Combinator1::Duplicate => {
-                        self.push(a.clone());
-                        self.push(a);
+                        self.push(a.words, a.field.clone());
+                        self.push(word, a.field);
                     }
                     Combinator1::Drop => {}
                 }
@@ -60,42 +120,45 @@ impl Runtime {
                 let a = self.pop();
                 match com2 {
                     Combinator2::Swap => {
-                        self.push(b);
-                        self.push(a);
+                        self.stack.push(b);
+                        self.stack.push(a);
                     }
                     Combinator2::Over => {
-                        self.push(a.clone());
-                        self.push(b);
-                        self.push(a);
+                        self.push(a.words, a.field.clone());
+                        self.stack.push(b);
+                        self.push(word, a.field);
                     }
                 }
             }
             Function::Un(op) => {
                 let a = self.pop();
+                let words = (a.words, word);
                 match op {
-                    GenericUnOp::Math(op) => match a {
-                        GenericField::Scalar(f) => {
-                            self.push(ScalarField::ScalarUn(UnOp::Math(op), f.into()).reduce())
-                        }
+                    GenericUnOp::Math(op) => match a.field {
+                        GenericField::Scalar(f) => self.push(
+                            words,
+                            ScalarField::ScalarUn(UnOp::Math(op), f.into()).reduce(),
+                        ),
                         GenericField::Vector(f) => {
-                            self.push(VectorField::Un(UnOp::Math(op), f.into()).reduce())
+                            self.push(words, VectorField::Un(UnOp::Math(op), f.into()).reduce())
                         }
                     },
-                    GenericUnOp::Scalar(op) => match a {
-                        GenericField::Scalar(f) => {
-                            self.push(ScalarField::ScalarUn(UnOp::Typed(op), f.into()).reduce())
+                    GenericUnOp::Scalar(op) => match a.field {
+                        GenericField::Scalar(f) => self.push(
+                            words,
+                            ScalarField::ScalarUn(UnOp::Typed(op), f.into()).reduce(),
+                        ),
+                        _ => unreachable!(),
+                    },
+                    GenericUnOp::VectorScalar(op) => match a.field {
+                        GenericField::Vector(f) => {
+                            self.push(words, ScalarField::VectorUn(op, f.into()).reduce())
                         }
                         _ => unreachable!(),
                     },
-                    GenericUnOp::VectorScalar(op) => match a {
+                    GenericUnOp::VectorVector(op) => match a.field {
                         GenericField::Vector(f) => {
-                            self.push(ScalarField::VectorUn(op, f.into()).reduce())
-                        }
-                        _ => unreachable!(),
-                    },
-                    GenericUnOp::VectorVector(op) => match a {
-                        GenericField::Vector(f) => {
-                            self.push(VectorField::Un(UnOp::Typed(op), f.into()).reduce())
+                            self.push(words, VectorField::Un(UnOp::Typed(op), f.into()).reduce())
                         }
                         _ => unreachable!(),
                     },
@@ -104,39 +167,51 @@ impl Runtime {
             Function::Bin(op) => {
                 let b = self.pop();
                 let a = self.pop();
+                let words = (a.words, b.words, word);
                 match op {
-                    GenericBinOp::Math(op) => match (a, b) {
+                    GenericBinOp::Math(op) => match (a.field, b.field) {
                         (GenericField::Scalar(a), GenericField::Scalar(b)) => {
                             self.push(
+                                words,
                                 ScalarField::Bin(BinOp::Math(op), a.into(), b.into()).reduce(),
                             );
                         }
                         (GenericField::Scalar(a), GenericField::Vector(b)) => {
-                            self.push(VectorField::BinSV(BinOp::Math(op), a, b.into()).reduce());
+                            self.push(
+                                words,
+                                VectorField::BinSV(BinOp::Math(op), a, b.into()).reduce(),
+                            );
                         }
                         (GenericField::Vector(a), GenericField::Scalar(b)) => {
-                            self.push(VectorField::BinVS(BinOp::Math(op), a.into(), b).reduce());
+                            self.push(
+                                words,
+                                VectorField::BinVS(BinOp::Math(op), a.into(), b).reduce(),
+                            );
                         }
                         (GenericField::Vector(a), GenericField::Vector(b)) => {
                             self.push(
+                                words,
                                 VectorField::BinVV(BinOp::Math(op), a.into(), b.into()).reduce(),
                             );
                         }
                     },
-                    GenericBinOp::Homo(op) => match (a, b) {
-                        (GenericField::Scalar(a), GenericField::Scalar(b)) => self
-                            .push(ScalarField::Bin(BinOp::Typed(op), a.into(), b.into()).reduce()),
+                    GenericBinOp::Homo(op) => match (a.field, b.field) {
+                        (GenericField::Scalar(a), GenericField::Scalar(b)) => self.push(
+                            words,
+                            ScalarField::Bin(BinOp::Typed(op), a.into(), b.into()).reduce(),
+                        ),
                         (GenericField::Vector(a), GenericField::Vector(b)) => self.push(
+                            words,
                             VectorField::BinVV(BinOp::Typed(op), a.into(), b.into()).reduce(),
                         ),
                         _ => unreachable!(),
                     },
-                    GenericBinOp::Index => match (a, b) {
+                    GenericBinOp::Index => match (a.field, b.field) {
                         (GenericField::Vector(a), GenericField::Scalar(b)) => {
-                            self.push(ScalarField::Index(a.into(), b.into()))
+                            self.push(words, ScalarField::Index(a.into(), b.into()))
                         }
                         (GenericField::Vector(a), GenericField::Vector(b)) => {
-                            self.push(VectorField::Index(a.into(), b.into()))
+                            self.push(words, VectorField::Index(a.into(), b.into()))
                         }
                         _ => unreachable!(),
                     },

@@ -4,7 +4,7 @@ use derive_more::{Display, From};
 use eframe::epaint::{vec2, Vec2};
 use enum_iterator::{all, Sequence};
 
-use crate::{error::EidosError, field::*};
+use crate::{error::EidosError, field::*, runtime::Stack};
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From, Sequence)]
 pub enum Function {
@@ -392,7 +392,7 @@ impl ValueConstraint {
 }
 
 impl Function {
-    pub fn validate_use(&self, stack: &[GenericField]) -> Result<(), EidosError> {
+    pub fn validate_use(&self, stack: &Stack) -> Result<(), EidosError> {
         // Collect constraints
         use TypeConstraint::*;
         let constraints = match self {
@@ -435,19 +435,19 @@ impl Function {
         }
         // Validate constraints
         let mut ctx = ConstraintContext::default();
-        for (i, (constraint, value)) in constraints
+        for (i, (constraint, item)) in constraints
             .into_iter()
             .rev()
             .zip(stack.iter().rev())
             .rev()
             .enumerate()
         {
-            if !constraint.matches(value.ty(), &mut ctx) {
+            if !constraint.matches(item.field.ty(), &mut ctx) {
                 return Err(EidosError::InvalidArgument {
                     function: *self,
                     position: i + 1,
                     expected: constraint,
-                    found: value.ty(),
+                    found: item.field.ty(),
                 });
             }
         }

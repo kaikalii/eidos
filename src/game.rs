@@ -9,7 +9,7 @@ use enum_iterator::all;
 use crate::{
     field::*,
     plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
-    runtime::Runtime,
+    runtime::Stack,
     word::SpellCommand,
     word::*,
     world::{World, MAX_MANA_EXHAUSTION},
@@ -72,16 +72,16 @@ impl Game {
         self.last_time = now;
         ui.small(format!("{} fps", (1.0 / dt).round()));
         // Calculate fields
-        let mut rt = Runtime::default();
+        let mut stack = Stack::default();
         let mut error = None;
         // Calculate spell field
         for word in self.world.player.spell.clone() {
-            if let Err(e) = rt.call(&mut self.world, word.function(), true) {
+            if let Err(e) = stack.call(&mut self.world, word, true) {
                 error = Some(e);
                 break;
             }
         }
-        self.world.spell_field = rt.top().cloned();
+        self.world.spell_field = stack.top().map(|item| item.field.clone());
         // Draw ui
         // Mana bar
         ui.scope(|ui| {
@@ -125,8 +125,16 @@ impl Game {
         // Draw stack
         ui.horizontal_wrapped(|ui| {
             ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
-            for field in &rt.stack {
-                self.plot_generic_field(ui, SMALL_PLOT_SIZE, 50, field);
+            for item in stack.iter() {
+                self.plot_generic_field(ui, SMALL_PLOT_SIZE, 50, &item.field);
+                for chunk in item.words.chunks(5) {
+                    ui.vertical(|ui| {
+                        ui.add_space((SMALL_PLOT_SIZE - chunk.len() as f32 * 15.0) / 2.0);
+                        for word in chunk {
+                            ui.label(word.to_string());
+                        }
+                    });
+                }
             }
         });
         if let Some(e) = error {
@@ -145,7 +153,7 @@ impl Game {
         Grid::new("words").show(ui, |ui| {
             fn button<W: Copy + Into<Word> + ToString>(
                 ui: &mut Ui,
-                rt: &mut Runtime,
+                rt: &mut Stack,
                 w: W,
             ) -> Option<Word> {
                 let name = w.to_string();
@@ -158,17 +166,17 @@ impl Game {
                     .then_some(word)
             }
             let spell = &mut self.world.player.spell;
-            spell.extend(all::<ScalarWord>().filter_map(|w| button(ui, &mut rt, w)));
+            spell.extend(all::<ScalarWord>().filter_map(|w| button(ui, &mut stack, w)));
             ui.end_row();
-            spell.extend(all::<VectorWord>().filter_map(|w| button(ui, &mut rt, w)));
-            spell.extend(all::<AxisWord>().filter_map(|w| button(ui, &mut rt, w)));
+            spell.extend(all::<VectorWord>().filter_map(|w| button(ui, &mut stack, w)));
+            spell.extend(all::<AxisWord>().filter_map(|w| button(ui, &mut stack, w)));
             ui.end_row();
-            spell.extend(all::<InputWord>().filter_map(|w| button(ui, &mut rt, w)));
-            spell.extend(all::<OutputWord>().filter_map(|w| button(ui, &mut rt, w)));
+            spell.extend(all::<InputWord>().filter_map(|w| button(ui, &mut stack, w)));
+            spell.extend(all::<OutputWord>().filter_map(|w| button(ui, &mut stack, w)));
             ui.end_row();
-            spell.extend(all::<OperatorWord>().filter_map(|w| button(ui, &mut rt, w)));
+            spell.extend(all::<OperatorWord>().filter_map(|w| button(ui, &mut stack, w)));
             ui.end_row();
-            spell.extend(all::<CombinatorWord>().filter_map(|w| button(ui, &mut rt, w)));
+            spell.extend(all::<CombinatorWord>().filter_map(|w| button(ui, &mut stack, w)));
             ui.end_row();
         });
         // Update world
