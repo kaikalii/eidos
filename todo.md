@@ -1,6 +1,5 @@
 - Improve elevation test efficiency
   - Maybe just cache it?
-- Make uncast words take mana
 - Fix mana regen checking
 - Add dialog system
 - Implement story

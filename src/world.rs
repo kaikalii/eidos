@@ -23,7 +23,7 @@ pub struct Player {
     pub mana: f32,
     pub max_mana: f32,
     pub mana_exhaustion: f32,
-    pub spell: Vec<Word>,
+    pub words: Vec<Word>,
 }
 
 #[derive(Default)]
@@ -82,11 +82,17 @@ impl Player {
             self.mana_exhaustion = MAX_MANA_EXHAUSTION;
         }
     }
+    pub fn capped_mana(&self) -> f32 {
+        self.max_mana - self.reserved_mana()
+    }
+    pub fn reserved_mana(&self) -> f32 {
+        self.words.len() as f32
+    }
     fn regen_mana(&mut self) {
         if self.mana_exhaustion > 0.0 {
             self.mana_exhaustion = (self.mana_exhaustion - TICK_RATE * MANA_REGEN_RATE).max(0.0);
         } else {
-            self.mana = (self.mana + TICK_RATE * MANA_REGEN_RATE).min(self.max_mana);
+            self.mana = (self.mana + TICK_RATE * MANA_REGEN_RATE).min(self.capped_mana());
         }
     }
     pub fn can_cast(&self) -> bool {
@@ -104,7 +110,7 @@ impl Default for World {
                 mana: 40.0,
                 max_mana: 40.0,
                 mana_exhaustion: 0.0,
-                spell: Vec::new(),
+                words: Vec::new(),
             },
             physics: PhysicsContext::default(),
             objects: HashMap::new(),

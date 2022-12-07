@@ -114,7 +114,7 @@ impl Stack {
                     }
                     _ => unreachable!(),
                 }
-                world.player.spell.clear();
+                world.player.words.clear();
             }
             Function::Control(kind) => self.push(word, ScalarField::Control(kind)),
             Function::Nullary(nullary) => self.push(word, nullary.field()),

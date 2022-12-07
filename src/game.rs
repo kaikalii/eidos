@@ -76,7 +76,7 @@ impl Game {
         let mut stack = Stack::default();
         let mut error = None;
         // Calculate spell field
-        for word in self.world.player.spell.clone() {
+        for word in self.world.player.words.clone() {
             if let Err(e) = stack.call(&mut self.world, word) {
                 error = Some(e);
                 break;
@@ -139,7 +139,11 @@ impl Game {
         ui.scope(|ui| {
             let player = &self.world.player;
             let (curr, max, color) = if player.can_cast() {
-                (player.mana, player.max_mana, Color32::BLUE)
+                (
+                    player.mana,
+                    player.capped_mana(),
+                    Rgba::from_rgb(0.1, 0.1, 0.9).into(),
+                )
             } else {
                 (
                     player.mana_exhaustion,
@@ -148,10 +152,19 @@ impl Game {
                 )
             };
             ui.visuals_mut().selection.bg_fill = color;
-            ProgressBar::new(curr / max)
-                .text(format!("{} / {}", curr.round(), max.round()))
-                .desired_width(300.0)
-                .ui(ui);
+            ui.horizontal(|ui| {
+                ProgressBar::new(curr / max)
+                    .text(format!("{} / {}", curr.round(), max.round()))
+                    .desired_width(player.capped_mana() * 10.0)
+                    .ui(ui);
+                if player.reserved_mana() > 0.0 {
+                    ui.visuals_mut().selection.bg_fill = Rgba::from_rgb(0.2, 0.2, 0.9).into();
+                    ProgressBar::new(1.0)
+                        .text(player.reserved_mana().to_string())
+                        .desired_width(player.reserved_mana() * 10.0)
+                        .ui(ui);
+                }
+            });
         });
     }
     fn fields_ui(&mut self, ui: &mut Ui) {
@@ -230,7 +243,7 @@ impl Game {
                 for command in all::<SpellCommand>() {
                     if ui.button(command.to_string()).clicked() {
                         match command {
-                            SpellCommand::Clear => self.world.player.spell.clear(),
+                            SpellCommand::Clear => self.world.player.words.clear(),
                         }
                     }
                 }
@@ -258,7 +271,7 @@ impl Game {
                 }
                 res
             }
-            let spell = &mut self.world.player.spell;
+            let spell = &mut self.world.player.words;
             spell.extend(button::<ScalarWord>(ui, stack, false));
             ui.end_row();
             spell.extend(button::<VectorWord>(ui, stack, false));
