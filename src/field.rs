@@ -139,18 +139,28 @@ pub enum ControlKind {
     YSlider,
 }
 
+const DROP_OFF_FACTOR: f32 = 10.0;
+
 impl ScalarField {
     pub fn sample(&self, world: &World, pos: Pos2) -> f32 {
+        self.sample_impl(world, pos)
+            / (1.0
+                + ((pos.x - world.player_pos.x).powf(2.0) + (pos.y - world.player_pos.y).powf(2.0))
+                    / DROP_OFF_FACTOR)
+    }
+    fn sample_impl(&self, world: &World, pos: Pos2) -> f32 {
         puffin::profile_function!();
         match self {
             ScalarField::Uniform(v) => *v,
             ScalarField::X => pos.x - world.player_pos.x,
             ScalarField::Y => pos.y - world.player_pos.y,
-            ScalarField::ScalarUn(op, field) => op.operate(field.sample(world, pos)),
-            ScalarField::VectorUn(op, field) => op.operate(field.sample(world, pos)),
-            ScalarField::Bin(op, a, b) => op.operate(a.sample(world, pos), b.sample(world, pos)),
+            ScalarField::ScalarUn(op, field) => op.operate(field.sample_impl(world, pos)),
+            ScalarField::VectorUn(op, field) => op.operate(field.sample_impl(world, pos)),
+            ScalarField::Bin(op, a, b) => {
+                op.operate(a.sample_impl(world, pos), b.sample_impl(world, pos))
+            }
             ScalarField::Index(index, field) => {
-                field.sample(world, index.sample(world, pos).to_pos2())
+                field.sample_impl(world, index.sample_impl(world, pos).to_pos2())
             }
             ScalarField::World(kind) => world.sample_scalar_field(*kind, pos),
             ScalarField::Control(kind) => world.controls.get(*kind),
@@ -206,15 +216,27 @@ impl ScalarField {
 
 impl VectorField {
     pub fn sample(&self, world: &World, pos: Pos2) -> Vec2 {
+        self.sample_impl(world, pos)
+            / (1.0
+                + ((pos.x - world.player_pos.x).powf(2.0) + (pos.y - world.player_pos.y).powf(2.0))
+                    / DROP_OFF_FACTOR)
+    }
+    pub fn sample_impl(&self, world: &World, pos: Pos2) -> Vec2 {
         puffin::profile_function!();
         match self {
             VectorField::Uniform(v) => *v,
-            VectorField::Un(op, field) => op.operate(field.sample(world, pos)),
-            VectorField::BinSV(op, a, b) => op.operate(a.sample(world, pos), b.sample(world, pos)),
-            VectorField::BinVS(op, a, b) => op.operate(a.sample(world, pos), b.sample(world, pos)),
-            VectorField::BinVV(op, a, b) => op.operate(a.sample(world, pos), b.sample(world, pos)),
+            VectorField::Un(op, field) => op.operate(field.sample_impl(world, pos)),
+            VectorField::BinSV(op, a, b) => {
+                op.operate(a.sample_impl(world, pos), b.sample_impl(world, pos))
+            }
+            VectorField::BinVS(op, a, b) => {
+                op.operate(a.sample_impl(world, pos), b.sample_impl(world, pos))
+            }
+            VectorField::BinVV(op, a, b) => {
+                op.operate(a.sample_impl(world, pos), b.sample_impl(world, pos))
+            }
             VectorField::Index(index, field) => {
-                field.sample(world, index.sample(world, pos).to_pos2())
+                field.sample_impl(world, index.sample_impl(world, pos).to_pos2())
             }
             VectorField::World(kind) => world.sample_vector_field(*kind, pos),
         }
