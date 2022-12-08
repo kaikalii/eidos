@@ -14,14 +14,16 @@ use crate::{
     controls::FadeButton,
     dialog::{DialogCommand, DialogFragment, DIALOG_SCENES},
     field::*,
+    player::MAX_MANA_EXHAUSTION,
     plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
     stack::Stack,
     word::SpellCommand,
     word::*,
-    world::{World, MAX_MANA_EXHAUSTION},
+    world::World,
 };
 
 pub const TICK_RATE: f32 = 1.0 / 60.0;
+pub const ANIMATION_TIME: f32 = 2.0;
 
 pub struct Game {
     pub world: World,
@@ -74,6 +76,7 @@ impl Default for UiState {
 
 impl eframe::App for Game {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+        // Profiler
         #[cfg(all(feature = "profile", not(debug_assertions)))]
         Window::new("Profiler").collapsible(true).show(ctx, |ui| {
             puffin_egui::profiler_ui(ui);
@@ -86,8 +89,9 @@ impl eframe::App for Game {
         let window_size = screen_size * self.ui_state.last_ppp;
         self.ui_state.last_ppp = input.pixels_per_point;
         drop(input);
-        ctx.set_pixels_per_point(((window_size.x * window_size.y).sqrt() / 600.0).max(1.2));
+        ctx.set_pixels_per_point(((window_size.x * window_size.y).sqrt() / 701.0).max(1.2));
 
+        // Show ui
         self.ui(ctx);
     }
 }
@@ -182,19 +186,27 @@ impl Game {
                 )
             };
             ui.visuals_mut().selection.bg_fill = color;
-            ui.horizontal(|ui| {
-                ProgressBar::new(curr / max)
-                    .text(format!("{} / {}", curr.round(), max.round()))
-                    .desired_width(player.capped_mana() * 10.0)
-                    .ui(ui);
-                if player.reserved_mana() > 0.0 {
-                    ui.visuals_mut().selection.bg_fill = Rgba::from_rgb(0.2, 0.2, 0.9).into();
-                    ProgressBar::new(1.0)
-                        .text(player.reserved_mana().to_string())
-                        .desired_width(player.reserved_mana() * 10.0)
+            let id = ui.make_persistent_id("mana bar");
+            let length_mul = ui.ctx().animate_bool_with_time(
+                id,
+                self.world.player.progression.mana_bar,
+                ANIMATION_TIME,
+            );
+            if length_mul > 0.0 {
+                ui.horizontal(|ui| {
+                    ProgressBar::new(curr / max)
+                        .text(format!("{} / {}", curr.round(), max.round()))
+                        .desired_width(player.capped_mana() * 10.0 * length_mul)
                         .ui(ui);
-                }
-            });
+                    if player.reserved_mana() > 0.0 {
+                        ui.visuals_mut().selection.bg_fill = Rgba::from_rgb(0.2, 0.2, 0.9).into();
+                        ProgressBar::new(1.0)
+                            .text(player.reserved_mana().to_string())
+                            .desired_width(player.reserved_mana() * 10.0 * length_mul)
+                            .ui(ui);
+                    }
+                });
+            }
         });
     }
     fn fields_ui(&mut self, ui: &mut Ui) {
@@ -310,7 +322,7 @@ impl Game {
                 res
             }
             let words = &mut self.world.player.words;
-            let known_words = &self.world.player.known_words;
+            let known_words = &self.world.player.progression.known_words;
             words.extend(button::<ScalarWord>(ui, stack, known_words, false));
             ui.end_row();
             words.extend(button::<VectorWord>(ui, stack, known_words, false));
@@ -575,7 +587,14 @@ impl World {
                 }
                 DialogFragment::Command(command) => match command {
                     DialogCommand::RevealWord(word) => {
-                        self.player.known_words.insert(*word);
+                        self.player.progression.known_words.insert(*word);
+                    }
+                    DialogCommand::RevealAllWords => {
+                        self.player.progression.known_words.extend(all::<Word>())
+                    }
+                    DialogCommand::RevealManaBar => self.player.progression.mana_bar = true,
+                    DialogCommand::RevealField(kind) => {
+                        self.player.progression.known_fields.insert(*kind);
                     }
                 },
             }

@@ -6,7 +6,7 @@ use enum_iterator::Sequence;
 
 use crate::{error::EidosError, field::*, stack::Stack};
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, From)]
 pub enum Function {
     #[from(types(ScalarInputFieldKind, VectorInputFieldKind))]
     ReadField(GenericInputFieldKind),
@@ -26,7 +26,7 @@ pub enum Function {
     Combinator2(Combinator2),
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Sequence)]
 pub enum Nullary {
     #[display(fmt = "0")]
     Zero,
@@ -65,7 +65,7 @@ impl Nullary {
     }
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Sequence)]
 pub enum Combinator1 {
     #[display(fmt = "⏺⏺")]
     Duplicate,
@@ -73,7 +73,7 @@ pub enum Combinator1 {
     Drop,
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Sequence)]
 pub enum Combinator2 {
     #[display(fmt = "🔄")]
     Swap,

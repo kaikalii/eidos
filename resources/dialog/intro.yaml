@@ -8,3 +8,5 @@ n1:
     - '(reveal_word: Te)'
     - The next node
     - '(reveal_word: Sa)'
+    - Another node
+    - '(reveal_mana_bar)'

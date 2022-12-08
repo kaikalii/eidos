@@ -1,10 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use eframe::egui::*;
-use enum_iterator::all;
 use rapier2d::prelude::*;
 
-use crate::{field::*, game::TICK_RATE, math::rotate, physics::PhysicsContext, word::Word};
+use crate::{field::*, math::rotate, physics::PhysicsContext, player::Player, word::Word};
 
 pub struct World {
     pub player_pos: Pos2,
@@ -14,18 +13,6 @@ pub struct World {
     pub spell_field: Option<GenericField>,
     pub outputs: OutputFields,
     pub controls: Controls,
-}
-
-pub const MANA_REGEN_RATE: f32 = 1.0;
-pub const MAX_MANA_EXHAUSTION: f32 = 5.0;
-
-pub struct Player {
-    pub body_handle: RigidBodyHandle,
-    pub mana: f32,
-    pub max_mana: f32,
-    pub mana_exhaustion: f32,
-    pub words: Vec<Word>,
-    pub known_words: HashSet<Word>,
 }
 
 #[derive(Default)]
@@ -82,56 +69,12 @@ impl Controls {
     }
 }
 
-impl Player {
-    pub fn field_scale(&self) -> f32 {
-        if self.mana_exhaustion > 0.0 {
-            0.0
-        } else {
-            1.0
-        }
-    }
-    pub fn do_work(&mut self, work: f32) {
-        self.mana -= work;
-        if self.mana < 0.0 {
-            self.mana = 0.0;
-            self.mana_exhaustion = MAX_MANA_EXHAUSTION;
-        }
-    }
-    pub fn capped_mana(&self) -> f32 {
-        self.max_mana - self.reserved_mana()
-    }
-    pub fn reserved_mana(&self) -> f32 {
-        self.words.len() as f32
-    }
-    fn regen_mana(&mut self) {
-        if self.mana_exhaustion > 0.0 {
-            self.mana_exhaustion = (self.mana_exhaustion - TICK_RATE * MANA_REGEN_RATE).max(0.0);
-        } else {
-            self.mana = (self.mana + TICK_RATE * MANA_REGEN_RATE).min(self.capped_mana());
-        }
-    }
-    pub fn can_cast(&self) -> bool {
-        self.mana_exhaustion <= 0.0
-    }
-}
-
 impl Default for World {
     fn default() -> Self {
         // Init world
         let mut world = World {
             player_pos: Pos2::ZERO,
-            player: Player {
-                body_handle: RigidBodyHandle::default(),
-                mana: 40.0,
-                max_mana: 40.0,
-                mana_exhaustion: 0.0,
-                words: Vec::new(),
-                known_words: if cfg!(debug_assertions) {
-                    all::<Word>().collect()
-                } else {
-                    HashSet::new()
-                },
-            },
+            player: Player::default(),
             physics: PhysicsContext::default(),
             objects: HashMap::new(),
             outputs: OutputFields::default(),

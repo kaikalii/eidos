@@ -1,6 +1,57 @@
-use std::hash::Hash;
+use std::{fmt, hash::Hash};
 
 use eframe::{egui::*, epaint::util::hash};
+
+use crate::game::ANIMATION_TIME;
+
+pub fn fading<T>(
+    ui: &mut Ui,
+    id_source: impl Hash + fmt::Debug,
+    show: bool,
+    contents: impl FnOnce(&mut Ui) -> T,
+) -> T {
+    ui.scope(|ui| {
+        let id = ui.make_persistent_id(id_source);
+        let visibility = ui.ctx().animate_bool_with_time(id, show, ANIMATION_TIME);
+        apply_color_fading(ui.visuals_mut(), visibility);
+        contents(ui)
+    })
+    .inner
+}
+
+fn apply_color_fading(visuals: &mut Visuals, visibility: f32) {
+    let panel_color = visuals.window_fill();
+    fade_color32(&mut visuals.extreme_bg_color, panel_color, visibility);
+    fade_color32(&mut visuals.faint_bg_color, panel_color, visibility);
+    fade_color32(&mut visuals.selection.bg_fill, panel_color, visibility);
+    fade_color32(&mut visuals.selection.stroke.color, panel_color, visibility);
+    let widgets = &mut visuals.widgets;
+    for widgets in [
+        &mut widgets.active,
+        &mut widgets.inactive,
+        &mut widgets.hovered,
+        &mut widgets.noninteractive,
+        &mut widgets.open,
+    ] {
+        for color in [
+            &mut widgets.bg_fill,
+            &mut widgets.bg_stroke.color,
+            &mut widgets.fg_stroke.color,
+        ] {
+            fade_color32(color, panel_color, visibility)
+        }
+    }
+}
+
+fn fade_color32(color: &mut Color32, faded: Color32, visibility: f32) {
+    for c in 0..3 {
+        color[c] = (lerp(
+            faded[c] as f32 * 255.0..=color[c] as f32 * 255.0,
+            visibility,
+        ) / 255.0) as u8;
+    }
+    color[3] = (visibility * 255.0) as u8;
+}
 
 /// A button that fades into visibility
 pub struct FadeButton {
@@ -28,34 +79,13 @@ impl Widget for FadeButton {
     fn ui(self, ui: &mut Ui) -> Response {
         let resp = ui.scope(|ui| {
             let id = ui.make_persistent_id(self.id);
-            let visibility = ui.ctx().animate_bool_with_time(id, self.show, 2.0);
+            let visibility = ui
+                .ctx()
+                .animate_bool_with_time(id, self.show, ANIMATION_TIME);
             if !self.show {
                 return ui.label("");
             }
-            let visuals = ui.visuals_mut();
-            let panel_color = visuals.window_fill();
-            let widgets = &mut ui.visuals_mut().widgets;
-            for widgets in [
-                &mut widgets.active,
-                &mut widgets.inactive,
-                &mut widgets.hovered,
-                &mut widgets.noninteractive,
-                &mut widgets.open,
-            ] {
-                for color in [
-                    &mut widgets.bg_fill,
-                    &mut widgets.bg_stroke.color,
-                    &mut widgets.fg_stroke.color,
-                ] {
-                    for c in 0..3 {
-                        color[c] = (lerp(
-                            panel_color[c] as f32 * 255.0..=color[c] as f32 * 255.0,
-                            visibility,
-                        ) / 255.0) as u8;
-                    }
-                    color[3] = (visibility * 255.0) as u8;
-                }
-            }
+            apply_color_fading(ui.visuals_mut(), visibility);
             SelectableLabel::new(self.hilight, self.text.clone()).ui(ui)
         });
         resp.inner

@@ -1,6 +1,7 @@
 use derive_more::{Display, From};
 use eframe::epaint::{Pos2, Vec2};
 use enum_iterator::Sequence;
+use serde::Deserialize;
 
 use crate::{function::*, world::World};
 
@@ -57,7 +58,7 @@ pub enum VectorField {
     World(GenericVectorFieldKind),
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
 pub enum GenericFieldKind {
     #[from(types(ScalarInputFieldKind, ScalarOutputFieldKind))]
     Scalar(GenericScalarFieldKind),
@@ -83,31 +84,31 @@ impl From<GenericOutputFieldKind> for GenericFieldKind {
     }
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence)]
 pub enum GenericInputFieldKind {
     Scalar(ScalarInputFieldKind),
     Vector(VectorInputFieldKind),
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence)]
 pub enum GenericOutputFieldKind {
     Scalar(ScalarOutputFieldKind),
     Vector(VectorOutputFieldKind),
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
 pub enum GenericScalarFieldKind {
     Input(ScalarInputFieldKind),
     Output(ScalarOutputFieldKind),
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, From, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
 pub enum GenericVectorFieldKind {
     Input(VectorInputFieldKind),
     Output(VectorOutputFieldKind),
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
 pub enum ScalarInputFieldKind {
     #[display(fmt = "ρ Density")]
     Density,
@@ -115,13 +116,13 @@ pub enum ScalarInputFieldKind {
     Elevation,
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
 pub enum VectorInputFieldKind {}
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
 pub enum ScalarOutputFieldKind {}
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
 pub enum VectorOutputFieldKind {
     #[display(fmt = "↗ Force")]
     Force,

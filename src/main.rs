@@ -8,6 +8,7 @@ pub mod function;
 pub mod game;
 pub mod math;
 pub mod physics;
+pub mod player;
 pub mod plot;
 pub mod stack;
 pub mod word;

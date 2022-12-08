@@ -14,7 +14,7 @@ use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
-use crate::word::Word;
+use crate::{field::GenericFieldKind, word::Word};
 
 pub fn fatal_error(message: impl ToString) -> ! {
     fatal_error_impl(message.to_string())
@@ -121,6 +121,9 @@ pub struct Line {
 #[serde(rename_all = "snake_case")]
 pub enum DialogCommand {
     RevealWord(Word),
+    RevealAllWords,
+    RevealManaBar,
+    RevealField(GenericFieldKind),
 }
 
 pub enum DialogFragment {
