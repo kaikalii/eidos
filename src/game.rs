@@ -399,9 +399,10 @@ impl Game {
         // Horizontal slider
         if used_controls.contains(&ControlKind::XSlider) {
             let value = self.world.controls.x_slider.get_or_insert(0.0);
+            let something_focused = ui.memory().focus().is_some();
             let input = ui.input();
             if input.key_down(Key::D) || input.key_down(Key::A) {
-                if ui.memory().focus().is_none() {
+                if !something_focused {
                     *value =
                         input.key_down(Key::D) as u8 as f32 - input.key_down(Key::A) as u8 as f32;
                 }
