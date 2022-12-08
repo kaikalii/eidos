@@ -85,13 +85,15 @@ impl From<GenericOutputFieldKind> for GenericFieldKind {
     }
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
+#[serde(untagged)]
 pub enum GenericInputFieldKind {
     Scalar(ScalarInputFieldKind),
     Vector(VectorInputFieldKind),
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
+#[serde(untagged)]
 pub enum GenericOutputFieldKind {
     Scalar(ScalarOutputFieldKind),
     Vector(VectorOutputFieldKind),

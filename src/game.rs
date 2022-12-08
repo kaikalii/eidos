@@ -209,22 +209,19 @@ impl Game {
             let known_fields = &self.world.player.progression.known_fields;
             // Draw toggler buttons
             for kind in all::<GenericInputFieldKind>() {
-                let kind = GenericFieldKind::from(kind);
                 if !known_fields.contains(&kind) {
                     continue;
                 }
+                let kind = GenericFieldKind::from(kind);
                 let enabled = &mut self.ui_state.fields_visible.entry(kind).or_insert(false);
                 ui.toggle_value(enabled, kind.to_string());
             }
             for output_kind in all::<GenericOutputFieldKind>() {
-                let kind = GenericFieldKind::from(output_kind);
-                if !known_fields.contains(&kind) {
-                    continue;
-                }
-                let enabled = self.ui_state.fields_visible.entry(kind).or_insert(false);
-                ui.toggle_value(enabled, kind.to_string());
-                if *enabled {
-                    if self.world.outputs.contains(output_kind) {
+                if self.world.outputs.contains(output_kind) {
+                    let kind = GenericFieldKind::from(output_kind);
+                    let enabled = self.ui_state.fields_visible.entry(kind).or_insert(false);
+                    ui.toggle_value(enabled, kind.to_string());
+                    if *enabled {
                         if ui.button("Dispel").clicked() {
                             self.world.outputs.remove(output_kind);
                         }
@@ -236,9 +233,9 @@ impl Game {
             ui.end_row();
             // Draw the fields themselves
             for kind in all::<GenericInputFieldKind>() {
+                let known = known_fields.contains(&kind);
                 let kind = GenericFieldKind::from(kind);
                 let id = ui.make_persistent_id(kind);
-                let known = known_fields.contains(&kind);
                 let alpha = ui.ctx().animate_bool(id, known);
                 if !known {
                     continue;
@@ -250,22 +247,18 @@ impl Game {
                 }
             }
             for output_kind in all::<GenericOutputFieldKind>() {
-                let kind = GenericFieldKind::from(output_kind);
-                let id = ui.make_persistent_id(kind);
-                let known = known_fields.contains(&kind);
-                let alpha = ui.ctx().animate_bool(id, known);
-                if !known {
-                    continue;
-                }
-                if self.ui_state.fields_visible[&kind] {
-                    if let Some(words) = self.world.outputs.spell(output_kind) {
-                        self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, alpha, kind);
-                        Self::spell_words_ui(ui, words, BIG_PLOT_SIZE);
+                if self.world.outputs.contains(output_kind) {
+                    let kind = GenericFieldKind::from(output_kind);
+                    if self.ui_state.fields_visible[&kind] {
+                        if let Some(words) = self.world.outputs.spell(output_kind) {
+                            self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, 1.0, kind);
+                            Self::spell_words_ui(ui, words, BIG_PLOT_SIZE);
+                        } else {
+                            ui.label("");
+                        }
                     } else {
                         ui.label("");
                     }
-                } else {
-                    ui.label("");
                 }
             }
         });

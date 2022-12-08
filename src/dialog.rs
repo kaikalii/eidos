@@ -13,7 +13,7 @@ use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
-use crate::{field::GenericFieldKind, word::Word};
+use crate::{field::GenericInputFieldKind, word::Word};
 
 pub fn fatal_error(message: impl ToString) -> ! {
     fatal_error_impl(message.to_string())
@@ -132,7 +132,7 @@ pub enum DialogCommand {
     RevealWord(Word),
     RevealAllWords,
     RevealManaBar,
-    RevealField(GenericFieldKind),
+    RevealField(GenericInputFieldKind),
 }
 
 #[derive(Debug)]

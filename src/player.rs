@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use rapier2d::prelude::RigidBodyHandle;
 
-use crate::{field::GenericFieldKind, game::TICK_RATE, word::Word};
+use crate::{field::GenericInputFieldKind, game::TICK_RATE, word::Word};
 
 pub const MANA_REGEN_RATE: f32 = 1.0;
 pub const MAX_MANA_EXHAUSTION: f32 = 5.0;
@@ -31,7 +31,7 @@ impl Default for Player {
 
 pub struct Progression {
     pub known_words: HashSet<Word>,
-    pub known_fields: HashSet<GenericFieldKind>,
+    pub known_fields: HashSet<GenericInputFieldKind>,
     pub mana_bar: bool,
 }
 
