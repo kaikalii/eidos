@@ -48,6 +48,7 @@ struct UiState {
     fields_visible: HashMap<GenericFieldKind, bool>,
     dialog: Option<DialogState>,
     last_ppp: f32,
+    last_stack_len: usize,
 }
 
 impl Default for UiState {
@@ -62,6 +63,7 @@ impl Default for UiState {
             .collect(),
             dialog: None,
             last_ppp: 2.0,
+            last_stack_len: 0,
         }
     }
 }
@@ -294,6 +296,10 @@ impl Game {
                 for item in stack.iter() {
                     self.plot_generic_field(ui, SMALL_PLOT_SIZE, 50, 1.0, &item.field);
                     Self::spell_words_ui(ui, &item.words, SMALL_PLOT_SIZE);
+                }
+                if self.ui_state.last_stack_len != stack.len() {
+                    ui.scroll_to_cursor(None);
+                    self.ui_state.last_stack_len = stack.len();
                 }
             });
         });
