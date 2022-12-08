@@ -1,4 +1,66 @@
-use eframe::egui::*;
+use std::hash::Hash;
+
+use eframe::{egui::*, epaint::util::hash};
+
+/// A button that fades into visibility
+pub struct FadeButton {
+    id: u64,
+    text: WidgetText,
+    show: bool,
+    hilight: bool,
+}
+
+impl FadeButton {
+    pub fn new(id_source: impl Hash, show: bool, text: impl Into<WidgetText>) -> Self {
+        FadeButton {
+            id: hash(id_source),
+            text: text.into(),
+            show,
+            hilight: false,
+        }
+    }
+    pub fn hilight(self, hilight: bool) -> Self {
+        Self { hilight, ..self }
+    }
+}
+
+impl Widget for FadeButton {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let resp = ui.scope(|ui| {
+            let id = ui.make_persistent_id(self.id);
+            let visibility = ui.ctx().animate_bool_with_time(id, self.show, 2.0);
+            if !self.show {
+                return ui.label("");
+            }
+            let visuals = ui.visuals_mut();
+            let panel_color = visuals.window_fill();
+            let widgets = &mut ui.visuals_mut().widgets;
+            for widgets in [
+                &mut widgets.active,
+                &mut widgets.inactive,
+                &mut widgets.hovered,
+                &mut widgets.noninteractive,
+                &mut widgets.open,
+            ] {
+                for color in [
+                    &mut widgets.bg_fill,
+                    &mut widgets.bg_stroke.color,
+                    &mut widgets.fg_stroke.color,
+                ] {
+                    for c in 0..3 {
+                        color[c] = (lerp(
+                            panel_color[c] as f32 * 255.0..=color[c] as f32 * 255.0,
+                            visibility,
+                        ) / 255.0) as u8;
+                    }
+                    color[3] = (visibility * 255.0) as u8;
+                }
+            }
+            SelectableLabel::new(self.hilight, self.text.clone()).ui(ui)
+        });
+        resp.inner
+    }
+}
 
 /// A clickable separator
 pub struct SeparatorButton {

@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     env::{current_dir, current_exe},
     fs,
+    iter::once,
     path::PathBuf,
     process::exit,
 };
@@ -130,7 +131,7 @@ pub enum DialogFragment {
 impl TryFrom<DialogScene<String>> for DialogScene<Line> {
     type Error = anyhow::Error;
     fn try_from(scene: DialogScene<String>) -> Result<Self, Self::Error> {
-        let parser = fragments_parser();
+        let parser = line_parser();
         let mut nodes = IndexMap::new();
         for (name, node) in scene.nodes {
             if node.lines.is_empty() {
@@ -155,23 +156,34 @@ trait FragmentParser<T>: Parser<char, T, Error = Simple<char>> {}
 
 impl<P, T> FragmentParser<T> for P where P: Parser<char, T, Error = Simple<char>> {}
 
-fn fragments_parser() -> impl FragmentParser<Line> {
+fn line_parser() -> impl FragmentParser<Line> {
+    choice((start_with_command(), start_with_speaker())).then_ignore(end())
+}
+
+fn start_with_speaker() -> impl FragmentParser<Line> {
     let speaker = bracketed(string_fragment())
         .then_ignore(whitespace())
         .or_not();
-    let fragments = choice((
-        string_fragment().map(DialogFragment::String),
-        command().map(DialogFragment::Command),
-    ))
-    .repeated();
     speaker
-        .then(fragments)
-        .then_ignore(end())
+        .then(fragments())
         .map(|(speaker, fragments)| Line { speaker, fragments })
 }
 
 fn start_with_command() -> impl FragmentParser<Line> {
-    todo!()
+    command().then(fragments()).map(|(command, frags)| Line {
+        speaker: None,
+        fragments: once(DialogFragment::Command(command))
+            .chain(frags)
+            .collect(),
+    })
+}
+
+fn fragments() -> impl FragmentParser<Vec<DialogFragment>> {
+    choice((
+        string_fragment().map(DialogFragment::String),
+        command().map(DialogFragment::Command),
+    ))
+    .repeated()
 }
 
 fn bracketed<T>(inner: impl FragmentParser<T>) -> impl FragmentParser<T> {
@@ -185,15 +197,20 @@ fn string_fragment() -> impl FragmentParser<String> {
 }
 
 fn command() -> impl FragmentParser<DialogCommand> {
-    string_fragment().try_map(
-        |string, span| match serde_yaml::from_str::<DialogCommand>(&string) {
+    bracketed(string_fragment().try_map(|string, span| {
+        match serde_yaml::from_str::<DialogCommand>(&string) {
             Ok(command) => Ok(command),
             Err(e) => Err(Simple::<char>::custom(span, e)),
-        },
-    )
+        }
+    }))
 }
 
 #[test]
 fn parse_fragment() {
-    fragments_parser().parse("Hello!").unwrap();
+    line_parser().parse("Hello!").unwrap();
+}
+
+#[test]
+fn parse_command() {
+    serde_yaml::from_str::<DialogCommand>("reveal_word: Sa").unwrap();
 }

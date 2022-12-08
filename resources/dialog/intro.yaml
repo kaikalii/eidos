@@ -1,8 +1,10 @@
 start:
   lines:
-    - (Dan) Hello there! How are you? I am doing very well, thank you.
+    - Hello there! How are you? I am doing very well, thank you.
   children:
     n1: Click me!
 n1:
   lines:
+    - '(reveal_word: Te)'
     - The next node
+    - '(reveal_word: Sa)'

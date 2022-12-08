@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use eframe::egui::*;
 use rapier2d::prelude::*;
@@ -24,6 +24,7 @@ pub struct Player {
     pub max_mana: f32,
     pub mana_exhaustion: f32,
     pub words: Vec<Word>,
+    pub known_words: HashSet<Word>,
 }
 
 #[derive(Default)]
@@ -124,6 +125,7 @@ impl Default for World {
                 max_mana: 40.0,
                 mana_exhaustion: 0.0,
                 words: Vec::new(),
+                known_words: HashSet::new(),
             },
             physics: PhysicsContext::default(),
             objects: HashMap::new(),

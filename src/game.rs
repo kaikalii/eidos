@@ -1,4 +1,7 @@
-use std::{collections::BTreeSet, time::Instant};
+use std::{
+    collections::{BTreeSet, HashSet},
+    time::Instant,
+};
 
 use eframe::{
     egui::{style::Margin, *},
@@ -8,6 +11,7 @@ use enum_iterator::{all, Sequence};
 use itertools::Itertools;
 
 use crate::{
+    controls::FadeButton,
     dialog::{DialogCommand, DialogFragment, DIALOG_SCENES},
     field::*,
     plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
@@ -114,12 +118,16 @@ impl Game {
             })
             .min_height(100.0)
             .show(ctx, |ui| {
-                if !self.dialog_ui(ui) {
-                    ui.horizontal(|ui| {
-                        self.words_ui(ui, &stack);
-                        self.controls_ui(ui, &stack);
+                ui.horizontal(|ui| {
+                    self.words_ui(ui, &stack);
+                    self.controls_ui(ui, &stack);
+                    ui.with_layout(Layout::top_down(Align::Max), |ui| {
+                        let (rect, _) = ui.allocate_at_least(vec2(400.0, 100.0), Sense::hover());
+                        ui.allocate_ui_at_rect(rect, |ui| {
+                            ui.with_layout(Layout::top_down(Align::Min), |ui| self.dialog_ui(ui))
+                        });
                     });
-                }
+                });
             });
         TopBottomPanel::bottom("stack")
             .frame(Frame {
@@ -274,6 +282,7 @@ impl Game {
             fn button<W: Copy + Into<Word> + ToString + Sequence>(
                 ui: &mut Ui,
                 stack: &Stack,
+                know_words: &HashSet<Word>,
                 hilight: bool,
             ) -> Option<Word> {
                 let mut res = None;
@@ -281,9 +290,10 @@ impl Game {
                     let name = w.to_string();
                     let word = w.into();
                     let f = word.function();
-                    let enabled = stack.validate_function_use(f).is_ok();
+                    let known = know_words.contains(&word);
+                    let enabled = known && stack.validate_function_use(f).is_ok();
                     if ui
-                        .add_enabled(enabled, SelectableLabel::new(hilight, name))
+                        .add_enabled(enabled, FadeButton::new(word, known, name).hilight(hilight))
                         .on_hover_text(f.to_string())
                         .clicked()
                     {
@@ -292,18 +302,19 @@ impl Game {
                 }
                 res
             }
-            let spell = &mut self.world.player.words;
-            spell.extend(button::<ScalarWord>(ui, stack, false));
+            let words = &mut self.world.player.words;
+            let known_words = &self.world.player.known_words;
+            words.extend(button::<ScalarWord>(ui, stack, known_words, false));
             ui.end_row();
-            spell.extend(button::<VectorWord>(ui, stack, false));
-            spell.extend(button::<InputWord>(ui, stack, false));
-            spell.extend(button::<ControlWord>(ui, stack, false));
+            words.extend(button::<VectorWord>(ui, stack, known_words, false));
+            words.extend(button::<InputWord>(ui, stack, known_words, false));
+            words.extend(button::<ControlWord>(ui, stack, known_words, false));
             ui.end_row();
-            spell.extend(button::<OperatorWord>(ui, stack, false));
-            spell.extend(button::<AxisWord>(ui, stack, false));
+            words.extend(button::<OperatorWord>(ui, stack, known_words, false));
+            words.extend(button::<AxisWord>(ui, stack, known_words, false));
             ui.end_row();
-            spell.extend(button::<OutputWord>(ui, stack, true));
-            spell.extend(button::<CombinatorWord>(ui, stack, false));
+            words.extend(button::<OutputWord>(ui, stack, known_words, true));
+            words.extend(button::<CombinatorWord>(ui, stack, known_words, false));
             ui.end_row();
         });
     }
@@ -479,9 +490,9 @@ impl Game {
         };
         self.ui_state.dialog = Some(dialog);
     }
-    fn dialog_ui(&mut self, ui: &mut Ui) -> bool {
+    fn dialog_ui(&mut self, ui: &mut Ui) {
         if self.ui_state.dialog.is_none() {
-            return false;
+            return;
         }
         ui.group(|ui| {
             // Get dialog scene data
@@ -507,7 +518,7 @@ impl Game {
                 }
             });
             // Show continue or choices
-            let max_dialog_char = (char_indices.len() - 1) * DIALOG_SPEED;
+            let max_dialog_char = (char_indices.len().saturating_sub(1)) * DIALOG_SPEED;
             dialog.character = (dialog.character + 1).min(max_dialog_char);
             let mut next = || {
                 ui.with_layout(Layout::bottom_up(Align::Min), |ui| ui.button(">").clicked())
@@ -520,7 +531,7 @@ impl Game {
                 }
             } else if node.children.is_empty() {
                 // No choices
-                if next() {
+                if line_text.is_empty() || next() {
                     if dialog.line < node.lines.len() - 1 {
                         dialog.line += 1;
                         dialog.character = 0;
@@ -544,11 +555,11 @@ impl Game {
                 });
             }
         });
-        true
     }
 }
+
 impl World {
-    fn format_dialog_fragments(&self, fragments: &[DialogFragment]) -> String {
+    fn format_dialog_fragments(&mut self, fragments: &[DialogFragment]) -> String {
         let mut formatted = String::new();
         for frag in fragments {
             match frag {
@@ -556,7 +567,9 @@ impl World {
                     formatted.push_str(s);
                 }
                 DialogFragment::Command(command) => match command {
-                    DialogCommand::RevealWord(_) => {}
+                    DialogCommand::RevealWord(word) => {
+                        self.player.known_words.insert(*word);
+                    }
                 },
             }
         }
