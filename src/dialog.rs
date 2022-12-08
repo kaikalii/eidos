@@ -91,6 +91,13 @@ fn load_scenes() -> anyhow::Result<DialogScenes> {
                 let scene: DialogScene<Vec<DialogFragment>> = scene
                     .try_into()
                     .map_err(|e| anyhow!("Error parsing fragment in {name}: {e}"))?;
+                for (node_name, node) in &scene.nodes {
+                    for child_name in node.children.keys() {
+                        if !scene.nodes.contains_key(child_name) {
+                            bail!("In {name} scene, node {node_name}'s child {child_name} does not exist")
+                        }
+                    }
+                }
                 map.insert(name, scene);
             }
         }
@@ -106,6 +113,7 @@ pub struct DialogScene<T> {
 
 #[derive(Debug, Deserialize)]
 pub struct DialogNode<T> {
+    #[serde(default = "Vec::new")]
     pub lines: Vec<Line<T>>,
     #[serde(default = "IndexMap::new")]
     pub children: IndexMap<String, T>,
@@ -150,9 +158,6 @@ impl TryFrom<DialogScene<SerializedLine>> for DialogScene<Vec<DialogFragment>> {
         let parser = line_parser();
         let mut nodes = IndexMap::new();
         for (name, node) in scene.nodes {
-            if node.lines.is_empty() {
-                continue;
-            }
             let mut lines = Vec::new();
             for line in node.lines {
                 lines.push(match line {

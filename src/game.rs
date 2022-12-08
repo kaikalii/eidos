@@ -545,6 +545,27 @@ impl Game {
         }
         ui.group(|ui| self.dialog_ui_impl(ui));
     }
+    fn progress_dialog(&mut self) {
+        let Some(dialog) = &mut self.ui_state.dialog else {
+            return;
+        };
+        let scene = &DIALOG_SCENES[&dialog.scene];
+        let node = &scene.nodes[&dialog.node];
+
+        if dialog.line < node.lines.len().saturating_sub(1) {
+            dialog.line += 1;
+            dialog.character = 0;
+        } else {
+            let node_index = scene.nodes.get_index_of(&dialog.node).unwrap();
+            if let Some((node_name, _)) = scene.nodes.get_index(node_index + 1) {
+                dialog.node = node_name.clone();
+                dialog.line = 0;
+                dialog.character = 0;
+            } else if node.children.is_empty() {
+                self.ui_state.dialog = None;
+            }
+        }
+    }
     fn dialog_ui_impl(&mut self, ui: &mut Ui) {
         // Get dialog scene data
         let Some(dialog) = &mut self.ui_state.dialog else {
@@ -552,6 +573,11 @@ impl Game {
         };
         let scene = &DIALOG_SCENES[&dialog.scene];
         let node = &scene.nodes[&dialog.node];
+        if node.lines.is_empty() {
+            self.progress_dialog();
+            self.dialog_ui_impl(ui);
+            return;
+        }
         let line = &node.lines[dialog.line];
         match line {
             Line::Text(fragments) => {
@@ -587,12 +613,7 @@ impl Game {
                 } else if node.children.is_empty() {
                     // No choices
                     if line_text.is_empty() || next() {
-                        if dialog.line < node.lines.len() - 1 {
-                            dialog.line += 1;
-                            dialog.character = 0;
-                        } else {
-                            self.ui_state.dialog = None;
-                        }
+                        self.progress_dialog();
                     }
                 } else {
                     // Choices
@@ -623,11 +644,8 @@ impl Game {
                         progression.known_fields.insert(*kind);
                     }
                 }
-                if dialog.line < node.lines.len() - 1 {
-                    dialog.line += 1;
-                } else {
-                    self.ui_state.dialog = None;
-                }
+                self.progress_dialog();
+                self.dialog_ui_impl(ui);
             }
         }
     }

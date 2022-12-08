@@ -4,7 +4,7 @@ start:
     - speaker: Dan
     - Hello there! How are you? I am doing very well, thank you.
   children:
-    n1: Click me!
+    end: end
 n1:
   lines:
     - reveal_word: Te
@@ -14,4 +14,8 @@ n1:
     - speaker: ~
     - reveal_mana_bar
     - Here comes density!
+    - reveal_field: Density
+end:
+  lines:
+    - reveal_mana_bar
     - reveal_field: Density
