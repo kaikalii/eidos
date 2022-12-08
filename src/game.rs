@@ -46,6 +46,7 @@ impl Default for Game {
 struct UiState {
     fields_visible: HashMap<GenericFieldKind, bool>,
     dialog: Option<DialogState>,
+    last_ppp: f32,
 }
 
 struct DialogState {
@@ -66,6 +67,7 @@ impl Default for UiState {
             .into_iter()
             .collect(),
             dialog: None,
+            last_ppp: 2.0,
         }
     }
 }
@@ -77,6 +79,14 @@ impl eframe::App for Game {
             puffin_egui::profiler_ui(ui);
         });
         puffin::GlobalProfiler::lock().new_frame();
+
+        // Resize
+        let input = ctx.input();
+        let screen_size = input.screen_rect.size();
+        let window_size = screen_size * self.ui_state.last_ppp;
+        self.ui_state.last_ppp = input.pixels_per_point;
+        drop(input);
+        ctx.set_pixels_per_point(((window_size.x * window_size.y).sqrt() / 600.0).max(1.2));
 
         self.ui(ctx);
     }
@@ -112,7 +122,7 @@ impl Game {
             Color32::from_rgba_unmultiplied(panel_color.r(), panel_color.g(), panel_color.b(), 128);
         TopBottomPanel::bottom("words")
             .frame(Frame {
-                inner_margin: Margin::symmetric(100.0, 20.0),
+                inner_margin: Margin::symmetric(50.0, 20.0),
                 fill: panel_color,
                 ..Default::default()
             })
@@ -122,10 +132,7 @@ impl Game {
                     self.words_ui(ui, &stack);
                     self.controls_ui(ui, &stack);
                     ui.with_layout(Layout::top_down(Align::Max), |ui| {
-                        let (rect, _) = ui.allocate_at_least(vec2(400.0, 100.0), Sense::hover());
-                        ui.allocate_ui_at_rect(rect, |ui| {
-                            ui.with_layout(Layout::top_down(Align::Min), |ui| self.dialog_ui(ui))
-                        });
+                        ui.with_layout(Layout::top_down(Align::Min), |ui| self.dialog_ui(ui))
                     });
                 });
             });

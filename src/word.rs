@@ -9,7 +9,7 @@ pub enum SpellCommand {
     Clear,
 }
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Deserialize)]
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
 #[serde(untagged)]
 pub enum Word {
     Scalar(ScalarWord),

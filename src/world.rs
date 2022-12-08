@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use eframe::egui::*;
+use enum_iterator::all;
 use rapier2d::prelude::*;
 
 use crate::{field::*, game::TICK_RATE, math::rotate, physics::PhysicsContext, word::Word};
@@ -125,7 +126,11 @@ impl Default for World {
                 max_mana: 40.0,
                 mana_exhaustion: 0.0,
                 words: Vec::new(),
-                known_words: HashSet::new(),
+                known_words: if cfg!(debug_assertions) {
+                    all::<Word>().collect()
+                } else {
+                    HashSet::new()
+                },
             },
             physics: PhysicsContext::default(),
             objects: HashMap::new(),
