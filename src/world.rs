@@ -10,7 +10,6 @@ pub struct World {
     pub player: Player,
     pub objects: HashMap<RigidBodyHandle, Object>,
     pub physics: PhysicsContext,
-    pub spell_field: Option<GenericField>,
     pub outputs: OutputFields,
     pub controls: Controls,
 }
@@ -78,7 +77,6 @@ impl Default for World {
             physics: PhysicsContext::default(),
             objects: HashMap::new(),
             outputs: OutputFields::default(),
-            spell_field: None,
             controls: Controls::default(),
         };
         // Add objects

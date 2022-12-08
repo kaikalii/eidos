@@ -59,6 +59,7 @@ pub enum VectorField {
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
+#[serde(untagged)]
 pub enum GenericFieldKind {
     #[from(types(ScalarInputFieldKind, ScalarOutputFieldKind))]
     Scalar(GenericScalarFieldKind),
@@ -97,12 +98,14 @@ pub enum GenericOutputFieldKind {
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
+#[serde(untagged)]
 pub enum GenericScalarFieldKind {
     Input(ScalarInputFieldKind),
     Output(ScalarOutputFieldKind),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
+#[serde(untagged)]
 pub enum GenericVectorFieldKind {
     Input(VectorInputFieldKind),
     Output(VectorOutputFieldKind),

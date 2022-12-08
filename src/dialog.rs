@@ -2,12 +2,11 @@ use std::{
     collections::HashMap,
     env::{current_dir, current_exe},
     fs,
-    iter::once,
     path::PathBuf,
     process::exit,
 };
 
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use chumsky::{prelude::*, text::whitespace};
 use eframe::egui::*;
 use indexmap::IndexMap;
@@ -67,7 +66,7 @@ impl eframe::App for FatalErrorWindow {
     }
 }
 
-type DialogScenes = HashMap<String, DialogScene<Line>>;
+type DialogScenes = HashMap<String, DialogScene<Vec<DialogFragment>>>;
 
 pub static DIALOG_SCENES: Lazy<DialogScenes> =
     Lazy::new(|| load_scenes().map_err(fatal_error).unwrap());
@@ -84,12 +83,12 @@ fn load_scenes() -> anyhow::Result<DialogScenes> {
             if path.extension().map_or(false, |ext| ext == "yaml") {
                 let yaml = fs::read_to_string(&path)?;
                 let name = path.file_stem().unwrap().to_string_lossy().into_owned();
-                let scene: DialogScene<String> = serde_yaml::from_str(&yaml)
+                let scene: DialogScene<SerializedLine> = serde_yaml::from_str(&yaml)
                     .map_err(|e| anyhow!("Unable to read {name} dialog: {e}"))?;
                 if scene.nodes.is_empty() {
                     continue;
                 }
-                let scene: DialogScene<Line> = scene
+                let scene: DialogScene<Vec<DialogFragment>> = scene
                     .try_into()
                     .map_err(|e| anyhow!("Error parsing fragment in {name}: {e}"))?;
                 map.insert(name, scene);
@@ -105,35 +104,49 @@ pub struct DialogScene<T> {
     pub nodes: IndexMap<String, DialogNode<T>>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct DialogNode<T> {
-    pub lines: Vec<T>,
+    pub lines: Vec<Line<T>>,
     #[serde(default = "IndexMap::new")]
     pub children: IndexMap<String, T>,
 }
 
-pub struct Line {
-    pub speaker: Option<String>,
-    pub fragments: Vec<DialogFragment>,
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum Line<T> {
+    Command(DialogCommand),
+    Text(T),
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum SerializedLine {
+    String(String),
+    Catch(serde_yaml::Value),
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DialogCommand {
+    Speaker(Option<String>),
     RevealWord(Word),
     RevealAllWords,
     RevealManaBar,
     RevealField(GenericFieldKind),
 }
 
+#[derive(Debug)]
 pub enum DialogFragment {
     String(String),
-    Command(DialogCommand),
+    Variable(DialogVariable),
 }
 
-impl TryFrom<DialogScene<String>> for DialogScene<Line> {
+#[derive(Debug, Deserialize)]
+pub enum DialogVariable {}
+
+impl TryFrom<DialogScene<SerializedLine>> for DialogScene<Vec<DialogFragment>> {
     type Error = anyhow::Error;
-    fn try_from(scene: DialogScene<String>) -> Result<Self, Self::Error> {
+    fn try_from(scene: DialogScene<SerializedLine>) -> Result<Self, Self::Error> {
         let parser = line_parser();
         let mut nodes = IndexMap::new();
         for (name, node) in scene.nodes {
@@ -142,12 +155,28 @@ impl TryFrom<DialogScene<String>> for DialogScene<Line> {
             }
             let mut lines = Vec::new();
             for line in node.lines {
-                lines.push(parser.parse(line).map_err(|mut e| anyhow!(e.remove(0)))?);
+                lines.push(match line {
+                    Line::Text(SerializedLine::String(text)) => {
+                        parser.parse(text).map_err(|mut e| anyhow!(e.remove(0)))?
+                    }
+                    Line::Command(com) => Line::Command(com),
+                    Line::Text(SerializedLine::Catch(value)) => {
+                        bail!(
+                            "`{}` is not a valid command",
+                            serde_yaml::to_string(&value).unwrap()[3..].trim()
+                        )
+                    }
+                });
             }
             let mut children = IndexMap::new();
             for (name, text) in node.children {
-                let text = parser.parse(text).map_err(|mut e| anyhow!(e.remove(0)))?;
-                children.insert(name, text);
+                if let SerializedLine::String(text) = text {
+                    if let Line::Text(text) =
+                        parser.parse(text).map_err(|mut e| anyhow!(e.remove(0)))?
+                    {
+                        children.insert(name, text);
+                    }
+                }
             }
             nodes.insert(name, DialogNode { lines, children });
         }
@@ -159,32 +188,14 @@ trait FragmentParser<T>: Parser<char, T, Error = Simple<char>> {}
 
 impl<P, T> FragmentParser<T> for P where P: Parser<char, T, Error = Simple<char>> {}
 
-fn line_parser() -> impl FragmentParser<Line> {
-    choice((start_with_command(), start_with_speaker())).then_ignore(end())
-}
-
-fn start_with_speaker() -> impl FragmentParser<Line> {
-    let speaker = bracketed(string_fragment())
-        .then_ignore(whitespace())
-        .or_not();
-    speaker
-        .then(fragments())
-        .map(|(speaker, fragments)| Line { speaker, fragments })
-}
-
-fn start_with_command() -> impl FragmentParser<Line> {
-    command().then(fragments()).map(|(command, frags)| Line {
-        speaker: None,
-        fragments: once(DialogFragment::Command(command))
-            .chain(frags)
-            .collect(),
-    })
+fn line_parser() -> impl FragmentParser<Line<Vec<DialogFragment>>> {
+    fragments().map(Line::Text).then_ignore(end())
 }
 
 fn fragments() -> impl FragmentParser<Vec<DialogFragment>> {
     choice((
+        variable().map(DialogFragment::Variable),
         string_fragment().map(DialogFragment::String),
-        command().map(DialogFragment::Command),
     ))
     .repeated()
 }
@@ -199,9 +210,9 @@ fn string_fragment() -> impl FragmentParser<String> {
     none_of("()").repeated().at_least(1).collect()
 }
 
-fn command() -> impl FragmentParser<DialogCommand> {
+fn variable() -> impl FragmentParser<DialogVariable> {
     bracketed(string_fragment().try_map(|string, span| {
-        match serde_yaml::from_str::<DialogCommand>(&string) {
+        match serde_yaml::from_str::<DialogVariable>(&string) {
             Ok(command) => Ok(command),
             Err(e) => Err(Simple::<char>::custom(span, e)),
         }

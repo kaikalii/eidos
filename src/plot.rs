@@ -60,6 +60,7 @@ pub struct MapPlot<'w> {
     range: f32,
     size: f32,
     resolution: usize,
+    global_alpha: f32,
 }
 
 const Z_BUCKETS: usize = if cfg!(debug_assertions) { 31 } else { 51 };
@@ -76,16 +77,18 @@ pub struct PlotData<V> {
     points: Vec<(f32, f32, V)>,
     center: Pos2,
     point_radius: f32,
+    global_alpha: f32,
 }
 
 impl<'w> MapPlot<'w> {
-    pub fn new(world: &'w World, center: Pos2, range: f32) -> Self {
+    pub fn new(world: &'w World, center: Pos2, range: f32, global_alpha: f32) -> Self {
         Self {
             world,
             center,
             range,
             size: 200.0,
             resolution: 100,
+            global_alpha,
         }
     }
     pub fn size(self, size: f32) -> Self {
@@ -147,6 +150,7 @@ impl<'w> MapPlot<'w> {
             points,
             center,
             point_radius,
+            global_alpha: self.global_alpha,
         }
     }
     pub fn ui<F>(&self, ui: &mut Ui, field_plot: &F)
@@ -155,6 +159,9 @@ impl<'w> MapPlot<'w> {
     {
         puffin::profile_function!();
         self.init_plot().show(ui, |plot_ui| {
+            if self.global_alpha < 1.0 / 255.0 {
+                return;
+            }
             let data = self.get_data(field_plot);
             let center = data.center;
             F::Value::partition_and_plot(plot_ui, field_plot, data);
@@ -191,9 +198,16 @@ impl<'w> MapPlot<'w> {
             }
         });
     }
-    pub fn number_ui(world: &'w World, ui: &mut Ui, size: f32, resolution: usize, n: f32) {
+    pub fn number_ui(
+        world: &'w World,
+        ui: &mut Ui,
+        size: f32,
+        resolution: usize,
+        global_alpha: f32,
+        n: f32,
+    ) {
         let time = time();
-        let plot = Self::new(world, Pos2::ZERO, 2.1)
+        let plot = Self::new(world, Pos2::ZERO, 2.1, global_alpha)
             .size(size)
             .resolution(resolution);
         let rng = RefCell::new(SmallRng::seed_from_u64(0));
@@ -307,10 +321,11 @@ impl PartitionAndPlottable for f32 {
                 .max(0.0)
                 .round() as usize)
                 .min(Z_BUCKETS - 1);
-            let alpha = 1.0
-                - (pos2(x, y).distance(center) / radius)
-                    .powf(2.0)
-                    .clamp(0.0, 1.0);
+            let alpha = data.global_alpha
+                * (1.0
+                    - (pos2(x, y).distance(center) / radius)
+                        .powf(2.0)
+                        .clamp(0.0, 1.0));
             let alpha = ((alpha * ALPHA_BUCKETS as f32) as usize).min(ALPHA_BUCKETS - 1);
             grouped_points[group][alpha].push(PlotPoint::new(x, y));
         }
@@ -381,10 +396,11 @@ impl PartitionAndPlottable for Vec2 {
                 .max(0.0)
                 .round() as usize)
                 .min(Z_BUCKETS - 1);
-            let alpha = 1.0
-                - (pos2(x, y).distance(center) / radius)
-                    .powf(2.0)
-                    .clamp(0.0, 1.0);
+            let alpha = data.global_alpha
+                * (1.0
+                    - (pos2(x, y).distance(center) / radius)
+                        .powf(2.0)
+                        .clamp(0.0, 1.0));
             let alpha = ((alpha * ALPHA_BUCKETS as f32) as usize).min(ALPHA_BUCKETS - 1);
             grouped_points[x_group][y_group][alpha].push(PlotPoint::new(x, y));
         }

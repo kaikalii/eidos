@@ -12,7 +12,7 @@ use itertools::Itertools;
 
 use crate::{
     controls::FadeButton,
-    dialog::{DialogCommand, DialogFragment, DIALOG_SCENES},
+    dialog::{DialogCommand, DialogFragment, Line, DIALOG_SCENES},
     field::*,
     player::MAX_MANA_EXHAUSTION,
     plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
@@ -23,7 +23,6 @@ use crate::{
 };
 
 pub const TICK_RATE: f32 = 1.0 / 60.0;
-pub const ANIMATION_TIME: f32 = 2.0;
 
 pub struct Game {
     pub world: World,
@@ -49,13 +48,6 @@ struct UiState {
     fields_visible: HashMap<GenericFieldKind, bool>,
     dialog: Option<DialogState>,
     last_ppp: f32,
-}
-
-struct DialogState {
-    scene: String,
-    node: String,
-    line: usize,
-    character: usize,
 }
 
 impl Default for UiState {
@@ -105,14 +97,17 @@ impl Game {
         // Calculate fields
         let mut stack = Stack::default();
         let mut error = None;
-        // Calculate spell field
+        // Calculate stack fields
         for word in self.world.player.words.clone() {
             if let Err(e) = stack.call(&mut self.world, word) {
                 error = Some(e);
                 break;
             }
         }
-        self.world.spell_field = stack.top().map(|item| item.field.clone());
+
+        let mut style = (*ctx.style()).clone();
+        style.animation_time = 2.0;
+        ctx.set_style(style);
 
         CentralPanel::default().show(ctx, |ui| {
             self.top_ui(ui);
@@ -187,11 +182,9 @@ impl Game {
             };
             ui.visuals_mut().selection.bg_fill = color;
             let id = ui.make_persistent_id("mana bar");
-            let length_mul = ui.ctx().animate_bool_with_time(
-                id,
-                self.world.player.progression.mana_bar,
-                ANIMATION_TIME,
-            );
+            let length_mul = ui
+                .ctx()
+                .animate_bool(id, self.world.player.progression.mana_bar);
             if length_mul > 0.0 {
                 ui.horizontal(|ui| {
                     ProgressBar::new(curr / max)
@@ -211,14 +204,21 @@ impl Game {
     }
     fn fields_ui(&mut self, ui: &mut Ui) {
         Grid::new("fields").show(ui, |ui| {
+            let known_fields = &self.world.player.progression.known_fields;
             // Draw toggler buttons
             for kind in all::<GenericInputFieldKind>() {
                 let kind = GenericFieldKind::from(kind);
+                if !known_fields.contains(&kind) {
+                    continue;
+                }
                 let enabled = &mut self.ui_state.fields_visible.entry(kind).or_insert(false);
                 ui.toggle_value(enabled, kind.to_string());
             }
             for output_kind in all::<GenericOutputFieldKind>() {
                 let kind = GenericFieldKind::from(output_kind);
+                if !known_fields.contains(&kind) {
+                    continue;
+                }
                 let enabled = self.ui_state.fields_visible.entry(kind).or_insert(false);
                 ui.toggle_value(enabled, kind.to_string());
                 if *enabled {
@@ -235,17 +235,29 @@ impl Game {
             // Draw the fields themselves
             for kind in all::<GenericInputFieldKind>() {
                 let kind = GenericFieldKind::from(kind);
+                let id = ui.make_persistent_id(kind);
+                let known = known_fields.contains(&kind);
+                let alpha = ui.ctx().animate_bool(id, known);
+                if !known {
+                    continue;
+                }
                 if self.ui_state.fields_visible[&kind] {
-                    self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, kind);
+                    self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, alpha, kind);
                 } else {
                     ui.label("");
                 }
             }
             for output_kind in all::<GenericOutputFieldKind>() {
                 let kind = GenericFieldKind::from(output_kind);
+                let id = ui.make_persistent_id(kind);
+                let known = known_fields.contains(&kind);
+                let alpha = ui.ctx().animate_bool(id, known);
+                if !known {
+                    continue;
+                }
                 if self.ui_state.fields_visible[&kind] {
                     if let Some(words) = self.world.outputs.spell(output_kind) {
-                        self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, kind);
+                        self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, alpha, kind);
                         Self::spell_words_ui(ui, words, BIG_PLOT_SIZE);
                     } else {
                         ui.label("");
@@ -276,12 +288,14 @@ impl Game {
         }
     }
     fn stack_ui(&mut self, ui: &mut Ui, stack: &Stack) {
-        ui.horizontal_wrapped(|ui| {
-            ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
-            for item in stack.iter() {
-                self.plot_generic_field(ui, SMALL_PLOT_SIZE, 50, &item.field);
-                Self::spell_words_ui(ui, &item.words, SMALL_PLOT_SIZE);
-            }
+        ScrollArea::horizontal().show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
+                for item in stack.iter() {
+                    self.plot_generic_field(ui, SMALL_PLOT_SIZE, 50, 1.0, &item.field);
+                    Self::spell_words_ui(ui, &item.words, SMALL_PLOT_SIZE);
+                }
+            });
         });
     }
     fn words_ui(&mut self, ui: &mut Ui, stack: &Stack) {
@@ -404,22 +418,28 @@ impl Game {
             self.world.controls.x_slider = None;
         }
     }
-    fn init_plot(&self, size: f32, resolution: usize) -> MapPlot {
-        MapPlot::new(&self.world, self.world.player_pos + Vec2::Y, 5.0)
-            .size(size)
-            .resolution(resolution)
+    fn init_plot(&self, size: f32, resolution: usize, global_alpha: f32) -> MapPlot {
+        MapPlot::new(
+            &self.world,
+            self.world.player_pos + Vec2::Y,
+            5.0,
+            global_alpha,
+        )
+        .size(size)
+        .resolution(resolution)
     }
     pub fn plot_generic_field(
         &self,
         ui: &mut Ui,
         size: f32,
         resolution: usize,
+        global_alpha: f32,
         field: &GenericField,
     ) {
-        let plot = self.init_plot(size, resolution);
+        let plot = self.init_plot(size, resolution, global_alpha);
         match field {
             GenericField::Scalar(ScalarField::Uniform(n)) => {
-                MapPlot::number_ui(&self.world, ui, size, resolution, *n)
+                MapPlot::number_ui(&self.world, ui, size, resolution, global_alpha, *n)
             }
             GenericField::Scalar(field) => plot.ui(ui, field),
             GenericField::Vector(field) => plot.ui(ui, field),
@@ -430,9 +450,10 @@ impl Game {
         ui: &mut Ui,
         size: f32,
         resolution: usize,
+        global_alpha: f32,
         kind: GenericFieldKind,
     ) {
-        let plot = self.init_plot(size, resolution);
+        let plot = self.init_plot(size, resolution, global_alpha);
         match kind {
             GenericFieldKind::Scalar(kind) => plot.ui(ui, &kind),
             GenericFieldKind::Vector(kind) => plot.ui(ui, &kind),
@@ -498,6 +519,14 @@ impl FieldPlot for GenericVectorFieldKind {
     }
 }
 
+struct DialogState {
+    scene: String,
+    node: String,
+    line: usize,
+    character: usize,
+    speaker: Option<String>,
+}
+
 impl Game {
     fn set_dialog(&mut self, scene_name: &str) {
         let scene = &DIALOG_SCENES[scene_name];
@@ -506,6 +535,7 @@ impl Game {
             node: scene.nodes.first().unwrap().0.clone(),
             line: 0,
             character: 0,
+            speaker: None,
         };
         self.ui_state.dialog = Some(dialog);
     }
@@ -513,90 +543,103 @@ impl Game {
         if self.ui_state.dialog.is_none() {
             return;
         }
-        ui.group(|ui| {
-            // Get dialog scene data
-            let dialog = self.ui_state.dialog.as_mut().unwrap();
-            let scene = &DIALOG_SCENES[&dialog.scene];
-            let node = &scene.nodes[&dialog.node];
-            let line = &node.lines[dialog.line];
-            // Space the group
-            ui.allocate_at_least(vec2(ui.max_rect().width(), 0.0), Sense::hover());
-            let line_text = self.world.format_dialog_fragments(&line.fragments);
-            let char_indices = line_text.char_indices().collect_vec();
-            const DIALOG_SPEED: usize = 2;
-            let char_index = dialog.character / DIALOG_SPEED;
-            ui.horizontal(|ui| {
-                // Show speaker
-                if let Some(speaker) = &line.speaker {
-                    ui.label(format!("{speaker}:"));
-                }
-                // Show line text
-                if !line_text.is_empty() {
-                    let line_text = &line_text[..=char_indices[char_index].0];
-                    ui.horizontal_wrapped(|ui| ui.label(line_text));
-                }
-            });
-            // Show continue or choices
-            let max_dialog_char = (char_indices.len().saturating_sub(1)) * DIALOG_SPEED;
-            dialog.character = (dialog.character + 1).min(max_dialog_char);
-            let mut next = || {
-                ui.with_layout(Layout::bottom_up(Align::Min), |ui| ui.button(">").clicked())
-                    .inner
-            };
-            if dialog.character < max_dialog_char {
-                // Revealing the text
-                if next() {
-                    dialog.character = max_dialog_char;
-                }
-            } else if node.children.is_empty() {
-                // No choices
-                if line_text.is_empty() || next() {
-                    if dialog.line < node.lines.len() - 1 {
-                        dialog.line += 1;
-                        dialog.character = 0;
-                    } else {
-                        self.ui_state.dialog = None;
+        ui.group(|ui| self.dialog_ui_impl(ui));
+    }
+    fn dialog_ui_impl(&mut self, ui: &mut Ui) {
+        // Get dialog scene data
+        let Some(dialog) = &mut self.ui_state.dialog else {
+            return;
+        };
+        let scene = &DIALOG_SCENES[&dialog.scene];
+        let node = &scene.nodes[&dialog.node];
+        let line = &node.lines[dialog.line];
+        match line {
+            Line::Text(fragments) => {
+                // Space the group
+                ui.allocate_at_least(vec2(ui.max_rect().width(), 0.0), Sense::hover());
+                let line_text = self.world.format_dialog_fragments(fragments);
+                let char_indices = line_text.char_indices().collect_vec();
+                const DIALOG_SPEED: usize = 2;
+                let char_index = dialog.character / DIALOG_SPEED;
+                ui.horizontal(|ui| {
+                    // Show speaker
+                    if let Some(speaker) = &dialog.speaker {
+                        ui.label(format!("{speaker}:"));
                     }
-                }
-            } else {
-                // Choices
-                ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
-                    for (name, line) in &node.children {
-                        if ui
-                            .button(self.world.format_dialog_fragments(&line.fragments))
-                            .clicked()
-                        {
-                            dialog.node = name.clone();
-                            dialog.line = 0;
-                            dialog.character = 0;
-                        }
+                    // Show line text
+                    if !line_text.is_empty() {
+                        let line_text = &line_text[..=char_indices[char_index].0];
+                        ui.horizontal_wrapped(|ui| ui.label(line_text));
                     }
                 });
+                // Show continue or choices
+                let max_dialog_char = (char_indices.len().saturating_sub(1)) * DIALOG_SPEED;
+                dialog.character = (dialog.character + 1).min(max_dialog_char);
+                let mut next = || {
+                    ui.with_layout(Layout::bottom_up(Align::Min), |ui| ui.button(">").clicked())
+                        .inner
+                };
+                if dialog.character < max_dialog_char {
+                    // Revealing the text
+                    if next() {
+                        dialog.character = max_dialog_char;
+                    }
+                } else if node.children.is_empty() {
+                    // No choices
+                    if line_text.is_empty() || next() {
+                        if dialog.line < node.lines.len() - 1 {
+                            dialog.line += 1;
+                            dialog.character = 0;
+                        } else {
+                            self.ui_state.dialog = None;
+                        }
+                    }
+                } else {
+                    // Choices
+                    ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+                        for (name, fragments) in &node.children {
+                            if ui
+                                .button(self.world.format_dialog_fragments(fragments))
+                                .clicked()
+                            {
+                                dialog.node = name.clone();
+                                dialog.line = 0;
+                                dialog.character = 0;
+                            }
+                        }
+                    });
+                }
             }
-        });
+            Line::Command(command) => {
+                let progression = &mut self.world.player.progression;
+                match command {
+                    DialogCommand::Speaker(speaker) => dialog.speaker = speaker.clone(),
+                    DialogCommand::RevealWord(word) => {
+                        progression.known_words.insert(*word);
+                    }
+                    DialogCommand::RevealAllWords => progression.known_words.extend(all::<Word>()),
+                    DialogCommand::RevealManaBar => progression.mana_bar = true,
+                    DialogCommand::RevealField(kind) => {
+                        progression.known_fields.insert(*kind);
+                    }
+                }
+                if dialog.line < node.lines.len() - 1 {
+                    dialog.line += 1;
+                } else {
+                    self.ui_state.dialog = None;
+                }
+            }
+        }
     }
 }
 
 impl World {
-    fn format_dialog_fragments(&mut self, fragments: &[DialogFragment]) -> String {
+    fn format_dialog_fragments(&self, fragments: &[DialogFragment]) -> String {
         let mut formatted = String::new();
         for frag in fragments {
             match frag {
-                DialogFragment::String(s) => {
-                    formatted.push_str(s);
-                }
-                DialogFragment::Command(command) => match command {
-                    DialogCommand::RevealWord(word) => {
-                        self.player.progression.known_words.insert(*word);
-                    }
-                    DialogCommand::RevealAllWords => {
-                        self.player.progression.known_words.extend(all::<Word>())
-                    }
-                    DialogCommand::RevealManaBar => self.player.progression.mana_bar = true,
-                    DialogCommand::RevealField(kind) => {
-                        self.player.progression.known_fields.insert(*kind);
-                    }
-                },
+                DialogFragment::String(s) => formatted.push_str(s),
+                DialogFragment::Variable(_var) => todo!(),
             }
         }
         formatted

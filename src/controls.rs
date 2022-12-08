@@ -2,8 +2,6 @@ use std::{fmt, hash::Hash};
 
 use eframe::{egui::*, epaint::util::hash};
 
-use crate::game::ANIMATION_TIME;
-
 pub fn fading<T>(
     ui: &mut Ui,
     id_source: impl Hash + fmt::Debug,
@@ -12,7 +10,7 @@ pub fn fading<T>(
 ) -> T {
     ui.scope(|ui| {
         let id = ui.make_persistent_id(id_source);
-        let visibility = ui.ctx().animate_bool_with_time(id, show, ANIMATION_TIME);
+        let visibility = ui.ctx().animate_bool(id, show);
         apply_color_fading(ui.visuals_mut(), visibility);
         contents(ui)
     })
@@ -79,9 +77,7 @@ impl Widget for FadeButton {
     fn ui(self, ui: &mut Ui) -> Response {
         let resp = ui.scope(|ui| {
             let id = ui.make_persistent_id(self.id);
-            let visibility = ui
-                .ctx()
-                .animate_bool_with_time(id, self.show, ANIMATION_TIME);
+            let visibility = ui.ctx().animate_bool(id, self.show);
             if !self.show {
                 return ui.label("");
             }

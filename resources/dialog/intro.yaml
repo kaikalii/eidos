@@ -1,12 +1,15 @@
 start:
   lines:
+    - speaker: Dan
     - Hello there! How are you? I am doing very well, thank you.
   children:
     n1: Click me!
 n1:
   lines:
-    - '(reveal_word: Te)'
+    - reveal_word: Te
     - The next node
-    - '(reveal_word: Sa)'
+    - reveal_word: Sa
     - Another node
-    - '(reveal_mana_bar)'
+    - reveal_mana_bar
+    - Here comes density!
+    - reveal_field: Density
