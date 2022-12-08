@@ -7,7 +7,7 @@ version = '0.1.0'
 anyhow = '1'
 chumsky = '0.8.0'
 derive_more = '0.99.17'
-eframe = '0.19.0'
+eframe = '0.20.0'
 enum-iterator = '1'
 indexmap.features = ['serde']
 indexmap.version = '1'
@@ -25,7 +25,7 @@ serde.version = '1'
 serde_yaml = '0.8.3'
 
 [features]
-default = ['profile']
+# default = ['profile']
 profile = ['puffin_egui']
 
 [profile.dev.package."*"]

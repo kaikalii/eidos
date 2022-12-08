@@ -7,7 +7,7 @@ use std::{
 
 use eframe::{
     egui::{plot::*, *},
-    epaint::{color::Hsva, util::hash},
+    epaint::{util::hash, Hsva},
 };
 use itertools::Itertools;
 use puffin::profile_scope;

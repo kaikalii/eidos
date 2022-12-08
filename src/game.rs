@@ -5,7 +5,7 @@ use std::{
 
 use eframe::{
     egui::{style::Margin, *},
-    epaint::{ahash::HashMap, color::Hsva},
+    epaint::{ahash::HashMap, Hsva},
 };
 use enum_iterator::{all, Sequence};
 use itertools::Itertools;
@@ -47,7 +47,6 @@ impl Default for Game {
 struct UiState {
     fields_visible: HashMap<GenericFieldKind, bool>,
     dialog: Option<DialogState>,
-    last_ppp: f32,
     last_stack_len: usize,
 }
 
@@ -62,7 +61,6 @@ impl Default for UiState {
             .into_iter()
             .collect(),
             dialog: None,
-            last_ppp: 2.0,
             last_stack_len: 0,
         }
     }
@@ -78,12 +76,12 @@ impl eframe::App for Game {
         puffin::GlobalProfiler::lock().new_frame();
 
         // Resize
-        let input = ctx.input();
-        let screen_size = input.screen_rect.size();
-        let window_size = screen_size * self.ui_state.last_ppp;
-        self.ui_state.last_ppp = input.pixels_per_point;
-        drop(input);
-        ctx.set_pixels_per_point(((window_size.x * window_size.y).sqrt() / 701.0).max(1.2));
+        let screen_size = ctx.input().screen_rect.size();
+        let window_size = screen_size * ctx.pixels_per_point();
+        let target_ppp = ((window_size.x * window_size.y).sqrt() / 701.0).clamp(1.2, 3.0);
+        if (target_ppp - ctx.pixels_per_point()).abs() > 0.001 {
+            ctx.set_pixels_per_point(target_ppp);
+        }
 
         // Show ui
         self.ui(ctx);
@@ -122,12 +120,13 @@ impl Game {
         panel_color =
             Color32::from_rgba_unmultiplied(panel_color.r(), panel_color.g(), panel_color.b(), 128);
         TopBottomPanel::bottom("words")
+            .show_separator_line(false)
+            .min_height(100.0)
             .frame(Frame {
                 inner_margin: Margin::symmetric(50.0, 20.0),
                 fill: panel_color,
                 ..Default::default()
             })
-            .min_height(100.0)
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
                     self.words_ui(ui, &stack);
@@ -138,6 +137,7 @@ impl Game {
                 });
             });
         TopBottomPanel::bottom("stack")
+            .show_separator_line(false)
             .frame(Frame {
                 inner_margin: Margin {
                     left: 20.0,
