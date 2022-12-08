@@ -136,9 +136,13 @@ impl OffsetShape {
 #[derive(Clone)]
 pub enum GraphicalShape {
     Circle(f32),
+    #[allow(dead_code)]
     Box(Vec2),
     HalfSpace(Vec2),
-    Capsule { half_height: f32, radius: f32 },
+    Capsule {
+        half_height: f32,
+        radius: f32,
+    },
 }
 
 impl GraphicalShape {

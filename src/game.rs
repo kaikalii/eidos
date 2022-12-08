@@ -20,6 +20,7 @@ use crate::{
     word::SpellCommand,
     word::*,
     world::World,
+    GameState,
 };
 
 pub const TICK_RATE: f32 = 1.0 / 60.0;
@@ -66,33 +67,11 @@ impl Default for UiState {
     }
 }
 
-impl eframe::App for Game {
-    fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        // Profiler
-        #[cfg(all(feature = "profile", not(debug_assertions)))]
-        Window::new("Profiler").collapsible(true).show(ctx, |ui| {
-            puffin_egui::profiler_ui(ui);
-        });
-        puffin::GlobalProfiler::lock().new_frame();
-
-        // Resize
-        let screen_size = ctx.input().screen_rect.size();
-        let window_size = screen_size * ctx.pixels_per_point();
-        let target_ppp = ((window_size.x * window_size.y).sqrt() / 701.0).clamp(1.2, 3.0);
-        if (target_ppp - ctx.pixels_per_point()).abs() > 0.001 {
-            ctx.set_pixels_per_point(target_ppp);
-        }
-
-        // Show ui
-        self.ui(ctx);
-    }
-}
-
 const BIG_PLOT_SIZE: f32 = 200.0;
 const SMALL_PLOT_SIZE: f32 = 100.0;
 
 impl Game {
-    fn ui(&mut self, ctx: &Context) {
+    pub fn show(&mut self, ctx: &Context) -> Result<(), GameState> {
         puffin::profile_function!();
         // Calculate fields
         let mut stack = Stack::default();
@@ -157,7 +136,7 @@ impl Game {
             self.ticker -= TICK_RATE;
         }
 
-        ctx.request_repaint();
+        Ok(())
     }
     fn top_ui(&mut self, ui: &mut Ui) {
         // Fps

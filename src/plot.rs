@@ -66,7 +66,7 @@ pub struct MapPlot<'w> {
 const Z_BUCKETS: usize = if cfg!(debug_assertions) { 31 } else { 51 };
 const ALPHA_BUCKETS: usize = if cfg!(debug_assertions) { 10 } else { 20 };
 
-fn time() -> f64 {
+pub fn time() -> f64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()

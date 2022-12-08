@@ -81,9 +81,6 @@ impl Stack {
             words: words.into_words(),
         })
     }
-    pub fn top(&self) -> Option<&StackItem> {
-        self.stack.last()
-    }
     pub fn call(&mut self, world: &mut World, word: Word) -> Result<(), EidosError> {
         puffin::profile_function!();
         let function = word.function();

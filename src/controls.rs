@@ -1,21 +1,6 @@
-use std::{fmt, hash::Hash};
+use std::hash::Hash;
 
 use eframe::{egui::*, epaint::util::hash};
-
-pub fn fading<T>(
-    ui: &mut Ui,
-    id_source: impl Hash + fmt::Debug,
-    show: bool,
-    contents: impl FnOnce(&mut Ui) -> T,
-) -> T {
-    ui.scope(|ui| {
-        let id = ui.make_persistent_id(id_source);
-        let visibility = ui.ctx().animate_bool(id, show);
-        apply_color_fading(ui.visuals_mut(), visibility);
-        contents(ui)
-    })
-    .inner
-}
 
 pub fn apply_color_fading(visuals: &mut Visuals, visibility: f32) {
     let panel_color = visuals.window_fill();
