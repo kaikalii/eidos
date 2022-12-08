@@ -17,7 +17,7 @@ pub fn fading<T>(
     .inner
 }
 
-fn apply_color_fading(visuals: &mut Visuals, visibility: f32) {
+pub fn apply_color_fading(visuals: &mut Visuals, visibility: f32) {
     let panel_color = visuals.window_fill();
     fade_color32(&mut visuals.extreme_bg_color, panel_color, visibility);
     fade_color32(&mut visuals.faint_bg_color, panel_color, visibility);

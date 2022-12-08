@@ -11,7 +11,7 @@ use enum_iterator::{all, Sequence};
 use itertools::Itertools;
 
 use crate::{
-    controls::FadeButton,
+    controls::{apply_color_fading, FadeButton},
     dialog::{DialogCommand, DialogFragment, Line, DIALOG_SCENES},
     field::*,
     player::MAX_MANA_EXHAUSTION,
@@ -301,10 +301,16 @@ impl Game {
         Grid::new("words").show(ui, |ui| {
             // Commands
             ui.horizontal_wrapped(|ui| {
-                for command in all::<SpellCommand>() {
-                    if ui.button(command.to_string()).clicked() {
-                        match command {
-                            SpellCommand::Clear => self.world.player.words.clear(),
+                let show_commands = !self.world.player.progression.known_words.is_empty();
+                let id = ui.make_persistent_id("commands");
+                let visibility = ui.ctx().animate_bool(id, show_commands);
+                if show_commands {
+                    apply_color_fading(ui.visuals_mut(), visibility);
+                    for command in all::<SpellCommand>() {
+                        if ui.button(command.to_string()).clicked() {
+                            match command {
+                                SpellCommand::Clear => self.world.player.words.clear(),
+                            }
                         }
                     }
                 }

@@ -1,21 +1,10 @@
 start:
   lines:
-    - reveal_all_words
-    - speaker: Dan
-    - Hello there! How are you? I am doing very well, thank you.
-  children:
-    end: end
-n1:
-  lines:
-    - reveal_word: Te
-    - The next node
-    - reveal_word: Sa
-    - Goodbye
-    - speaker: ~
-    - reveal_mana_bar
-    - Here comes density!
-    - reveal_field: Density
+    - Hi
+  children: {}
 end:
   lines:
+    - reveal_all_words
     - reveal_mana_bar
     - reveal_field: Density
+    - reveal_field: Elevation
