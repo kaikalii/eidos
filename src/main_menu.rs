@@ -4,7 +4,7 @@ use eframe::egui::{plot::*, *};
 use once_cell::sync::Lazy;
 use rand::prelude::*;
 
-use crate::{game::Game, plot::time, GameState};
+use crate::{new_game::NewGame, plot::time, GameState};
 
 const LOGO_ASCII: &str = "
    ▄████████   ▄█   ████████▄    ▄██████▄      ▄████████
@@ -62,7 +62,7 @@ fn main_menu_ui(ui: &mut Ui) -> Result<(), GameState> {
     ui.with_layout(Layout::top_down(Align::Center), |ui| {
         ui.spacing_mut().item_spacing.y = 20.0;
         if ui.button(RichText::new("New Game").heading()).clicked() {
-            res = Err(GameState::Game(Game::default().into()));
+            res = Err(GameState::NewGame(NewGame::default()));
         }
         if ui.button(RichText::new("Quit").heading()).clicked() {
             res = Err(GameState::Quit);

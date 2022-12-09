@@ -150,7 +150,18 @@ pub enum DialogFragment {
 }
 
 #[derive(Debug, Deserialize)]
-pub enum DialogVariable {}
+#[serde(untagged)]
+pub enum DialogVariable {
+    PlayerPronoun(Pronoun),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Pronoun {
+    Sub,
+    Obj,
+    Pos,
+}
 
 impl TryFrom<DialogScene<SerializedLine>> for DialogScene<Vec<DialogFragment>> {
     type Error = anyhow::Error;

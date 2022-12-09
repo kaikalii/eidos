@@ -8,6 +8,7 @@ mod function;
 mod game;
 mod main_menu;
 mod math;
+mod new_game;
 mod physics;
 mod player;
 mod plot;
@@ -19,6 +20,8 @@ use dialog::DIALOG_SCENES;
 use eframe::egui::*;
 use game::Game;
 use main_menu::main_menu;
+use new_game::NewGame;
+use player::{Gender, Player};
 
 fn main() {
     once_cell::sync::Lazy::force(&DIALOG_SCENES);
@@ -32,7 +35,7 @@ fn main() {
         Box::new(|cc| {
             cc.egui_ctx.set_pixels_per_point(1.5);
             Box::new(if cfg!(debug_assertions) {
-                GameState::Game(Game::default().into())
+                GameState::Game(Game::new(Player::new("Kai".into(), Gender::Male)).into())
             } else {
                 GameState::MainMenu
             })
@@ -42,6 +45,7 @@ fn main() {
 
 pub enum GameState {
     MainMenu,
+    NewGame(NewGame),
     Game(Box<Game>),
     Quit,
 }
@@ -58,13 +62,20 @@ impl eframe::App for GameState {
         // Resize
         let screen_size = ctx.input().screen_rect.size();
         let window_size = screen_size * ctx.pixels_per_point();
-        let target_ppp = ((window_size.x * window_size.y).sqrt() / 701.0).clamp(1.2, 3.0);
+        let ppp_scale = match self {
+            GameState::NewGame(_) => 2.0,
+            _ => 1.0,
+        };
+        let ppp_divider = 700.0 / ppp_scale;
+        let target_ppp = ((window_size.x * window_size.y).sqrt() / ppp_divider)
+            .clamp(1.2 * ppp_scale, 3.0 * ppp_scale);
         if (target_ppp - ctx.pixels_per_point()).abs() > 0.001 {
             ctx.set_pixels_per_point(target_ppp);
         }
 
         let new_state = match self {
             GameState::MainMenu => main_menu(ctx),
+            GameState::NewGame(new_game) => new_game.show(ctx),
             GameState::Game(game) => game.show(ctx),
             GameState::Quit => {
                 frame.close();

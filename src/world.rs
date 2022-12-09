@@ -68,12 +68,12 @@ impl Controls {
     }
 }
 
-impl Default for World {
-    fn default() -> Self {
+impl World {
+    pub fn new(player: Player) -> Self {
         // Init world
         let mut world = World {
             player_pos: Pos2::ZERO,
-            player: Player::default(),
+            player,
             physics: PhysicsContext::default(),
             objects: HashMap::new(),
             outputs: OutputFields::default(),
@@ -110,6 +110,7 @@ impl Default for World {
         world
     }
 }
+
 pub struct Object {
     pub pos: Pos2,
     pub rot: f32,

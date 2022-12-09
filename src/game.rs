@@ -12,9 +12,9 @@ use itertools::Itertools;
 
 use crate::{
     controls::{apply_color_fading, FadeButton},
-    dialog::{DialogCommand, DialogFragment, Line, DIALOG_SCENES},
+    dialog::{DialogCommand, DialogFragment, DialogVariable, Line, Pronoun, DIALOG_SCENES},
     field::*,
-    player::MAX_MANA_EXHAUSTION,
+    player::{Gender, Player, MAX_MANA_EXHAUSTION},
     plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
     stack::Stack,
     word::SpellCommand,
@@ -32,10 +32,10 @@ pub struct Game {
     ticker: f32,
 }
 
-impl Default for Game {
-    fn default() -> Self {
+impl Game {
+    pub fn new(player: Player) -> Self {
         let mut game = Game {
-            world: World::default(),
+            world: World::new(player),
             ui_state: UiState::default(),
             last_time: Instant::now(),
             ticker: 0.0,
@@ -639,10 +639,35 @@ impl Game {
 impl World {
     fn format_dialog_fragments(&self, fragments: &[DialogFragment]) -> String {
         let mut formatted = String::new();
+        let mut capitalize = true;
         for frag in fragments {
-            match frag {
-                DialogFragment::String(s) => formatted.push_str(s),
-                DialogFragment::Variable(_var) => todo!(),
+            let s = match frag {
+                DialogFragment::String(s) => s,
+                DialogFragment::Variable(var) => match var {
+                    DialogVariable::PlayerPronoun(pronoun) => match (pronoun, self.player.gender) {
+                        (Pronoun::Sub, Gender::Male) => "he",
+                        (Pronoun::Sub, Gender::Female) => "she",
+                        (Pronoun::Sub, Gender::Enby) => "they",
+                        (Pronoun::Obj, Gender::Male) => "him",
+                        (Pronoun::Obj, Gender::Female) => "her",
+                        (Pronoun::Obj, Gender::Enby) => "them",
+                        (Pronoun::Pos, Gender::Male) => "his",
+                        (Pronoun::Pos, Gender::Female) => "her",
+                        (Pronoun::Pos, Gender::Enby) => "their",
+                    },
+                },
+            };
+            if capitalize {
+                formatted = s
+                    .chars()
+                    .next()
+                    .into_iter()
+                    .flat_map(|c| c.to_uppercase())
+                    .chain(s.chars().skip(1))
+                    .collect();
+                capitalize = false;
+            } else {
+                formatted = s.into();
             }
         }
         formatted

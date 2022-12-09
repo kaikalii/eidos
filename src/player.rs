@@ -14,19 +14,15 @@ pub struct Player {
     pub mana_exhaustion: f32,
     pub words: Vec<Word>,
     pub progression: Progression,
+    pub name: String,
+    pub gender: Gender,
 }
 
-impl Default for Player {
-    fn default() -> Self {
-        Player {
-            body_handle: RigidBodyHandle::default(),
-            mana: 40.0,
-            max_mana: 40.0,
-            mana_exhaustion: 0.0,
-            words: Vec::new(),
-            progression: Progression::default(),
-        }
-    }
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Gender {
+    Male,
+    Female,
+    Enby,
 }
 
 pub struct Progression {
@@ -47,6 +43,18 @@ impl Default for Progression {
 }
 
 impl Player {
+    pub fn new(name: String, gender: Gender) -> Self {
+        Player {
+            body_handle: RigidBodyHandle::default(),
+            mana: 40.0,
+            max_mana: 40.0,
+            mana_exhaustion: 0.0,
+            words: Vec::new(),
+            progression: Progression::default(),
+            name,
+            gender,
+        }
+    }
     pub fn field_scale(&self) -> f32 {
         if self.mana_exhaustion > 0.0 {
             0.0
