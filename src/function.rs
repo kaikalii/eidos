@@ -16,7 +16,7 @@ pub enum Function {
     Control(ControlKind),
     #[from]
     Nullary(Nullary),
-    #[from(types(MathBinOp, HomoBinOp))]
+    #[from(types(HeteroBinOp, HomoBinOp))]
     Bin(GenericBinOp),
     #[from(types(MathUnOp))]
     Un(GenericUnOp),
@@ -199,7 +199,7 @@ pub trait BinOperator<A, B> {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From, Sequence)]
 pub enum GenericBinOp {
-    Math(MathBinOp),
+    Math(HeteroBinOp),
     Homo(HomoBinOp),
     #[display(fmt = "🔀Index")]
     Index,
@@ -207,16 +207,12 @@ pub enum GenericBinOp {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum BinOp<T> {
-    Math(MathBinOp),
+    Hetero(HeteroBinOp),
     Typed(T),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
-pub enum MathBinOp {
-    #[display(fmt = "+")]
-    Add,
-    #[display(fmt = "-")]
-    Sub,
+pub enum HeteroBinOp {
     #[display(fmt = "×")]
     Mul,
     #[display(fmt = "÷")]
@@ -225,6 +221,10 @@ pub enum MathBinOp {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum HomoBinOp {
+    #[display(fmt = "+")]
+    Add,
+    #[display(fmt = "-")]
+    Sub,
     #[display(fmt = "⬇Min")]
     Min,
     #[display(fmt = "⬆Max")]
@@ -236,13 +236,13 @@ pub struct NoOp<T>(PhantomData<T>);
 
 impl<A, B, T> BinOperator<A, B> for BinOp<T>
 where
-    MathBinOp: BinOperator<A, B, Output = T::Output>,
+    HeteroBinOp: BinOperator<A, B, Output = T::Output>,
     T: BinOperator<A, B>,
 {
     type Output = T::Output;
     fn operate(&self, a: A, b: B) -> Self::Output {
         match self {
-            BinOp::Math(op) => op.operate(a, b),
+            BinOp::Hetero(op) => op.operate(a, b),
             BinOp::Typed(op) => op.operate(a, b),
         }
     }
@@ -255,35 +255,35 @@ impl<A, B, T> BinOperator<A, B> for NoOp<T> {
     }
 }
 
-impl BinOperator<f32, f32> for MathBinOp {
+impl BinOperator<f32, f32> for HeteroBinOp {
     type Output = f32;
     fn operate(&self, a: f32, b: f32) -> Self::Output {
         self.homo_operate(a, b)
     }
 }
 
-impl BinOperator<Vec2, Vec2> for MathBinOp {
+impl BinOperator<Vec2, Vec2> for HeteroBinOp {
     type Output = Vec2;
     fn operate(&self, a: Vec2, b: Vec2) -> Self::Output {
         self.homo_operate(a, b)
     }
 }
 
-impl BinOperator<f32, Vec2> for MathBinOp {
+impl BinOperator<f32, Vec2> for HeteroBinOp {
     type Output = Vec2;
     fn operate(&self, a: f32, b: Vec2) -> Self::Output {
         self.operate(Vec2::splat(a), b)
     }
 }
 
-impl BinOperator<Vec2, f32> for MathBinOp {
+impl BinOperator<Vec2, f32> for HeteroBinOp {
     type Output = Vec2;
     fn operate(&self, a: Vec2, b: f32) -> Self::Output {
         self.operate(a, Vec2::splat(b))
     }
 }
 
-impl MathBinOp {
+impl HeteroBinOp {
     fn homo_operate<T>(&self, a: T, b: T) -> T
     where
         T: Add<Output = T>,
@@ -292,10 +292,8 @@ impl MathBinOp {
         T: Div<Output = T>,
     {
         match self {
-            MathBinOp::Add => a + b,
-            MathBinOp::Sub => a - b,
-            MathBinOp::Mul => a * b,
-            MathBinOp::Div => a / b,
+            HeteroBinOp::Mul => a * b,
+            HeteroBinOp::Div => a / b,
         }
     }
 }
@@ -304,6 +302,8 @@ impl BinOperator<f32, f32> for HomoBinOp {
     type Output = f32;
     fn operate(&self, a: f32, b: f32) -> Self::Output {
         match self {
+            HomoBinOp::Add => a + b,
+            HomoBinOp::Sub => a - b,
             HomoBinOp::Min => a.min(b),
             HomoBinOp::Max => a.max(b),
         }
@@ -314,6 +314,8 @@ impl BinOperator<Vec2, Vec2> for HomoBinOp {
     type Output = Vec2;
     fn operate(&self, a: Vec2, b: Vec2) -> Vec2 {
         match self {
+            HomoBinOp::Add => a + b,
+            HomoBinOp::Sub => a - b,
             HomoBinOp::Min => a.min(b),
             HomoBinOp::Max => a.max(b),
         }

@@ -195,25 +195,25 @@ impl Stack {
                         (GenericField::Scalar(a), GenericField::Scalar(b)) => {
                             self.push(
                                 words,
-                                ScalarField::Bin(BinOp::Math(op), a.into(), b.into()).reduce(),
+                                ScalarField::Bin(BinOp::Hetero(op), a.into(), b.into()).reduce(),
                             );
                         }
                         (GenericField::Scalar(a), GenericField::Vector(b)) => {
                             self.push(
                                 words,
-                                VectorField::BinSV(BinOp::Math(op), a, b.into()).reduce(),
+                                VectorField::BinSV(BinOp::Hetero(op), a, b.into()).reduce(),
                             );
                         }
                         (GenericField::Vector(a), GenericField::Scalar(b)) => {
                             self.push(
                                 words,
-                                VectorField::BinVS(BinOp::Math(op), a.into(), b).reduce(),
+                                VectorField::BinVS(BinOp::Hetero(op), a.into(), b).reduce(),
                             );
                         }
                         (GenericField::Vector(a), GenericField::Vector(b)) => {
                             self.push(
                                 words,
-                                VectorField::BinVV(BinOp::Math(op), a.into(), b.into()).reduce(),
+                                VectorField::BinVV(BinOp::Hetero(op), a.into(), b.into()).reduce(),
                             );
                         }
                     },
