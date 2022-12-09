@@ -8,14 +8,13 @@ use eframe::{
     epaint::{ahash::HashMap, Hsva},
 };
 use enum_iterator::{all, Sequence};
-use itertools::Itertools;
 
 use crate::{
     controls::{apply_color_fading, FadeButton},
-    dialog::{DialogCommand, DialogFragment, DialogVariable, Line, Pronoun, DIALOG_SCENES},
+    dialog::DialogState,
     field::*,
-    player::{Gender, Player, MAX_MANA_EXHAUSTION},
-    plot::{default_scalar_color, default_vector_color, FieldPlot, MapPlot},
+    player::{Player, MAX_MANA_EXHAUSTION},
+    plot::*,
     stack::Stack,
     word::SpellCommand,
     word::*,
@@ -27,7 +26,7 @@ pub const TICK_RATE: f32 = 1.0 / 60.0;
 
 pub struct Game {
     pub world: World,
-    ui_state: UiState,
+    pub ui_state: UiState,
     last_time: Instant,
     ticker: f32,
 }
@@ -45,9 +44,9 @@ impl Game {
     }
 }
 
-struct UiState {
+pub struct UiState {
     fields_visible: HashMap<GenericFieldKind, bool>,
-    dialog: Option<DialogState>,
+    pub dialog: Option<DialogState>,
     last_stack_len: usize,
     paused: bool,
 }
@@ -549,179 +548,5 @@ impl FieldPlot for GenericVectorFieldKind {
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
         default_vector_color(t)
-    }
-}
-
-struct DialogState {
-    scene: String,
-    node: String,
-    line: usize,
-    character: usize,
-    speaker: Option<String>,
-}
-
-impl Game {
-    fn set_dialog(&mut self, scene_name: &str) {
-        let scene = &DIALOG_SCENES[scene_name];
-        let dialog = DialogState {
-            scene: scene_name.into(),
-            node: scene.nodes.first().unwrap().0.clone(),
-            line: 0,
-            character: 0,
-            speaker: None,
-        };
-        self.ui_state.dialog = Some(dialog);
-    }
-    fn dialog_ui(&mut self, ui: &mut Ui) {
-        if self.ui_state.dialog.is_none() {
-            return;
-        }
-        ui.group(|ui| self.dialog_ui_impl(ui));
-    }
-    fn progress_dialog(&mut self) {
-        let Some(dialog) = &mut self.ui_state.dialog else {
-            return;
-        };
-        let scene = &DIALOG_SCENES[&dialog.scene];
-        let node = &scene.nodes[&dialog.node];
-
-        if dialog.line < node.lines.len().saturating_sub(1) {
-            dialog.line += 1;
-            dialog.character = 0;
-        } else {
-            let node_index = scene.nodes.get_index_of(&dialog.node).unwrap();
-            if let Some((node_name, _)) = scene.nodes.get_index(node_index + 1) {
-                dialog.node = node_name.clone();
-                dialog.line = 0;
-                dialog.character = 0;
-            } else if node.children.is_empty() {
-                self.ui_state.dialog = None;
-            }
-        }
-    }
-    fn dialog_ui_impl(&mut self, ui: &mut Ui) {
-        // Get dialog scene data
-        let Some(dialog) = &mut self.ui_state.dialog else {
-            return;
-        };
-        let scene = &DIALOG_SCENES[&dialog.scene];
-        let node = &scene.nodes[&dialog.node];
-        if node.lines.is_empty() {
-            self.progress_dialog();
-            self.dialog_ui_impl(ui);
-            return;
-        }
-        let line = &node.lines[dialog.line];
-        match line {
-            Line::Text(fragments) => {
-                // Space the group
-                ui.allocate_at_least(vec2(ui.max_rect().width(), 0.0), Sense::hover());
-                let line_text = self.world.format_dialog_fragments(fragments);
-                let char_indices = line_text.char_indices().collect_vec();
-                const DIALOG_SPEED: usize = 2;
-                let char_index = dialog.character / DIALOG_SPEED;
-                ui.horizontal(|ui| {
-                    // Show speaker
-                    if let Some(speaker) = &dialog.speaker {
-                        ui.label(format!("{speaker}:"));
-                    }
-                    // Show line text
-                    if !line_text.is_empty() {
-                        let line_text = &line_text[..=char_indices[char_index].0];
-                        ui.horizontal_wrapped(|ui| ui.label(line_text));
-                    }
-                });
-                // Show continue or choices
-                let max_dialog_char = (char_indices.len().saturating_sub(1)) * DIALOG_SPEED;
-                dialog.character = (dialog.character + 1).min(max_dialog_char);
-                let mut next = || {
-                    ui.with_layout(Layout::bottom_up(Align::Min), |ui| ui.button(">").clicked())
-                        .inner
-                };
-                if dialog.character < max_dialog_char {
-                    // Revealing the text
-                    if next() {
-                        dialog.character = max_dialog_char;
-                    }
-                } else if node.children.is_empty() {
-                    // No choices
-                    if line_text.is_empty() || next() {
-                        self.progress_dialog();
-                    }
-                } else {
-                    // Choices
-                    ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
-                        for (name, fragments) in &node.children {
-                            if ui
-                                .button(self.world.format_dialog_fragments(fragments))
-                                .clicked()
-                            {
-                                dialog.node = name.clone();
-                                dialog.line = 0;
-                                dialog.character = 0;
-                            }
-                        }
-                    });
-                }
-            }
-            Line::Command(command) => {
-                let progression = &mut self.world.player.progression;
-                match command {
-                    DialogCommand::Speaker(speaker) => dialog.speaker = speaker.clone(),
-                    DialogCommand::RevealWord(word) => {
-                        progression.known_words.insert(*word);
-                    }
-                    DialogCommand::RevealAllWords => progression.known_words.extend(all::<Word>()),
-                    DialogCommand::RevealManaBar => progression.mana_bar = true,
-                    DialogCommand::RevealField(kind) => {
-                        progression.known_fields.insert(*kind);
-                    }
-                }
-                self.progress_dialog();
-                self.dialog_ui_impl(ui);
-            }
-        }
-    }
-}
-
-impl World {
-    fn format_dialog_fragments(&self, fragments: &[DialogFragment]) -> String {
-        let mut formatted = String::new();
-        for (i, frag) in fragments.iter().enumerate() {
-            let s = match frag {
-                DialogFragment::String(s) => s,
-                DialogFragment::Variable(var) => match var {
-                    DialogVariable::PlayerPronoun(pronoun) => match (pronoun, self.player.gender) {
-                        (Pronoun::Sub, Gender::Male) => "he",
-                        (Pronoun::Obj, Gender::Male) => "him",
-                        (Pronoun::Pos, Gender::Male) => "his",
-                        (Pronoun::SubIs, Gender::Male) => "he is",
-                        (Pronoun::Subs, Gender::Male) => "he's",
-                        (Pronoun::Sub, Gender::Female) => "she",
-                        (Pronoun::Obj, Gender::Female) => "her",
-                        (Pronoun::Pos, Gender::Female) => "her",
-                        (Pronoun::SubIs, Gender::Female) => "she is",
-                        (Pronoun::Subs, Gender::Female) => "she's",
-                        (Pronoun::Sub, Gender::Enby) => "they",
-                        (Pronoun::Obj, Gender::Enby) => "them",
-                        (Pronoun::Pos, Gender::Enby) => "their",
-                        (Pronoun::SubIs, Gender::Enby) => "they are",
-                        (Pronoun::Subs, Gender::Enby) => "they're",
-                    },
-                },
-            };
-            if i == 0
-                || formatted.trim().ends_with(['.', '?', '!'])
-                || formatted.trim().ends_with(".\"")
-                || formatted.trim().ends_with("?\"")
-                || formatted.trim().ends_with("!\"")
-            {
-                formatted.extend(s.chars().next().into_iter().flat_map(|c| c.to_uppercase()));
-                formatted.extend(s.chars().skip(1));
-            } else {
-                formatted.push_str(s);
-            }
-        }
-        formatted
     }
 }
