@@ -13,7 +13,8 @@ use crate::{
     controls::{apply_color_fading, FadeButton},
     dialog::DialogState,
     field::*,
-    player::{Player, MAX_MANA_EXHAUSTION},
+    person::{PersonId, MAX_MANA_EXHAUSTION},
+    player::Player,
     plot::*,
     stack::Stack,
     word::SpellCommand,
@@ -78,10 +79,10 @@ impl Game {
         let mut res = None;
 
         // Calculate fields
-        let mut stack = Stack::default();
+        let mut stack = Stack::new(PersonId::Player);
         let mut error = None;
         // Calculate stack fields
-        for word in self.world.player.words.clone() {
+        for word in self.world.player.person.words.clone() {
             if let Err(e) = stack.call(&mut self.world, word) {
                 error = Some(e);
                 break;
@@ -194,7 +195,7 @@ impl Game {
         ui.small(format!("{} fps", (1.0 / dt).round()));
         // Mana bar
         ui.scope(|ui| {
-            let player = &self.world.player;
+            let player = &self.world.player.person;
             let (curr, max, color) = if player.can_cast() {
                 (
                     player.mana,
@@ -249,7 +250,7 @@ impl Game {
                     ui.toggle_value(enabled, kind.to_string());
                     if *enabled {
                         if ui.button("Dispel").clicked() {
-                            self.world.outputs.remove(output_kind);
+                            self.world.outputs.remove(PersonId::Player, output_kind);
                         }
                     } else {
                         ui.label("");
@@ -276,7 +277,7 @@ impl Game {
                 if self.world.outputs.contains(output_kind) {
                     let kind = GenericFieldKind::from(output_kind);
                     if self.ui_state.fields_visible[&kind] {
-                        if let Some(words) = self.world.outputs.spell(output_kind) {
+                        if let Some(words) = self.world.outputs.player_spell(output_kind) {
                             self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, 1.0, kind);
                             Self::spell_words_ui(ui, words, BIG_PLOT_SIZE);
                         } else {
@@ -335,7 +336,7 @@ impl Game {
                     for command in all::<SpellCommand>() {
                         if ui.button(command.to_string()).clicked() {
                             match command {
-                                SpellCommand::Clear => self.world.player.words.clear(),
+                                SpellCommand::Clear => self.world.player.person.words.clear(),
                             }
                         }
                     }
@@ -366,7 +367,7 @@ impl Game {
                 }
                 res
             }
-            let words = &mut self.world.player.words;
+            let words = &mut self.world.player.person.words;
             let known_words = &self.world.player.progression.known_words;
             words.extend(button::<ScalarWord>(ui, stack, known_words, false));
             ui.end_row();
@@ -388,10 +389,14 @@ impl Game {
         let outputs = &mut self.world.outputs;
         let scalar_output_controls = outputs
             .scalars
+            .entry(PersonId::Player)
+            .or_default()
             .values()
             .flat_map(|output| output.field.controls());
         let vector_output_controls = outputs
             .vectors
+            .entry(PersonId::Player)
+            .or_default()
             .values()
             .flat_map(|output| output.field.controls());
         let used_controls: BTreeSet<ControlKind> = stack_controls
@@ -453,7 +458,7 @@ impl Game {
     fn init_plot(&self, size: f32, resolution: usize, global_alpha: f32) -> MapPlot {
         MapPlot::new(
             &self.world,
-            self.world.player_pos + Vec2::Y,
+            self.world.player.person.pos + Vec2::Y,
             5.0,
             global_alpha,
         )

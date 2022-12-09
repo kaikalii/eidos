@@ -145,15 +145,16 @@ impl ScalarField {
     pub fn sample(&self, world: &World, pos: Pos2) -> f32 {
         self.sample_impl(world, pos)
             / (1.0
-                + ((pos.x - world.player_pos.x).powf(2.0) + (pos.y - world.player_pos.y).powf(2.0))
+                + ((pos.x - world.player.person.pos.x).powf(2.0)
+                    + (pos.y - world.player.person.pos.y).powf(2.0))
                     / DROP_OFF_FACTOR)
     }
     fn sample_impl(&self, world: &World, pos: Pos2) -> f32 {
         puffin::profile_function!();
         match self {
             ScalarField::Uniform(v) => *v,
-            ScalarField::X => pos.x - world.player_pos.x,
-            ScalarField::Y => pos.y - world.player_pos.y,
+            ScalarField::X => pos.x - world.player.person.pos.x,
+            ScalarField::Y => pos.y - world.player.person.pos.y,
             ScalarField::ScalarUn(op, field) => op.operate(field.sample_impl(world, pos)),
             ScalarField::VectorUn(op, field) => op.operate(field.sample_impl(world, pos)),
             ScalarField::Bin(op, a, b) => {
@@ -218,7 +219,8 @@ impl VectorField {
     pub fn sample(&self, world: &World, pos: Pos2) -> Vec2 {
         self.sample_impl(world, pos)
             / (1.0
-                + ((pos.x - world.player_pos.x).powf(2.0) + (pos.y - world.player_pos.y).powf(2.0))
+                + ((pos.x - world.player.person.pos.x).powf(2.0)
+                    + (pos.y - world.player.person.pos.y).powf(2.0))
                     / DROP_OFF_FACTOR)
     }
     pub fn sample_impl(&self, world: &World, pos: Pos2) -> Vec2 {

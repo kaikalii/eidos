@@ -180,7 +180,7 @@ impl<'w> MapPlot<'w> {
                     } else {
                         Align2::CENTER_BOTTOM
                     };
-                    let reported_pos = ppos - self.world.player_pos;
+                    let reported_pos = ppos - self.world.player.person.pos;
                     let text = format!(
                         " ({}, {}): {} ",
                         (reported_pos.x * 10.0).round() / 10.0,

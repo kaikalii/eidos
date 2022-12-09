@@ -1,3 +1,4 @@
+- Associate each output field with a person
 - Implement story
 - Rethink numbers?
 - Give words different mana costs

@@ -1,13 +1,20 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, iter::once};
 
 use eframe::egui::*;
 use rapier2d::prelude::*;
 
-use crate::{field::*, math::rotate, physics::PhysicsContext, player::Player, word::Word};
+use crate::{
+    field::*,
+    math::rotate,
+    person::{NpcId, Person, PersonId},
+    physics::PhysicsContext,
+    player::Player,
+    word::Word,
+};
 
 pub struct World {
-    pub player_pos: Pos2,
     pub player: Player,
+    pub npcs: HashMap<NpcId, Person>,
     pub objects: HashMap<RigidBodyHandle, Object>,
     pub physics: PhysicsContext,
     pub outputs: OutputFields,
@@ -16,32 +23,39 @@ pub struct World {
 
 #[derive(Default)]
 pub struct OutputFields {
-    pub scalars: HashMap<ScalarOutputFieldKind, OutputField<ScalarField>>,
-    pub vectors: HashMap<VectorOutputFieldKind, OutputField<VectorField>>,
+    pub scalars: HashMap<PersonId, HashMap<ScalarOutputFieldKind, OutputField<ScalarField>>>,
+    pub vectors: HashMap<PersonId, HashMap<VectorOutputFieldKind, OutputField<VectorField>>>,
 }
 
 impl OutputFields {
     pub fn contains(&self, kind: GenericOutputFieldKind) -> bool {
-        self.spell(kind).is_some()
-    }
-    pub fn remove(&mut self, kind: GenericOutputFieldKind) {
-        match kind {
-            GenericOutputFieldKind::Scalar(kind) => {
-                self.scalars.remove(&kind);
-            }
-            GenericOutputFieldKind::Vector(kind) => {
-                self.vectors.remove(&kind);
-            }
-        }
-    }
-    pub fn spell(&self, kind: GenericOutputFieldKind) -> Option<&[Word]> {
         match kind {
             GenericOutputFieldKind::Scalar(kind) => self
                 .scalars
-                .get(&kind)
-                .map(|output| output.words.as_slice()),
+                .values()
+                .any(|fields| fields.contains_key(&kind)),
             GenericOutputFieldKind::Vector(kind) => self
                 .vectors
+                .values()
+                .any(|fields| fields.contains_key(&kind)),
+        }
+    }
+    pub fn remove(&mut self, person_id: PersonId, kind: GenericOutputFieldKind) {
+        match kind {
+            GenericOutputFieldKind::Scalar(kind) => {
+                self.scalars.get_mut(&person_id).unwrap().remove(&kind);
+            }
+            GenericOutputFieldKind::Vector(kind) => {
+                self.vectors.get_mut(&person_id).unwrap().remove(&kind);
+            }
+        }
+    }
+    pub fn player_spell(&self, kind: GenericOutputFieldKind) -> Option<&[Word]> {
+        match kind {
+            GenericOutputFieldKind::Scalar(kind) => self.scalars[&PersonId::Player]
+                .get(&kind)
+                .map(|output| output.words.as_slice()),
+            GenericOutputFieldKind::Vector(kind) => self.vectors[&PersonId::Player]
                 .get(&kind)
                 .map(|output| output.words.as_slice()),
         }
@@ -72,8 +86,8 @@ impl World {
     pub fn new(player: Player) -> Self {
         // Init world
         let mut world = World {
-            player_pos: Pos2::ZERO,
             player,
+            npcs: HashMap::new(),
             physics: PhysicsContext::default(),
             objects: HashMap::new(),
             outputs: OutputFields::default(),
@@ -95,7 +109,7 @@ impl World {
             |c| c,
         );
         // Player
-        world.player.body_handle = world.add_object(
+        world.player.person.body_handle = world.add_object(
             vec![
                 GraphicalShape::Capsule {
                     half_height: 0.25,
@@ -172,6 +186,32 @@ impl GraphicalShape {
 }
 
 impl World {
+    #[track_caller]
+    pub fn person(&self, person_id: PersonId) -> &Person {
+        match person_id {
+            PersonId::Player => &self.player.person,
+            PersonId::Npc(npc_id) => {
+                if let Some(person) = self.npcs.get(&npc_id) {
+                    person
+                } else {
+                    panic!("No npc with id {npc_id:?}");
+                }
+            }
+        }
+    }
+    #[track_caller]
+    pub fn person_mut(&mut self, person_id: PersonId) -> &mut Person {
+        match person_id {
+            PersonId::Player => &mut self.player.person,
+            PersonId::Npc(npc_id) => {
+                if let Some(person) = self.npcs.get_mut(&npc_id) {
+                    person
+                } else {
+                    panic!("No npc with id {npc_id:?}");
+                }
+            }
+        }
+    }
     pub fn find_object_filtered_at(
         &self,
         p: Pos2,
@@ -241,22 +281,37 @@ impl World {
         puffin::profile_function!(kind.to_string());
         self.outputs
             .vectors
-            .get(&kind)
-            .map(|output| output.field.sample(self, pos))
-            .unwrap_or_default()
-            * self.player.field_scale()
+            .iter()
+            .fold(Vec2::ZERO, |acc, (person_id, fields)| {
+                acc + fields
+                    .get(&kind)
+                    .map(|output| output.field.sample(self, pos))
+                    .unwrap_or_default()
+                    * self.person(*person_id).field_scale()
+            })
+    }
+    pub fn people(&self) -> impl Iterator<Item = &Person> {
+        self.person_ids_iter().map(|id| self.person(id))
+    }
+    pub fn person_ids_iter(&self) -> impl Iterator<Item = PersonId> + '_ {
+        once(PersonId::Player).chain(self.npcs.keys().copied().map(PersonId::Npc))
+    }
+    pub fn person_ids(&self) -> Vec<PersonId> {
+        self.person_ids_iter().collect()
     }
     pub fn update(&mut self) {
         // Run physics
         let work_done = self.run_physics();
         // Update mana
-        self.player.do_work(work_done);
-        if !self.player.can_cast() {
-            self.outputs.scalars.clear();
-            self.outputs.vectors.clear();
-        }
-        if self.outputs.scalars.is_empty() && self.outputs.vectors.is_empty() {
-            self.player.regen_mana();
+        for id in self.person_ids() {
+            self.person_mut(id).do_work(work_done);
+            if !self.person(id).can_cast() {
+                self.outputs.scalars.entry(id).or_default().clear();
+                self.outputs.vectors.entry(id).or_default().clear();
+            }
+            if self.outputs.scalars.is_empty() && self.outputs.vectors.is_empty() {
+                self.person_mut(id).regen_mana();
+            }
         }
     }
 }

@@ -9,6 +9,7 @@ mod game;
 mod main_menu;
 mod math;
 mod new_game;
+mod person;
 mod physics;
 mod player;
 mod plot;

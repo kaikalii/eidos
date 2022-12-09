@@ -80,7 +80,12 @@ impl World {
             let body = &mut self.physics.bodies[handle];
             body.reset_forces(true);
             body.add_force(vector.convert(), true);
-            if handle == self.player.body_handle {
+            if self.player.person.body_handle == handle
+                || self
+                    .npcs
+                    .values()
+                    .any(|person| person.body_handle == handle)
+            {
                 body.reset_torques(true);
                 let angle = modulus(body.rotation().angle() + PI, TAU) - PI;
                 let torque = -(angle / PI) * 0.05;
@@ -109,7 +114,9 @@ impl World {
             }
         }
         // Set player pos
-        self.player_pos = self.objects[&self.player.body_handle].pos;
+        for id in self.person_ids() {
+            self.person_mut(id).pos = self.objects[&self.person(id).body_handle].pos;
+        }
         total_work
     }
 }

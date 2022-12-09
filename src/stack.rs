@@ -4,13 +4,23 @@ use crate::{
     error::EidosError,
     field::*,
     function::*,
+    person::PersonId,
     word::Word,
     world::{OutputField, World},
 };
 
-#[derive(Default)]
 pub struct Stack {
+    person_id: PersonId,
     stack: Vec<StackItem>,
+}
+
+impl Stack {
+    pub fn new(person_id: PersonId) -> Self {
+        Stack {
+            person_id,
+            stack: Vec::new(),
+        }
+    }
 }
 
 pub struct StackItem {
@@ -107,11 +117,13 @@ impl Stack {
                         world
                             .outputs
                             .vectors
+                            .entry(self.person_id)
+                            .or_default()
                             .insert(kind, OutputField { field, words });
                     }
                     _ => unreachable!(),
                 }
-                world.player.words.clear();
+                world.person_mut(self.person_id).words.clear();
             }
             Function::Control(kind) => self.push(word, ScalarField::Control(kind)),
             Function::Nullary(nullary) => self.push(word, nullary.field()),
