@@ -49,6 +49,7 @@ struct UiState {
     fields_visible: HashMap<GenericFieldKind, bool>,
     dialog: Option<DialogState>,
     last_stack_len: usize,
+    paused: bool,
 }
 
 impl Default for UiState {
@@ -63,6 +64,7 @@ impl Default for UiState {
             .collect(),
             dialog: None,
             last_stack_len: 0,
+            paused: false,
         }
     }
 }
@@ -71,8 +73,11 @@ const BIG_PLOT_SIZE: f32 = 200.0;
 const SMALL_PLOT_SIZE: f32 = 100.0;
 
 impl Game {
-    pub fn show(&mut self, ctx: &Context) -> Result<(), GameState> {
+    pub fn show(&mut self, ctx: &Context) -> Option<GameState> {
         puffin::profile_function!();
+
+        let mut res = None;
+
         // Calculate fields
         let mut stack = Stack::default();
         let mut error = None;
@@ -84,10 +89,12 @@ impl Game {
             }
         }
 
+        // Set animation time
         let mut style = (*ctx.style()).clone();
         style.animation_time = 2.0;
-        ctx.set_style(style);
+        ctx.set_style(style.clone());
 
+        // Show central UI
         CentralPanel::default().show(ctx, |ui| {
             self.top_ui(ui);
             self.fields_ui(ui);
@@ -95,6 +102,45 @@ impl Game {
                 ui.label(RichText::new(e.to_string()).color(Color32::RED));
             }
         });
+
+        // Show pause menu
+        if ctx.input().key_pressed(Key::Escape) {
+            self.ui_state.paused = !self.ui_state.paused;
+        }
+
+        // Set animation time
+        style.animation_time = 0.5;
+        ctx.set_style(style.clone());
+
+        SidePanel::right("pause")
+            .resizable(false)
+            .min_width(200.0)
+            .frame(Frame {
+                inner_margin: Margin::same(20.0),
+                fill: style.visuals.faint_bg_color,
+                ..Frame::side_top_panel(&style)
+            })
+            .show_animated(ctx, self.ui_state.paused, |ui| {
+                ui.spacing_mut().item_spacing.y = 10.0;
+                if ui
+                    .selectable_label(false, RichText::new("Resume").heading())
+                    .clicked()
+                {
+                    self.ui_state.paused = false;
+                }
+                if ui
+                    .selectable_label(false, RichText::new("Main Menu").heading())
+                    .clicked()
+                {
+                    res = Some(GameState::MainMenu);
+                }
+            });
+
+        // Set animation time
+        style.animation_time = 2.0;
+        ctx.set_style(style);
+
+        // Show bottom UIs
         let mut panel_color = ctx.style().visuals.window_fill();
         panel_color =
             Color32::from_rgba_unmultiplied(panel_color.r(), panel_color.g(), panel_color.b(), 128);
@@ -136,13 +182,15 @@ impl Game {
             self.ticker -= TICK_RATE;
         }
 
-        Ok(())
+        res
     }
     fn top_ui(&mut self, ui: &mut Ui) {
         // Fps
         let now = Instant::now();
         let dt = (now - self.last_time).as_secs_f32();
-        self.ticker += dt;
+        if !self.ui_state.paused {
+            self.ticker += dt;
+        }
         self.last_time = now;
         ui.small(format!("{} fps", (1.0 / dt).round()));
         // Mana bar

@@ -21,11 +21,11 @@ impl Default for NewGame {
 }
 
 impl NewGame {
-    pub fn show(&mut self, ctx: &Context) -> Result<(), GameState> {
-        let mut res = Ok(());
+    pub fn show(&mut self, ctx: &Context) -> Option<GameState> {
+        let mut res = None;
         CentralPanel::default().show(ctx, |ui| {
             if ui.button("Back").clicked() {
-                res = Err(GameState::MainMenu);
+                res = Some(GameState::MainMenu);
             }
             ui.add_space((ui.available_height() - 100.0) / 2.0);
             ui.spacing_mut().item_spacing.y = 20.0;
@@ -70,7 +70,7 @@ impl NewGame {
                     .add_enabled(!self.name.is_empty(), Button::new("Start"))
                     .clicked()
                 {
-                    res = Err(GameState::Game(
+                    res = Some(GameState::Game(
                         Game::new(Player::new(self.name.clone(), self.gender)).into(),
                     ));
                 }

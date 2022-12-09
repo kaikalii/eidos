@@ -79,11 +79,11 @@ impl eframe::App for GameState {
             GameState::Game(game) => game.show(ctx),
             GameState::Quit => {
                 frame.close();
-                Ok(())
+                return;
             }
         };
 
-        if let Err(new_state) = new_state {
+        if let Some(new_state) = new_state {
             *self = new_state;
         }
 

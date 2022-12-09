@@ -52,20 +52,20 @@ static LOGO: Lazy<Logo> = Lazy::new(|| {
     Logo { points, max }
 });
 
-pub fn main_menu(ctx: &Context) -> Result<(), GameState> {
+pub fn main_menu(ctx: &Context) -> Option<GameState> {
     CentralPanel::default().show(ctx, main_menu_ui).inner
 }
 
-fn main_menu_ui(ui: &mut Ui) -> Result<(), GameState> {
+fn main_menu_ui(ui: &mut Ui) -> Option<GameState> {
     logo_ui(ui);
-    let mut res = Ok(());
+    let mut res = None;
     ui.with_layout(Layout::top_down(Align::Center), |ui| {
         ui.spacing_mut().item_spacing.y = 20.0;
         if ui.button(RichText::new("New Game").heading()).clicked() {
-            res = Err(GameState::NewGame(NewGame::default()));
+            res = Some(GameState::NewGame(NewGame::default()));
         }
         if ui.button(RichText::new("Quit").heading()).clicked() {
-            res = Err(GameState::Quit);
+            res = Some(GameState::Quit);
         }
     });
     res
