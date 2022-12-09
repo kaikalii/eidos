@@ -181,19 +181,24 @@ impl<'w> MapPlot<'w> {
                         Align2::CENTER_BOTTOM
                     };
                     let reported_pos = ppos - self.world.player_pos;
-                    plot_ui.text(
-                        Text::new(
-                            p,
-                            format!(
-                                " ({}, {}): {} ",
-                                (reported_pos.x * 10.0).round() / 10.0,
-                                (reported_pos.y * 10.0).round() / 10.0,
-                                z.format(|z| (z * 10.0).round() / 10.0),
-                            ),
-                        )
-                        .color(Color32::WHITE)
-                        .anchor(anchor),
+                    let text = format!(
+                        " ({}, {}): {} ",
+                        (reported_pos.x * 10.0).round() / 10.0,
+                        (reported_pos.y * 10.0).round() / 10.0,
+                        z.format(|z| (z * 10.0).round() / 10.0),
                     );
+                    for i in 0..2 {
+                        let x = p.x + ((i as f64) * 0.08 - 0.04);
+                        for j in 0..2 {
+                            let y = p.y + ((j as f64) * 0.08 - 0.04);
+                            plot_ui.text(
+                                Text::new(PlotPoint::new(x, y), text.clone())
+                                    .anchor(anchor)
+                                    .color(Color32::BLACK),
+                            );
+                        }
+                    }
+                    plot_ui.text(Text::new(p, text).anchor(anchor).color(Color32::WHITE));
                 }
             }
         });
