@@ -1,7 +1,6 @@
 use std::f64;
 
 use eframe::egui::{plot::*, *};
-use itertools::Itertools;
 use once_cell::sync::Lazy;
 use rand::prelude::*;
 
@@ -18,20 +17,20 @@ const LOGO_ASCII: &str = "
   ██████████  █▀    ████████▀    ▀██████▀    ▄████████▀ 
 ";
 
-const SPACING: f64 = 10.0;
-const RADIUS: f64 = 2.0;
-const VARIANCE: f64 = 0.5;
-const OFFSET: f64 = SPACING * VARIANCE;
+const SPACING: f32 = 10.0;
+const RADIUS: f32 = 2.0;
+const VARIANCE: f32 = 0.5;
+const OFFSET: f32 = SPACING * VARIANCE;
 
 struct Logo {
-    points: Vec<PlotPoint>,
-    max: PlotPoint,
+    points: Vec<Pos2>,
+    max: Pos2,
 }
 
 static LOGO: Lazy<Logo> = Lazy::new(|| {
     let mut points = Vec::new();
     let mut rng = thread_rng();
-    let mut max = PlotPoint::new(0.0, 0.0);
+    let mut max = Pos2::ZERO;
     for (i, line) in LOGO_ASCII
         .split('\n')
         .rev()
@@ -41,9 +40,9 @@ static LOGO: Lazy<Logo> = Lazy::new(|| {
         for (j, char) in line.chars().enumerate() {
             if !char.is_whitespace() {
                 for _ in 0..20 {
-                    let x = SPACING * (j as f64) + rng.gen_range(-OFFSET..=OFFSET);
-                    let y = 1.5 * SPACING * (i as f64) + rng.gen_range(-OFFSET..=OFFSET);
-                    points.push(PlotPoint::new(x, y));
+                    let x = SPACING * (j as f32) + rng.gen_range(-OFFSET..=OFFSET);
+                    let y = 1.5 * SPACING * (i as f32) + rng.gen_range(-OFFSET..=OFFSET);
+                    points.push(pos2(x, y));
                     max.x = max.x.max(x);
                     max.y = max.y.max(y);
                 }
@@ -88,20 +87,34 @@ fn logo_ui(ui: &mut Ui) {
         .include_x(LOGO.max.y + SPACING)
         .show(ui, |plot_ui| {
             let time = time();
+            let circle_pos = pos2(
+                LOGO.max.x * ((time * 0.9).sin() as f32 * 0.5 + 0.5),
+                LOGO.max.y * ((time * 3.3).sin() as f32 * 0.5 + 0.5),
+            );
+            let circle_radius = LOGO.max.y * 0.15;
             let mut rng = SmallRng::seed_from_u64(0);
-            let points = LOGO
-                .points
-                .iter()
-                .map(|p| {
-                    PlotPoint::new(
-                        p.x + (rng.gen::<f64>() * f64::consts::TAU * time).sin() * OFFSET,
-                        p.y + (rng.gen::<f64>() * f64::consts::TAU * time).sin() * OFFSET,
-                    )
-                })
-                .collect_vec();
+            let mut circled = Vec::new();
+            let mut uncircled = Vec::with_capacity(LOGO.points.len());
+            for pos in &LOGO.points {
+                let wiggled = pos2(
+                    pos.x + (rng.gen::<f64>() * f64::consts::TAU * time).sin() as f32 * OFFSET,
+                    pos.y + (rng.gen::<f64>() * f64::consts::TAU * time).sin() as f32 * OFFSET,
+                );
+                let point = PlotPoint::new(wiggled.x, wiggled.y);
+                if pos.distance(circle_pos) < circle_radius {
+                    circled.push(point);
+                } else {
+                    uncircled.push(point);
+                }
+            }
             plot_ui.points(
-                Points::new(PlotPoints::Owned(points))
+                Points::new(PlotPoints::Owned(uncircled))
                     .color(Color32::LIGHT_BLUE)
+                    .radius(RADIUS as f32),
+            );
+            plot_ui.points(
+                Points::new(PlotPoints::Owned(circled))
+                    .color(Color32::GOLD)
                     .radius(RADIUS as f32),
             );
         });
