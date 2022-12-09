@@ -105,7 +105,7 @@ fn load_scenes() -> anyhow::Result<DialogScenes> {
     Ok(map)
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(transparent)]
 pub struct DialogScene<T> {
     pub nodes: IndexMap<String, DialogNode<T>>,
@@ -161,6 +161,8 @@ pub enum Pronoun {
     Sub,
     Obj,
     Pos,
+    SubIs,
+    Subs,
 }
 
 impl TryFrom<DialogScene<SerializedLine>> for DialogScene<Vec<DialogFragment>> {

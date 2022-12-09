@@ -18,7 +18,7 @@ pub struct Player {
     pub gender: Gender,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Gender {
     Male,
     Female,

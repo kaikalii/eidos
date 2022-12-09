@@ -1,6 +1,6 @@
 start:
   lines:
-    - Hi
+    - "That's (obj). (subs) very cool."
   children: {}
 end:
   lines:

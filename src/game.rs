@@ -687,35 +687,39 @@ impl Game {
 impl World {
     fn format_dialog_fragments(&self, fragments: &[DialogFragment]) -> String {
         let mut formatted = String::new();
-        let mut capitalize = true;
-        for frag in fragments {
+        for (i, frag) in fragments.iter().enumerate() {
             let s = match frag {
                 DialogFragment::String(s) => s,
                 DialogFragment::Variable(var) => match var {
                     DialogVariable::PlayerPronoun(pronoun) => match (pronoun, self.player.gender) {
                         (Pronoun::Sub, Gender::Male) => "he",
-                        (Pronoun::Sub, Gender::Female) => "she",
-                        (Pronoun::Sub, Gender::Enby) => "they",
                         (Pronoun::Obj, Gender::Male) => "him",
-                        (Pronoun::Obj, Gender::Female) => "her",
-                        (Pronoun::Obj, Gender::Enby) => "them",
                         (Pronoun::Pos, Gender::Male) => "his",
+                        (Pronoun::SubIs, Gender::Male) => "he is",
+                        (Pronoun::Subs, Gender::Male) => "he's",
+                        (Pronoun::Sub, Gender::Female) => "she",
+                        (Pronoun::Obj, Gender::Female) => "her",
                         (Pronoun::Pos, Gender::Female) => "her",
+                        (Pronoun::SubIs, Gender::Female) => "she is",
+                        (Pronoun::Subs, Gender::Female) => "she's",
+                        (Pronoun::Sub, Gender::Enby) => "they",
+                        (Pronoun::Obj, Gender::Enby) => "them",
                         (Pronoun::Pos, Gender::Enby) => "their",
+                        (Pronoun::SubIs, Gender::Enby) => "they are",
+                        (Pronoun::Subs, Gender::Enby) => "they're",
                     },
                 },
             };
-            if capitalize {
-                formatted = s
-                    .chars()
-                    .next()
-                    .into_iter()
-                    .flat_map(|c| c.to_uppercase())
-                    .chain(s.chars().skip(1))
-                    .collect();
-                capitalize = false;
+            if i == 0
+                || formatted.trim().ends_with(['.', '?', '!'])
+                || formatted.trim().ends_with(".\"")
+                || formatted.trim().ends_with("?\"")
+                || formatted.trim().ends_with("!\"")
+            {
+                formatted.extend(s.chars().next().into_iter().flat_map(|c| c.to_uppercase()));
+                formatted.extend(s.chars().skip(1));
             } else {
-                formatted = s.into();
+                formatted.push_str(s);
             }
         }
         formatted
