@@ -18,7 +18,7 @@ pub enum Function {
     Nullary(Nullary),
     #[from(types(HeteroBinOp, HomoBinOp))]
     Bin(GenericBinOp),
-    #[from(types(MathUnOp))]
+    #[from(types(MathUnOp, ScalarUnOp))]
     Un(GenericUnOp),
     #[from]
     Combinator1(Combinator1),
@@ -124,6 +124,8 @@ pub enum ScalarUnOp {
     Cos,
     #[display(fmt = "~Tan")]
     Tan,
+    #[display(fmt = "1/")]
+    Reciprocal,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
@@ -176,6 +178,13 @@ impl UnOperator<f32> for ScalarUnOp {
             ScalarUnOp::Sin => v.sin(),
             ScalarUnOp::Cos => v.cos(),
             ScalarUnOp::Tan => v.tan(),
+            ScalarUnOp::Reciprocal => {
+                if v == 0.0 {
+                    0.0
+                } else {
+                    1.0 / v
+                }
+            }
         }
     }
 }

@@ -27,6 +27,8 @@ pub enum Word {
     Sa,
     Na,
     Neka,
+    Reso,
+    Solo,
     // Combinators
     No,
     Mo,
@@ -58,6 +60,8 @@ impl Word {
             Sa => HeteroBinOp::Mul.into(),
             Na => HomoBinOp::Sub.into(),
             Neka => MathUnOp::Neg.into(),
+            Solo => MathUnOp::Abs.into(),
+            Reso => ScalarUnOp::Reciprocal.into(),
             No => Combinator1::Drop.into(),
             Mo => Combinator1::Duplicate.into(),
             Re => Combinator2::Swap.into(),
