@@ -305,11 +305,14 @@ impl World {
         // Update mana
         for id in self.person_ids() {
             self.person_mut(id).do_work(work_done);
-            if !self.person(id).can_cast() {
-                self.outputs.scalars.entry(id).or_default().clear();
-                self.outputs.vectors.entry(id).or_default().clear();
+            let can_cast = self.person(id).can_cast();
+            let scalars = self.outputs.scalars.entry(id).or_default();
+            let vectors = self.outputs.vectors.entry(id).or_default();
+            if !can_cast {
+                scalars.clear();
+                vectors.clear();
             }
-            if self.outputs.scalars.is_empty() && self.outputs.vectors.is_empty() {
+            if scalars.is_empty() && vectors.is_empty() {
                 self.person_mut(id).regen_mana();
             }
         }

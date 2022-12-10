@@ -5,7 +5,7 @@ use rapier2d::prelude::RigidBodyHandle;
 
 use crate::{game::TICK_RATE, word::Word};
 
-pub const MANA_REGEN_RATE: f32 = 1.0;
+pub const MANA_REGEN_RATE: f32 = 2.0;
 pub const MAX_MANA_EXHAUSTION: f32 = 5.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, From, Sequence)]
