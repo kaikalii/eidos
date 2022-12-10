@@ -4,12 +4,13 @@ use eframe::{
     egui::{style::Margin, *},
     epaint::{ahash::HashMap, Hsva},
 };
-use enum_iterator::{all, Sequence};
+use enum_iterator::all;
 
 use crate::{
     controls::{apply_color_fading, FadeButton},
     dialog::DialogState,
     field::*,
+    function::Function,
     person::{PersonId, MAX_MANA_EXHAUSTION},
     player::Player,
     plot::*,
@@ -364,52 +365,37 @@ impl Game {
                 }
             }
         }
-        Grid::new("words").show(ui, |ui| {
+        Grid::new("words").min_col_width(10.0).show(ui, |ui| {
             // Words
-            fn button<W: Copy + Into<Word> + ToString>(
-                w: W,
-                ui: &mut Ui,
-                world: &mut World,
-                stack: &Stack,
-                hilight: bool,
-            ) {
-                let name = w.to_string();
-                let word = w.into();
-                let f = word.function();
-                let known = world.player.progression.known_words.contains(&word);
-                let enabled = known
-                    && stack.validate_function_use(f).is_ok()
-                    && world.player.person.capped_mana() > word.cost();
-                if ui
-                    .add_enabled(enabled, FadeButton::new(word, known, name).hilight(hilight))
-                    .on_hover_text(f.to_string())
-                    .clicked()
-                {
-                    world.player.person.words.push(word);
+            use Word::*;
+            // #[rustfmt::skip]
+            static WORD_GRID: &[&[Word]] = &[
+                &[Ti, Tu, Ta, Te],
+                &[Seva, Sevi, Le, Po],
+                &[Pa, Pi, Sila, Vila],
+                &[Kova, Kovi, Ke],
+                &[Ma, Sa, Na, Neka],
+                &[No, Mo, Re, Rovo],
+            ];
+            for row in WORD_GRID {
+                for word in *row {
+                    let f = word.function();
+                    let known = self.world.player.progression.known_words.contains(word);
+                    let enabled = known
+                        && stack.validate_function_use(f).is_ok()
+                        && self.world.player.person.capped_mana() > word.cost();
+                    let hilight = matches!(f, Function::WriteField(_));
+                    let button = FadeButton::new(word, known, word.to_string()).hilight(hilight);
+                    if ui
+                        .add_enabled(enabled, button)
+                        .on_hover_text(f.to_string())
+                        .clicked()
+                    {
+                        self.world.player.person.words.push(*word);
+                    }
                 }
+                ui.end_row();
             }
-            fn buttons<W: Copy + Into<Word> + ToString + Sequence>(
-                ui: &mut Ui,
-                world: &mut World,
-                stack: &Stack,
-                hilight: bool,
-            ) {
-                for w in all::<W>() {
-                    button(w, ui, world, stack, hilight);
-                }
-            }
-            buttons::<ScalarWord>(ui, &mut self.world, stack, false);
-            ui.end_row();
-            buttons::<VectorWord>(ui, &mut self.world, stack, false);
-            buttons::<InputWord>(ui, &mut self.world, stack, false);
-            buttons::<ControlWord>(ui, &mut self.world, stack, false);
-            ui.end_row();
-            buttons::<OperatorWord>(ui, &mut self.world, stack, false);
-            buttons::<AxisWord>(ui, &mut self.world, stack, false);
-            ui.end_row();
-            buttons::<OutputWord>(ui, &mut self.world, stack, true);
-            buttons::<CombinatorWord>(ui, &mut self.world, stack, false);
-            ui.end_row();
         });
     }
     fn controls_ui(&mut self, ui: &mut Ui, stack: &Stack) {

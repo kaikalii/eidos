@@ -5,67 +5,34 @@ use serde::Deserialize;
 use crate::{field::*, function::*};
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
-#[serde(untagged)]
 pub enum Word {
-    Scalar(ScalarWord),
-    Vector(VectorWord),
-    Axis(AxisWord),
-    Operator(OperatorWord),
-    Combinator(CombinatorWord),
-    Control(ControlWord),
-    Input(InputWord),
-    Output(OutputWord),
-}
-
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
-pub enum ScalarWord {
+    // Numbers
     Ti,
     Tu,
     Ta,
     Te,
-}
-
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
-pub enum VectorWord {
-    Kova,
-    Kovi,
-}
-
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
-pub enum AxisWord {
+    // Scalars
     Seva,
     Sevi,
-}
-
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
-pub enum InputWord {
+    // Vectors
+    Kova,
+    Kovi,
+    // Inputs
     Le,
     Po,
-}
-
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
-pub enum OutputWord {
+    // Outputs
     Ke,
-}
-
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
-pub enum OperatorWord {
+    // Operators
     Ma,
     Sa,
     Na,
     Neka,
-}
-
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
-pub enum CombinatorWord {
+    // Combinators
     No,
     Mo,
     Re,
     Rovo,
-}
-
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
-pub enum ControlWord {
+    // Controls
     Sila,
     Vila,
     Pa,
@@ -76,42 +43,42 @@ impl Word {
     pub fn function(&self) -> Function {
         use Word::*;
         match self {
-            Scalar(ScalarWord::Ti) => Nullary::One.into(),
-            Scalar(ScalarWord::Tu) => Nullary::Two.into(),
-            Scalar(ScalarWord::Ta) => Nullary::Five.into(),
-            Scalar(ScalarWord::Te) => Nullary::Ten.into(),
-            Vector(VectorWord::Kova) => Nullary::OneX.into(),
-            Vector(VectorWord::Kovi) => Nullary::OneY.into(),
-            Axis(AxisWord::Seva) => Nullary::X.into(),
-            Axis(AxisWord::Sevi) => Nullary::Y.into(),
-            Input(InputWord::Le) => ScalarInputFieldKind::Elevation.into(),
-            Input(InputWord::Po) => ScalarInputFieldKind::Density.into(),
-            Output(OutputWord::Ke) => VectorOutputFieldKind::Force.into(),
-            Operator(OperatorWord::Ma) => HomoBinOp::Add.into(),
-            Operator(OperatorWord::Sa) => HeteroBinOp::Mul.into(),
-            Operator(OperatorWord::Na) => HomoBinOp::Sub.into(),
-            Operator(OperatorWord::Neka) => MathUnOp::Neg.into(),
-            Combinator(CombinatorWord::No) => Combinator1::Drop.into(),
-            Combinator(CombinatorWord::Mo) => Combinator1::Duplicate.into(),
-            Combinator(CombinatorWord::Re) => Combinator2::Swap.into(),
-            Combinator(CombinatorWord::Rovo) => Combinator2::Over.into(),
-            Control(ControlWord::Sila) => ControlKind::XSlider.into(),
-            Control(ControlWord::Vila) => ControlKind::YSlider.into(),
-            Control(ControlWord::Pa) => Nullary::TargetX.into(),
-            Control(ControlWord::Pi) => Nullary::TargetY.into(),
+            Ti => Nullary::One.into(),
+            Tu => Nullary::Two.into(),
+            Ta => Nullary::Five.into(),
+            Te => Nullary::Ten.into(),
+            Kova => Nullary::OneX.into(),
+            Kovi => Nullary::OneY.into(),
+            Seva => Nullary::X.into(),
+            Sevi => Nullary::Y.into(),
+            Le => ScalarInputFieldKind::Elevation.into(),
+            Po => ScalarInputFieldKind::Density.into(),
+            Ke => VectorOutputFieldKind::Force.into(),
+            Ma => HomoBinOp::Add.into(),
+            Sa => HeteroBinOp::Mul.into(),
+            Na => HomoBinOp::Sub.into(),
+            Neka => MathUnOp::Neg.into(),
+            No => Combinator1::Drop.into(),
+            Mo => Combinator1::Duplicate.into(),
+            Re => Combinator2::Swap.into(),
+            Rovo => Combinator2::Over.into(),
+            Sila => ControlKind::XSlider.into(),
+            Vila => ControlKind::YSlider.into(),
+            Pa => Nullary::TargetX.into(),
+            Pi => Nullary::TargetY.into(),
         }
     }
     pub fn cost(&self) -> f32 {
         use Word::*;
         match self {
-            Scalar(ScalarWord::Ti) => 1.0,
-            Scalar(ScalarWord::Tu) => 2.0,
-            Scalar(ScalarWord::Ta) => 5.0,
-            Scalar(ScalarWord::Te) => 10.0,
-            Control(ControlWord::Sila) => 2.0,
-            Control(ControlWord::Vila) => 2.0,
-            Control(ControlWord::Pa) => 3.0,
-            Control(ControlWord::Pi) => 3.0,
+            Ti => 1.0,
+            Tu => 2.0,
+            Ta => 5.0,
+            Te => 10.0,
+            Sila => 2.0,
+            Vila => 2.0,
+            Pa => 3.0,
+            Pi => 3.0,
             _ => 1.0,
         }
     }
