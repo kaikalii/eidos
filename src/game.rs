@@ -374,7 +374,7 @@ impl Game {
                 &[Seva, Sevi, Le, Po],
                 &[Pa, Pi, Sila, Vila],
                 &[Kova, Kovi, Ke],
-                &[Ma, Sa, Na, Neka, Reso, Solo],
+                &[Ma, Sa, Na, Reso, Solo],
                 &[No, Mo, Re, Rovo],
             ];
             for row in WORD_GRID {
