@@ -49,6 +49,7 @@ pub struct UiState {
     pub dialog: Option<DialogState>,
     last_stack_len: usize,
     paused: bool,
+    next_player_target: Option<Vec2>,
 }
 
 impl Default for UiState {
@@ -64,6 +65,7 @@ impl Default for UiState {
             dialog: None,
             last_stack_len: 0,
             paused: false,
+            next_player_target: None,
         }
     }
 }
@@ -76,6 +78,9 @@ impl Game {
         puffin::profile_function!();
 
         let mut res = None;
+
+        // Set player target
+        self.world.player.person.target = self.ui_state.next_player_target.take();
 
         // Calculate fields
         let mut stack = Stack::new(PersonId::Player);
@@ -276,7 +281,10 @@ impl Game {
                     continue;
                 }
                 if self.ui_state.fields_visible[&kind] {
-                    self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, alpha, kind);
+                    let new_player_target = self.plot_io_field(ui, BIG_PLOT_SIZE, 100, alpha, kind);
+                    if self.ui_state.next_player_target.is_none() {
+                        self.ui_state.next_player_target = new_player_target;
+                    }
                 } else {
                     ui.label("");
                 }
@@ -289,7 +297,11 @@ impl Game {
                         if words.len() == 0 {
                             ui.label("");
                         } else {
-                            self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, 1.0, kind);
+                            let new_player_target =
+                                self.plot_io_field(ui, BIG_PLOT_SIZE, 100, 1.0, kind);
+                            if self.ui_state.next_player_target.is_none() {
+                                self.ui_state.next_player_target = new_player_target;
+                            }
                             for words in words {
                                 Self::spell_words_ui(ui, words, BIG_PLOT_SIZE);
                             }
@@ -325,7 +337,11 @@ impl Game {
             ui.horizontal(|ui| {
                 ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
                 for item in stack.iter() {
-                    self.plot_generic_field(ui, SMALL_PLOT_SIZE, 50, 1.0, &item.field);
+                    let new_player_target =
+                        self.plot_stack_field(ui, SMALL_PLOT_SIZE, 50, 1.0, &item.field);
+                    if self.ui_state.next_player_target.is_none() {
+                        self.ui_state.next_player_target = new_player_target;
+                    }
                     Self::spell_words_ui(ui, &item.words, SMALL_PLOT_SIZE);
                 }
                 if self.ui_state.last_stack_len != stack.len() {
@@ -476,31 +492,34 @@ impl Game {
         .size(size)
         .resolution(resolution)
     }
-    pub fn plot_generic_field(
+    #[must_use]
+    pub fn plot_stack_field(
         &self,
         ui: &mut Ui,
         size: f32,
         resolution: usize,
         global_alpha: f32,
         field: &GenericField,
-    ) {
+    ) -> Option<Vec2> {
         let plot = self.init_plot(size, resolution, global_alpha);
         match field {
             GenericField::Scalar(ScalarField::Uniform(n)) => {
-                MapPlot::number_ui(&self.world, ui, size, resolution, global_alpha, *n)
+                MapPlot::number_ui(&self.world, ui, size, resolution, global_alpha, *n);
+                None
             }
             GenericField::Scalar(field) => plot.ui(ui, field),
             GenericField::Vector(field) => plot.ui(ui, field),
         }
     }
-    pub fn plot_field_kind(
+    #[must_use]
+    pub fn plot_io_field(
         &self,
         ui: &mut Ui,
         size: f32,
         resolution: usize,
         global_alpha: f32,
         kind: GenericFieldKind,
-    ) {
+    ) -> Option<Vec2> {
         let plot = self.init_plot(size, resolution, global_alpha);
         match kind {
             GenericFieldKind::Scalar(kind) => plot.ui(ui, &kind),

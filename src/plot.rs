@@ -153,55 +153,62 @@ impl<'w> MapPlot<'w> {
             global_alpha: self.global_alpha,
         }
     }
-    pub fn ui<F>(&self, ui: &mut Ui, field_plot: &F)
+    pub fn ui<F>(&self, ui: &mut Ui, field_plot: &F) -> Option<Vec2>
     where
         F: FieldPlot,
     {
         puffin::profile_function!();
-        self.init_plot().show(ui, |plot_ui| {
-            if self.global_alpha < 1.0 / 255.0 {
-                return;
-            }
-            let data = self.get_data(field_plot);
-            let center = data.center;
-            F::Value::partition_and_plot(plot_ui, field_plot, data);
-            // Show coordinate tooltip
-            if let Some(p) = plot_ui.pointer_coordinate() {
-                let ppos = pos2(p.x as f32, p.y as f32);
-                let relative_pos = ppos - center;
-                if relative_pos.length() < self.range {
-                    let z = field_plot.get_z(self.world, ppos);
-                    let anchor = if relative_pos.y > self.range * 0.9 {
-                        Align2::RIGHT_TOP
-                    } else if relative_pos.x < -self.range * 0.5 {
-                        Align2::LEFT_BOTTOM
-                    } else if relative_pos.x > self.range * 0.5 {
-                        Align2::RIGHT_BOTTOM
-                    } else {
-                        Align2::CENTER_BOTTOM
-                    };
-                    let reported_pos = ppos - self.world.player.person.pos;
-                    let text = format!(
-                        " ({}, {}): {} ",
-                        (reported_pos.x * 10.0).round() / 10.0,
-                        (reported_pos.y * 10.0).round() / 10.0,
-                        z.format(|z| (z * 10.0).round() / 10.0),
-                    );
-                    for i in 0..2 {
-                        let x = p.x + ((i as f64) * 0.08 - 0.04);
-                        for j in 0..2 {
-                            let y = p.y + ((j as f64) * 0.08 - 0.04);
-                            plot_ui.text(
-                                Text::new(PlotPoint::new(x, y), text.clone())
-                                    .anchor(anchor)
-                                    .color(Color32::BLACK),
-                            );
-                        }
-                    }
-                    plot_ui.text(Text::new(p, text).anchor(anchor).color(Color32::WHITE));
+        self.init_plot()
+            .show(ui, |plot_ui| {
+                if self.global_alpha < 1.0 / 255.0 {
+                    return None;
                 }
-            }
-        });
+                let data = self.get_data(field_plot);
+                let center = data.center;
+                F::Value::partition_and_plot(plot_ui, field_plot, data);
+                // Show coordinate tooltip
+                if let Some(p) = plot_ui.pointer_coordinate() {
+                    let ppos = pos2(p.x as f32, p.y as f32);
+                    let relative_pos = ppos - center;
+                    if relative_pos.length() < self.range {
+                        let z = field_plot.get_z(self.world, ppos);
+                        let anchor = if relative_pos.y > self.range * 0.9 {
+                            Align2::RIGHT_TOP
+                        } else if relative_pos.x < -self.range * 0.5 {
+                            Align2::LEFT_BOTTOM
+                        } else if relative_pos.x > self.range * 0.5 {
+                            Align2::RIGHT_BOTTOM
+                        } else {
+                            Align2::CENTER_BOTTOM
+                        };
+                        let reported_pos = ppos - self.world.player.person.pos;
+                        let text = format!(
+                            " ({}, {}): {} ",
+                            (reported_pos.x * 10.0).round() / 10.0,
+                            (reported_pos.y * 10.0).round() / 10.0,
+                            z.format(|z| (z * 10.0).round() / 10.0),
+                        );
+                        for i in 0..2 {
+                            let x = p.x + ((i as f64) * 0.08 - 0.04);
+                            for j in 0..2 {
+                                let y = p.y + ((j as f64) * 0.08 - 0.04);
+                                plot_ui.text(
+                                    Text::new(PlotPoint::new(x, y), text.clone())
+                                        .anchor(anchor)
+                                        .color(Color32::BLACK),
+                                );
+                            }
+                        }
+                        plot_ui.text(Text::new(p, text).anchor(anchor).color(Color32::WHITE));
+                        Some(reported_pos)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .inner
     }
     pub fn number_ui(
         world: &'w World,

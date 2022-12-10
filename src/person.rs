@@ -1,5 +1,5 @@
 use derive_more::From;
-use eframe::epaint::Pos2;
+use eframe::epaint::{Pos2, Vec2};
 use enum_iterator::Sequence;
 use rapier2d::prelude::RigidBodyHandle;
 
@@ -28,6 +28,7 @@ pub struct Person {
     pub max_mana: f32,
     pub mana_exhaustion: f32,
     pub words: Vec<Word>,
+    pub target: Option<Vec2>,
 }
 
 impl Person {
@@ -39,6 +40,7 @@ impl Person {
             max_mana,
             mana_exhaustion: 0.0,
             words: Vec::new(),
+            target: None,
         }
     }
     pub fn field_scale(&self) -> f32 {
