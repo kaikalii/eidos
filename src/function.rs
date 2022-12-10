@@ -4,7 +4,7 @@ use derive_more::{Display, From};
 use eframe::epaint::{vec2, Vec2};
 use enum_iterator::Sequence;
 
-use crate::{error::EidosError, field::*, stack::Stack};
+use crate::{error::EidosError, field::*, person::PersonId, stack::Stack};
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, From)]
 pub enum Function {
@@ -49,7 +49,7 @@ pub enum Nullary {
 }
 
 impl Nullary {
-    pub fn field(&self) -> GenericField {
+    pub fn field(&self, caster: PersonId) -> GenericField {
         match self {
             Nullary::Zero => ScalarField::Uniform(0.0).into(),
             Nullary::One => ScalarField::Uniform(1.0).into(),
@@ -59,8 +59,8 @@ impl Nullary {
             Nullary::ZeroVector => VectorField::Uniform(Vec2::ZERO).into(),
             Nullary::OneX => VectorField::Uniform(Vec2::X).into(),
             Nullary::OneY => VectorField::Uniform(Vec2::Y).into(),
-            Nullary::X => ScalarField::X.into(),
-            Nullary::Y => ScalarField::Y.into(),
+            Nullary::X => ScalarField::X(caster).into(),
+            Nullary::Y => ScalarField::Y(caster).into(),
         }
     }
 }

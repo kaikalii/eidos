@@ -124,7 +124,7 @@ impl Stack {
                 world.person_mut(self.person_id).words.clear();
             }
             Function::Control(kind) => self.push(word, ScalarField::Control(kind)),
-            Function::Nullary(nullary) => self.push(word, nullary.field()),
+            Function::Nullary(nullary) => self.push(word, nullary.field(self.person_id)),
             Function::Combinator1(com1) => {
                 let a = self.pop();
                 match com1 {

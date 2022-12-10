@@ -36,14 +36,17 @@ pub enum Type {
 
 #[derive(Debug, Clone, From)]
 pub enum ScalarField {
+    #[from]
     Uniform(f32),
-    X,
-    Y,
+    X(PersonId),
+    Y(PersonId),
     ScalarUn(UnOp<ScalarUnOp>, Box<Self>),
     VectorUn(VectorUnScalarOp, Box<VectorField>),
     Bin(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
     Index(Box<VectorField>, Box<Self>),
+    #[from]
     Input(ScalarInputFieldKind),
+    #[from]
     Control(ControlKind),
 }
 
@@ -153,8 +156,8 @@ impl ScalarField {
         puffin::profile_function!();
         match self {
             ScalarField::Uniform(v) => *v,
-            ScalarField::X => pos.x - world.player.person.pos.x,
-            ScalarField::Y => pos.y - world.player.person.pos.y,
+            ScalarField::X(person_id) => pos.x - world.person(*person_id).pos.x,
+            ScalarField::Y(person_id) => pos.y - world.person(*person_id).pos.y,
             ScalarField::ScalarUn(op, field) => op.operate(field.sample_absolute(world, pos)),
             ScalarField::VectorUn(op, field) => op.operate(field.sample_absolute(world, pos)),
             ScalarField::Bin(op, a, b) => {
