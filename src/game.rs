@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeSet, HashSet},
-    time::Instant,
-};
+use std::{collections::BTreeSet, time::Instant};
 
 use eframe::{
     egui::{style::Margin, *},
@@ -369,42 +366,49 @@ impl Game {
         }
         Grid::new("words").show(ui, |ui| {
             // Words
-            fn button<W: Copy + Into<Word> + ToString + Sequence>(
+            fn button<W: Copy + Into<Word> + ToString>(
+                w: W,
                 ui: &mut Ui,
+                world: &mut World,
                 stack: &Stack,
-                know_words: &HashSet<Word>,
                 hilight: bool,
-            ) -> Option<Word> {
-                let mut res = None;
-                for w in all::<W>() {
-                    let name = w.to_string();
-                    let word = w.into();
-                    let f = word.function();
-                    let known = know_words.contains(&word);
-                    let enabled = known && stack.validate_function_use(f).is_ok();
-                    if ui
-                        .add_enabled(enabled, FadeButton::new(word, known, name).hilight(hilight))
-                        .on_hover_text(f.to_string())
-                        .clicked()
-                    {
-                        res = Some(word);
-                    }
+            ) {
+                let name = w.to_string();
+                let word = w.into();
+                let f = word.function();
+                let known = world.player.progression.known_words.contains(&word);
+                let enabled = known
+                    && stack.validate_function_use(f).is_ok()
+                    && world.player.person.capped_mana() > word.cost();
+                if ui
+                    .add_enabled(enabled, FadeButton::new(word, known, name).hilight(hilight))
+                    .on_hover_text(f.to_string())
+                    .clicked()
+                {
+                    world.player.person.words.push(word);
                 }
-                res
             }
-            let words = &mut self.world.player.person.words;
-            let known_words = &self.world.player.progression.known_words;
-            words.extend(button::<ScalarWord>(ui, stack, known_words, false));
+            fn buttons<W: Copy + Into<Word> + ToString + Sequence>(
+                ui: &mut Ui,
+                world: &mut World,
+                stack: &Stack,
+                hilight: bool,
+            ) {
+                for w in all::<W>() {
+                    button(w, ui, world, stack, hilight);
+                }
+            }
+            buttons::<ScalarWord>(ui, &mut self.world, stack, false);
             ui.end_row();
-            words.extend(button::<VectorWord>(ui, stack, known_words, false));
-            words.extend(button::<InputWord>(ui, stack, known_words, false));
-            words.extend(button::<ControlWord>(ui, stack, known_words, false));
+            buttons::<VectorWord>(ui, &mut self.world, stack, false);
+            buttons::<InputWord>(ui, &mut self.world, stack, false);
+            buttons::<ControlWord>(ui, &mut self.world, stack, false);
             ui.end_row();
-            words.extend(button::<OperatorWord>(ui, stack, known_words, false));
-            words.extend(button::<AxisWord>(ui, stack, known_words, false));
+            buttons::<OperatorWord>(ui, &mut self.world, stack, false);
+            buttons::<AxisWord>(ui, &mut self.world, stack, false);
             ui.end_row();
-            words.extend(button::<OutputWord>(ui, stack, known_words, true));
-            words.extend(button::<CombinatorWord>(ui, stack, known_words, false));
+            buttons::<OutputWord>(ui, &mut self.world, stack, true);
+            buttons::<CombinatorWord>(ui, &mut self.world, stack, false);
             ui.end_row();
         });
     }
