@@ -349,7 +349,9 @@ impl World {
                 scalars.clear();
                 vectors.clear();
             }
-            if scalars.is_empty() && vectors.is_empty() {
+            if scalars.values().all(|spells| spells.is_empty())
+                && vectors.values().all(|spells| spells.is_empty())
+            {
                 self.person_mut(id).regen_mana();
             }
         }
