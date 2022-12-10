@@ -71,6 +71,7 @@ pub enum ControlWord {
     Sila,
     Vila,
     Pa,
+    Pi,
 }
 
 impl Word {
@@ -100,7 +101,8 @@ impl Word {
             Combinator(CombinatorWord::Rovo) => Combinator2::Over.into(),
             Control(ControlWord::Sila) => ControlKind::XSlider.into(),
             Control(ControlWord::Vila) => ControlKind::YSlider.into(),
-            Control(ControlWord::Pa) => Nullary::Target.into(),
+            Control(ControlWord::Pa) => Nullary::TargetX.into(),
+            Control(ControlWord::Pi) => Nullary::TargetY.into(),
         }
     }
     pub fn cost(&self) -> f32 {
@@ -130,6 +132,7 @@ impl Word {
             Control(ControlWord::Sila) => 2.0,
             Control(ControlWord::Vila) => 2.0,
             Control(ControlWord::Pa) => 3.0,
+            Control(ControlWord::Pi) => 3.0,
         }
     }
 }

@@ -40,7 +40,8 @@ pub enum ScalarField {
     Uniform(f32),
     X(PersonId),
     Y(PersonId),
-    Target(PersonId),
+    TargetX(PersonId),
+    TargetY(PersonId),
     ScalarUn(UnOp<ScalarUnOp>, Box<Self>),
     VectorUn(VectorUnScalarOp, Box<VectorField>),
     Bin(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
@@ -159,10 +160,13 @@ impl ScalarField {
             ScalarField::Uniform(v) => *v,
             ScalarField::X(person_id) => pos.x - world.person(*person_id).pos.x,
             ScalarField::Y(person_id) => pos.y - world.person(*person_id).pos.y,
-            ScalarField::Target(person_id) => {
+            ScalarField::TargetX(person_id) => {
                 let person = world.person(*person_id);
-                let abs_target = person.pos + person.target.unwrap_or_default();
-                1.0 / (1.0 + (abs_target - pos).length_sq())
+                person.pos.x + person.target.unwrap_or_default().x - pos.x
+            }
+            ScalarField::TargetY(person_id) => {
+                let person = world.person(*person_id);
+                person.pos.y + person.target.unwrap_or_default().y - pos.y
             }
             ScalarField::ScalarUn(op, field) => op.operate(field.sample_absolute(world, pos)),
             ScalarField::VectorUn(op, field) => op.operate(field.sample_absolute(world, pos)),

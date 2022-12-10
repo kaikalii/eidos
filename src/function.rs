@@ -46,8 +46,10 @@ pub enum Nullary {
     OneY,
     X,
     Y,
-    #[display(fmt = "🎯")]
-    Target,
+    #[display(fmt = "🎯X")]
+    TargetX,
+    #[display(fmt = "🎯Y")]
+    TargetY,
 }
 
 impl Nullary {
@@ -63,7 +65,8 @@ impl Nullary {
             Nullary::OneY => VectorField::Uniform(Vec2::Y).into(),
             Nullary::X => ScalarField::X(caster).into(),
             Nullary::Y => ScalarField::Y(caster).into(),
-            Nullary::Target => ScalarField::Target(caster).into(),
+            Nullary::TargetX => ScalarField::TargetX(caster).into(),
+            Nullary::TargetY => ScalarField::TargetY(caster).into(),
         }
     }
 }
