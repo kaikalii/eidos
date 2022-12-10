@@ -2,7 +2,6 @@
 - Associate each output field with a person
 - Implement story
 - Rethink numbers?
-- Give words different mana costs
 - Call mana something else
 - Improve elevation test efficiency
   - Maybe just cache it?

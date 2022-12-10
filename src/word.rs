@@ -106,4 +106,32 @@ impl Word {
             Control(ControlWord::Vila) => ControlKind::YSlider.into(),
         }
     }
+    pub fn cost(&self) -> f32 {
+        use Word::*;
+        match self {
+            Scalar(ScalarWord::Sero) => 0.0,
+            Scalar(ScalarWord::Ti) => 1.0,
+            Scalar(ScalarWord::Tu) => 2.0,
+            Scalar(ScalarWord::Ta) => 5.0,
+            Scalar(ScalarWord::Te) => 10.0,
+            Vector(VectorWord::Kovo) => 0.0,
+            Vector(VectorWord::Kova) => 1.0,
+            Vector(VectorWord::Kovi) => 1.0,
+            Axis(AxisWord::Seva) => 1.0,
+            Axis(AxisWord::Sevi) => 1.0,
+            Input(InputWord::Le) => 1.0,
+            Input(InputWord::Po) => 1.0,
+            Output(OutputWord::Ke) => 1.0,
+            Operator(OperatorWord::Ma) => 1.0,
+            Operator(OperatorWord::Sa) => 1.0,
+            Operator(OperatorWord::Na) => 1.0,
+            Operator(OperatorWord::Neka) => 1.0,
+            Combinator(CombinatorWord::No) => 0.0,
+            Combinator(CombinatorWord::Mo) => 0.0,
+            Combinator(CombinatorWord::Re) => 0.0,
+            Combinator(CombinatorWord::Rovo) => 0.0,
+            Control(ControlWord::Sila) => 2.0,
+            Control(ControlWord::Vila) => 2.0,
+        }
+    }
 }

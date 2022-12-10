@@ -56,7 +56,7 @@ impl Person {
         }
     }
     pub fn reserved_mana(&self) -> f32 {
-        self.words.len() as f32
+        self.words.iter().map(|word| word.cost()).sum()
     }
     pub fn capped_mana(&self) -> f32 {
         self.max_mana - self.reserved_mana()
