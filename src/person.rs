@@ -17,6 +17,10 @@ pub enum PersonId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Sequence)]
 pub enum NpcId {}
 
+pub struct Npc {
+    pub person: Person,
+}
+
 pub struct Person {
     pub pos: Pos2,
     pub body_handle: RigidBodyHandle,

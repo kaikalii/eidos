@@ -84,7 +84,7 @@ impl World {
                 || self
                     .npcs
                     .values()
-                    .any(|person| person.body_handle == handle)
+                    .any(|npc| npc.person.body_handle == handle)
             {
                 body.reset_torques(true);
                 let angle = modulus(body.rotation().angle() + PI, TAU) - PI;

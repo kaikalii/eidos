@@ -1,3 +1,4 @@
+- Allow multiple spells to output to the same field
 - Associate each output field with a person
 - Implement story
 - Rethink numbers?

@@ -458,8 +458,8 @@ impl Game {
     fn init_plot(&self, size: f32, resolution: usize, global_alpha: f32) -> MapPlot {
         MapPlot::new(
             &self.world,
-            self.world.player.person.pos + Vec2::Y,
-            5.0,
+            self.world.player.person.pos + vec2(0.0, 0.5),
+            3.0,
             global_alpha,
         )
         .size(size)

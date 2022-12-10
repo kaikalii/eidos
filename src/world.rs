@@ -6,7 +6,7 @@ use rapier2d::prelude::*;
 use crate::{
     field::*,
     math::rotate,
-    person::{NpcId, Person, PersonId},
+    person::{Npc, NpcId, Person, PersonId},
     physics::PhysicsContext,
     player::Player,
     word::Word,
@@ -14,7 +14,7 @@ use crate::{
 
 pub struct World {
     pub player: Player,
-    pub npcs: HashMap<NpcId, Person>,
+    pub npcs: HashMap<NpcId, Npc>,
     pub objects: HashMap<RigidBodyHandle, Object>,
     pub physics: PhysicsContext,
     pub outputs: OutputFields,
@@ -109,16 +109,28 @@ impl World {
             |c| c,
         );
         // Player
+        const HEIGHT: f32 = 4.0 / 7.0 * 1.75;
+        const HEAD_HEIGHT: f32 = 1.0 / 3.0 * HEIGHT;
+        const HEAD_WIDTH: f32 = 2.0 / 3.0 * HEAD_HEIGHT;
+        const NUBS_HEIGHT: f32 = 1.0 / 7.0 * HEIGHT;
+        const TORSO_HEIGHT: f32 = HEIGHT - HEAD_HEIGHT - NUBS_HEIGHT / 2.0;
+        const TORSO_WIDTH: f32 = 3.0 / 8.0 * (TORSO_HEIGHT + NUBS_HEIGHT);
+        const NUBS_WIDTH: f32 = 1.0 / 3.0 * TORSO_WIDTH;
         world.player.person.body_handle = world.add_object(
             vec![
-                GraphicalShape::Capsule {
-                    half_height: 0.25,
-                    radius: 0.25,
-                }
-                .offset(Vec2::ZERO),
-                GraphicalShape::Circle(0.3).offset(vec2(0.0, 0.5)),
+                GraphicalShape::capsule_wh(TORSO_WIDTH, TORSO_HEIGHT).offset(vec2(0.0, 0.0)),
+                GraphicalShape::capsule_wh(HEAD_WIDTH, HEAD_HEIGHT)
+                    .offset(vec2(0.0, (TORSO_HEIGHT + HEAD_HEIGHT) / 2.0)),
+                GraphicalShape::capsule_wh(NUBS_WIDTH, NUBS_HEIGHT).offset(vec2(
+                    -(TORSO_WIDTH - NUBS_WIDTH) / 2.0,
+                    -(TORSO_HEIGHT + NUBS_HEIGHT / 2.0) / 2.0,
+                )),
+                GraphicalShape::capsule_wh(NUBS_WIDTH, NUBS_HEIGHT).offset(vec2(
+                    (TORSO_WIDTH - NUBS_WIDTH) / 2.0,
+                    -(TORSO_HEIGHT + NUBS_HEIGHT / 2.0) / 2.0,
+                )),
             ],
-            RigidBodyBuilder::dynamic().translation([0.0, 0.5].into()),
+            RigidBodyBuilder::dynamic().translation([0.0, HEIGHT / 2.0].into()),
             |c| c,
         );
         world
@@ -161,6 +173,12 @@ pub enum GraphicalShape {
 }
 
 impl GraphicalShape {
+    pub fn capsule_wh(width: f32, height: f32) -> Self {
+        GraphicalShape::Capsule {
+            half_height: (height - width) / 2.0,
+            radius: width / 2.0,
+        }
+    }
     pub fn offset(self, offset: Vec2) -> OffsetShape {
         OffsetShape {
             shape: self,
@@ -191,8 +209,8 @@ impl World {
         match person_id {
             PersonId::Player => &self.player.person,
             PersonId::Npc(npc_id) => {
-                if let Some(person) = self.npcs.get(&npc_id) {
-                    person
+                if let Some(npc) = self.npcs.get(&npc_id) {
+                    &npc.person
                 } else {
                     panic!("No npc with id {npc_id:?}");
                 }
@@ -204,8 +222,8 @@ impl World {
         match person_id {
             PersonId::Player => &mut self.player.person,
             PersonId::Npc(npc_id) => {
-                if let Some(person) = self.npcs.get_mut(&npc_id) {
-                    person
+                if let Some(npc) = self.npcs.get_mut(&npc_id) {
+                    &mut npc.person
                 } else {
                     panic!("No npc with id {npc_id:?}");
                 }
