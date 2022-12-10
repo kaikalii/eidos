@@ -1,4 +1,7 @@
-use std::{collections::HashMap, iter::once};
+use std::{
+    collections::HashMap,
+    iter::{empty, once},
+};
 
 use eframe::egui::*;
 use rapier2d::prelude::*;
@@ -17,17 +20,24 @@ pub struct World {
     pub npcs: HashMap<NpcId, Npc>,
     pub objects: HashMap<RigidBodyHandle, Object>,
     pub physics: PhysicsContext,
-    pub outputs: OutputFields,
+    pub active_spells: ActiveSpells,
     pub controls: Controls,
 }
 
+type TypedActiveSpells<K, V> = HashMap<PersonId, HashMap<K, Vec<ActiveSpell<V>>>>;
+
 #[derive(Default)]
-pub struct OutputFields {
-    pub scalars: HashMap<PersonId, HashMap<ScalarOutputFieldKind, OutputField<ScalarField>>>,
-    pub vectors: HashMap<PersonId, HashMap<VectorOutputFieldKind, OutputField<VectorField>>>,
+pub struct ActiveSpells {
+    pub scalars: TypedActiveSpells<ScalarOutputFieldKind, ScalarField>,
+    pub vectors: TypedActiveSpells<VectorOutputFieldKind, VectorField>,
 }
 
-impl OutputFields {
+pub struct ActiveSpell<T> {
+    pub field: T,
+    pub words: Vec<Word>,
+}
+
+impl ActiveSpells {
     pub fn contains(&self, kind: GenericOutputFieldKind) -> bool {
         match kind {
             GenericOutputFieldKind::Scalar(kind) => self
@@ -40,31 +50,51 @@ impl OutputFields {
                 .any(|fields| fields.contains_key(&kind)),
         }
     }
-    pub fn remove(&mut self, person_id: PersonId, kind: GenericOutputFieldKind) {
+    pub fn remove(&mut self, person_id: PersonId, kind: GenericOutputFieldKind, i: usize) {
         match kind {
             GenericOutputFieldKind::Scalar(kind) => {
-                self.scalars.get_mut(&person_id).unwrap().remove(&kind);
+                self.scalars
+                    .entry(person_id)
+                    .or_default()
+                    .entry(kind)
+                    .or_default()
+                    .remove(i);
             }
             GenericOutputFieldKind::Vector(kind) => {
-                self.vectors.get_mut(&person_id).unwrap().remove(&kind);
+                self.vectors
+                    .entry(person_id)
+                    .or_default()
+                    .entry(kind)
+                    .or_default()
+                    .remove(i);
             }
         }
     }
-    pub fn player_spell(&self, kind: GenericOutputFieldKind) -> Option<&[Word]> {
+    pub fn player_spell_words(
+        &self,
+        kind: GenericOutputFieldKind,
+    ) -> Box<dyn ExactSizeIterator<Item = &[Word]> + '_> {
         match kind {
-            GenericOutputFieldKind::Scalar(kind) => self.scalars[&PersonId::Player]
-                .get(&kind)
-                .map(|output| output.words.as_slice()),
-            GenericOutputFieldKind::Vector(kind) => self.vectors[&PersonId::Player]
-                .get(&kind)
-                .map(|output| output.words.as_slice()),
+            GenericOutputFieldKind::Scalar(kind) => {
+                let Some(spells) = self.scalars.get(&PersonId::Player) else {
+                    return Box::new(empty());
+                };
+                let Some(spells) = spells.get(&kind) else {
+                    return Box::new(empty());
+                };
+                Box::new(spells.iter().map(|spell| spell.words.as_slice()))
+            }
+            GenericOutputFieldKind::Vector(kind) => {
+                let Some(spells) = self.vectors.get(&PersonId::Player) else {
+                    return Box::new(empty());
+                };
+                let Some(spells) = spells.get(&kind) else {
+                    return Box::new(empty());
+                };
+                Box::new(spells.iter().map(|spell| spell.words.as_slice()))
+            }
         }
     }
-}
-
-pub struct OutputField<T> {
-    pub field: T,
-    pub words: Vec<Word>,
 }
 
 #[derive(Default)]
@@ -90,7 +120,7 @@ impl World {
             npcs: HashMap::new(),
             physics: PhysicsContext::default(),
             objects: HashMap::new(),
-            outputs: OutputFields::default(),
+            active_spells: ActiveSpells::default(),
             controls: Controls::default(),
         };
         // Add objects
@@ -287,15 +317,13 @@ impl World {
     }
     pub fn sample_output_vector_field(&self, kind: VectorOutputFieldKind, pos: Pos2) -> Vec2 {
         puffin::profile_function!(kind.to_string());
-        self.outputs
+        self.active_spells
             .vectors
             .iter()
-            .fold(Vec2::ZERO, |acc, (person_id, fields)| {
-                acc + fields
-                    .get(&kind)
-                    .map(|output| output.field.sample(self, pos))
-                    .unwrap_or_default()
-                    * self.person(*person_id).field_scale()
+            .filter_map(|(person_id, spells)| spells.get(&kind).map(|spells| (person_id, spells)))
+            .flat_map(|(person_id, spells)| spells.iter().map(move |spell| (person_id, spell)))
+            .fold(Vec2::ZERO, |acc, (person_id, spell)| {
+                acc + spell.field.sample(self, pos) * self.person(*person_id).field_scale()
             })
     }
     pub fn people(&self) -> impl Iterator<Item = &Person> {
@@ -314,8 +342,8 @@ impl World {
         for id in self.person_ids() {
             self.person_mut(id).do_work(work_done);
             let can_cast = self.person(id).can_cast();
-            let scalars = self.outputs.scalars.entry(id).or_default();
-            let vectors = self.outputs.vectors.entry(id).or_default();
+            let scalars = self.active_spells.scalars.entry(id).or_default();
+            let vectors = self.active_spells.vectors.entry(id).or_default();
             if !can_cast {
                 scalars.clear();
                 vectors.clear();

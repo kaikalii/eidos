@@ -244,13 +244,22 @@ impl Game {
                 ui.toggle_value(enabled, kind.to_string());
             }
             for output_kind in all::<GenericOutputFieldKind>() {
-                if self.world.outputs.contains(output_kind) {
+                if self.world.active_spells.contains(output_kind) {
                     let kind = GenericFieldKind::from(output_kind);
                     let enabled = self.ui_state.fields_visible.entry(kind).or_insert(false);
                     ui.toggle_value(enabled, kind.to_string());
                     if *enabled {
-                        if ui.button("Dispel").clicked() {
-                            self.world.outputs.remove(PersonId::Player, output_kind);
+                        let spell_count = self
+                            .world
+                            .active_spells
+                            .player_spell_words(output_kind)
+                            .len();
+                        for i in 0..spell_count {
+                            if ui.button("Dispel").clicked() {
+                                self.world
+                                    .active_spells
+                                    .remove(PersonId::Player, output_kind, i);
+                            }
                         }
                     } else {
                         ui.label("");
@@ -274,14 +283,17 @@ impl Game {
                 }
             }
             for output_kind in all::<GenericOutputFieldKind>() {
-                if self.world.outputs.contains(output_kind) {
+                if self.world.active_spells.contains(output_kind) {
                     let kind = GenericFieldKind::from(output_kind);
                     if self.ui_state.fields_visible[&kind] {
-                        if let Some(words) = self.world.outputs.player_spell(output_kind) {
-                            self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, 1.0, kind);
-                            Self::spell_words_ui(ui, words, BIG_PLOT_SIZE);
-                        } else {
+                        let words = self.world.active_spells.player_spell_words(output_kind);
+                        if words.len() == 0 {
                             ui.label("");
+                        } else {
+                            self.plot_field_kind(ui, BIG_PLOT_SIZE, 100, 1.0, kind);
+                            for words in words {
+                                Self::spell_words_ui(ui, words, BIG_PLOT_SIZE);
+                            }
                         }
                     } else {
                         ui.label("");
@@ -386,19 +398,21 @@ impl Game {
     fn controls_ui(&mut self, ui: &mut Ui, stack: &Stack) {
         // Controls
         let stack_controls = stack.iter().flat_map(|item| item.field.controls());
-        let outputs = &mut self.world.outputs;
+        let outputs = &mut self.world.active_spells;
         let scalar_output_controls = outputs
             .scalars
             .entry(PersonId::Player)
             .or_default()
             .values()
-            .flat_map(|output| output.field.controls());
+            .flatten()
+            .flat_map(|spell| spell.field.controls());
         let vector_output_controls = outputs
             .vectors
             .entry(PersonId::Player)
             .or_default()
             .values()
-            .flat_map(|output| output.field.controls());
+            .flatten()
+            .flat_map(|spell| spell.field.controls());
         let used_controls: BTreeSet<ControlKind> = stack_controls
             .chain(scalar_output_controls)
             .chain(vector_output_controls)

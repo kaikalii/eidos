@@ -6,7 +6,7 @@ use crate::{
     function::*,
     person::PersonId,
     word::Word,
-    world::{OutputField, World},
+    world::{ActiveSpell, World},
 };
 
 pub struct Stack {
@@ -115,11 +115,13 @@ impl Stack {
                 match (field_kind, item.field) {
                     (GenericOutputFieldKind::Vector(kind), GenericField::Vector(field)) => {
                         world
-                            .outputs
+                            .active_spells
                             .vectors
                             .entry(self.person_id)
                             .or_default()
-                            .insert(kind, OutputField { field, words });
+                            .entry(kind)
+                            .or_default()
+                            .push(ActiveSpell { field, words });
                     }
                     _ => unreachable!(),
                 }
