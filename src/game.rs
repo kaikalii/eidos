@@ -17,7 +17,6 @@ use crate::{
     player::Player,
     plot::*,
     stack::Stack,
-    word::SpellCommand,
     word::*,
     world::World,
     GameState,
@@ -337,24 +336,22 @@ impl Game {
         });
     }
     fn words_ui(&mut self, ui: &mut Ui, stack: &Stack) {
-        Grid::new("words").show(ui, |ui| {
-            // Commands
-            ui.horizontal_wrapped(|ui| {
-                let show_commands = !self.world.player.progression.known_words.is_empty();
-                let id = ui.make_persistent_id("commands");
-                let visibility = ui.ctx().animate_bool(id, show_commands);
-                if show_commands {
-                    apply_color_fading(ui.visuals_mut(), visibility);
-                    for command in all::<SpellCommand>() {
-                        if ui.button(command.to_string()).clicked() {
-                            match command {
-                                SpellCommand::Clear => self.world.player.person.words.clear(),
-                            }
-                        }
-                    }
+        ui.vertical(|ui| self.words_ui_impl(ui, stack));
+    }
+    fn words_ui_impl(&mut self, ui: &mut Ui, stack: &Stack) {
+        // Release
+        {
+            let show_release = !self.world.player.progression.known_words.is_empty();
+            let id = ui.make_persistent_id("release");
+            let visibility = ui.ctx().animate_bool(id, show_release);
+            if show_release {
+                apply_color_fading(ui.visuals_mut(), visibility);
+                if ui.button("Release").clicked() {
+                    self.world.player.person.words.clear();
                 }
-            });
-            ui.end_row();
+            }
+        }
+        Grid::new("words").show(ui, |ui| {
             // Words
             fn button<W: Copy + Into<Word> + ToString + Sequence>(
                 ui: &mut Ui,

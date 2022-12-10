@@ -4,11 +4,6 @@ use serde::Deserialize;
 
 use crate::{field::*, function::*};
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, From, Sequence)]
-pub enum SpellCommand {
-    Clear,
-}
-
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
 #[serde(untagged)]
 pub enum Word {
