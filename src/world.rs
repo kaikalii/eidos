@@ -112,23 +112,13 @@ impl World {
         const HEIGHT: f32 = 4.0 / 7.0 * 1.75;
         const HEAD_HEIGHT: f32 = 1.0 / 3.0 * HEIGHT;
         const HEAD_WIDTH: f32 = 2.0 / 3.0 * HEAD_HEIGHT;
-        const NUBS_HEIGHT: f32 = 1.0 / 7.0 * HEIGHT;
-        const TORSO_HEIGHT: f32 = HEIGHT - HEAD_HEIGHT - NUBS_HEIGHT / 2.0;
-        const TORSO_WIDTH: f32 = 3.0 / 8.0 * (TORSO_HEIGHT + NUBS_HEIGHT);
-        const NUBS_WIDTH: f32 = 1.0 / 3.0 * TORSO_WIDTH;
+        const TORSO_HEIGHT: f32 = HEIGHT - HEAD_HEIGHT / 2.0;
+        const TORSO_WIDTH: f32 = 3.0 / 8.0 * TORSO_HEIGHT;
         world.player.person.body_handle = world.add_object(
             vec![
                 GraphicalShape::capsule_wh(TORSO_WIDTH, TORSO_HEIGHT).offset(vec2(0.0, 0.0)),
                 GraphicalShape::capsule_wh(HEAD_WIDTH, HEAD_HEIGHT)
                     .offset(vec2(0.0, (TORSO_HEIGHT + HEAD_HEIGHT) / 2.0)),
-                GraphicalShape::capsule_wh(NUBS_WIDTH, NUBS_HEIGHT).offset(vec2(
-                    -(TORSO_WIDTH - NUBS_WIDTH) / 2.0,
-                    -(TORSO_HEIGHT + NUBS_HEIGHT / 2.0) / 2.0,
-                )),
-                GraphicalShape::capsule_wh(NUBS_WIDTH, NUBS_HEIGHT).offset(vec2(
-                    (TORSO_WIDTH - NUBS_WIDTH) / 2.0,
-                    -(TORSO_HEIGHT + NUBS_HEIGHT / 2.0) / 2.0,
-                )),
             ],
             RigidBodyBuilder::dynamic().translation([0.0, HEIGHT / 2.0].into()),
             |c| c,

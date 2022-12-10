@@ -120,7 +120,7 @@ impl<'w> MapPlot<'w> {
         let time = time();
         let resolution = ((self.resolution as f32) * field_plot.precision()) as usize;
         let step = 2.0 * self.range / resolution as f32;
-        let point_radius = self.range * self.size / resolution as f32 * 0.1;
+        let point_radius = self.size / resolution as f32 * 0.5;
         let wiggle_delta = field_plot.wiggle_delta(point_radius);
         let mut points = Vec::with_capacity(self.resolution * resolution);
         let center = pos2(round_to(self.center.x, step), round_to(self.center.y, step));
