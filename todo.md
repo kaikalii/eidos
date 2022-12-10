@@ -1,4 +1,3 @@
-- Associate each output field with a person
 - Implement story
 - Rethink numbers?
 - Call mana something else

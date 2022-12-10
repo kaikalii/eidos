@@ -97,12 +97,8 @@ impl Stack {
         self.validate_function_use(function)?;
         match function {
             Function::ReadField(field_kind) => match field_kind {
-                GenericInputFieldKind::Scalar(kind) => {
-                    self.push(word, ScalarField::World(kind.into()))
-                }
-                GenericInputFieldKind::Vector(kind) => {
-                    self.push(word, VectorField::World(kind.into()))
-                }
+                GenericInputFieldKind::Scalar(kind) => self.push(word, ScalarField::Input(kind)),
+                GenericInputFieldKind::Vector(kind) => self.push(word, VectorField::Input(kind)),
             },
             Function::WriteField(field_kind) => {
                 let words = self

@@ -3,7 +3,7 @@ use eframe::epaint::{Pos2, Vec2};
 use enum_iterator::Sequence;
 use serde::Deserialize;
 
-use crate::{function::*, world::World};
+use crate::{function::*, person::PersonId, world::World};
 
 #[derive(Debug, Clone, From)]
 pub enum GenericField {
@@ -43,7 +43,7 @@ pub enum ScalarField {
     VectorUn(VectorUnScalarOp, Box<VectorField>),
     Bin(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
     Index(Box<VectorField>, Box<Self>),
-    World(GenericScalarFieldKind),
+    Input(ScalarInputFieldKind),
     Control(ControlKind),
 }
 
@@ -55,7 +55,7 @@ pub enum VectorField {
     BinVS(BinOp<NoOp<Vec2>>, Box<Self>, ScalarField),
     BinVV(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
     Index(Box<Self>, Box<Self>),
-    World(GenericVectorFieldKind),
+    Input(VectorInputFieldKind),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
@@ -142,28 +142,28 @@ pub enum ControlKind {
 const DROP_OFF_FACTOR: f32 = 10.0;
 
 impl ScalarField {
-    pub fn sample(&self, world: &World, pos: Pos2) -> f32 {
-        self.sample_impl(world, pos)
+    pub fn sample_relative(&self, world: &World, caster: PersonId, pos: Pos2) -> f32 {
+        let person_pos = world.person(caster).pos;
+        self.sample_absolute(world, pos)
             / (1.0
-                + ((pos.x - world.player.person.pos.x).powf(2.0)
-                    + (pos.y - world.player.person.pos.y).powf(2.0))
+                + ((pos.x - person_pos.x).powf(2.0) + (pos.y - person_pos.y).powf(2.0))
                     / DROP_OFF_FACTOR)
     }
-    fn sample_impl(&self, world: &World, pos: Pos2) -> f32 {
+    pub fn sample_absolute(&self, world: &World, pos: Pos2) -> f32 {
         puffin::profile_function!();
         match self {
             ScalarField::Uniform(v) => *v,
             ScalarField::X => pos.x - world.player.person.pos.x,
             ScalarField::Y => pos.y - world.player.person.pos.y,
-            ScalarField::ScalarUn(op, field) => op.operate(field.sample_impl(world, pos)),
-            ScalarField::VectorUn(op, field) => op.operate(field.sample_impl(world, pos)),
+            ScalarField::ScalarUn(op, field) => op.operate(field.sample_absolute(world, pos)),
+            ScalarField::VectorUn(op, field) => op.operate(field.sample_absolute(world, pos)),
             ScalarField::Bin(op, a, b) => {
-                op.operate(a.sample_impl(world, pos), b.sample_impl(world, pos))
+                op.operate(a.sample_absolute(world, pos), b.sample_absolute(world, pos))
             }
             ScalarField::Index(index, field) => {
-                field.sample_impl(world, index.sample_impl(world, pos).to_pos2())
+                field.sample_absolute(world, index.sample_absolute(world, pos).to_pos2())
             }
-            ScalarField::World(kind) => world.sample_scalar_field(*kind, pos),
+            ScalarField::Input(kind) => world.sample_input_scalar_field(*kind, pos),
             ScalarField::Control(kind) => world.controls.get(*kind),
         }
     }
@@ -216,31 +216,31 @@ impl ScalarField {
 }
 
 impl VectorField {
-    pub fn sample(&self, world: &World, pos: Pos2) -> Vec2 {
-        self.sample_impl(world, pos)
+    pub fn sample_relative(&self, world: &World, caster: PersonId, pos: Pos2) -> Vec2 {
+        let person_pos = world.person(caster).pos;
+        self.sample_absolute(world, pos)
             / (1.0
-                + ((pos.x - world.player.person.pos.x).powf(2.0)
-                    + (pos.y - world.player.person.pos.y).powf(2.0))
+                + ((pos.x - person_pos.x).powf(2.0) + (pos.y - person_pos.y).powf(2.0))
                     / DROP_OFF_FACTOR)
     }
-    pub fn sample_impl(&self, world: &World, pos: Pos2) -> Vec2 {
+    pub fn sample_absolute(&self, world: &World, pos: Pos2) -> Vec2 {
         puffin::profile_function!();
         match self {
             VectorField::Uniform(v) => *v,
-            VectorField::Un(op, field) => op.operate(field.sample_impl(world, pos)),
+            VectorField::Un(op, field) => op.operate(field.sample_absolute(world, pos)),
             VectorField::BinSV(op, a, b) => {
-                op.operate(a.sample_impl(world, pos), b.sample_impl(world, pos))
+                op.operate(a.sample_absolute(world, pos), b.sample_absolute(world, pos))
             }
             VectorField::BinVS(op, a, b) => {
-                op.operate(a.sample_impl(world, pos), b.sample_impl(world, pos))
+                op.operate(a.sample_absolute(world, pos), b.sample_absolute(world, pos))
             }
             VectorField::BinVV(op, a, b) => {
-                op.operate(a.sample_impl(world, pos), b.sample_impl(world, pos))
+                op.operate(a.sample_absolute(world, pos), b.sample_absolute(world, pos))
             }
             VectorField::Index(index, field) => {
-                field.sample_impl(world, index.sample_impl(world, pos).to_pos2())
+                field.sample_absolute(world, index.sample_absolute(world, pos).to_pos2())
             }
-            VectorField::World(kind) => world.sample_vector_field(*kind, pos),
+            VectorField::Input(kind) => world.sample_input_vector_field(*kind, pos),
         }
     }
     fn uniform(&self) -> Option<Vec2> {

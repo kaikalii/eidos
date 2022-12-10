@@ -323,7 +323,8 @@ impl World {
             .filter_map(|(person_id, spells)| spells.get(&kind).map(|spells| (person_id, spells)))
             .flat_map(|(person_id, spells)| spells.iter().map(move |spell| (person_id, spell)))
             .fold(Vec2::ZERO, |acc, (person_id, spell)| {
-                acc + spell.field.sample(self, pos) * self.person(*person_id).field_scale()
+                acc + spell.field.sample_relative(self, *person_id, pos)
+                    * self.person(*person_id).field_scale()
             })
     }
     pub fn people(&self) -> impl Iterator<Item = &Person> {

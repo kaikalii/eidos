@@ -512,13 +512,14 @@ impl Game {
     }
 }
 
+/// For rendering scalar stack fields
 impl FieldPlot for ScalarField {
     type Value = f32;
     fn precision(&self) -> f32 {
         1.0
     }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
-        self.sample(world, pos)
+        self.sample_relative(world, PersonId::Player, pos)
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
         let h = 0.9 * (1.0 - t);
@@ -528,19 +529,21 @@ impl FieldPlot for ScalarField {
     }
 }
 
+/// For rendering vector stack fields
 impl FieldPlot for VectorField {
     type Value = Vec2;
     fn precision(&self) -> f32 {
         0.35
     }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
-        self.sample(world, pos)
+        self.sample_relative(world, PersonId::Player, pos)
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
         default_vector_color(t)
     }
 }
 
+/// FOr rendering scalar I/O fields
 impl FieldPlot for GenericScalarFieldKind {
     type Value = f32;
     fn precision(&self) -> f32 {
@@ -557,6 +560,7 @@ impl FieldPlot for GenericScalarFieldKind {
     }
 }
 
+/// FOr rendering vector I/O fields
 impl FieldPlot for GenericVectorFieldKind {
     type Value = Vec2;
     fn precision(&self) -> f32 {
