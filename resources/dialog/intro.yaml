@@ -129,7 +129,6 @@
 # already_learned_magic_field:
 #   lines:
 #     - 'Take, for example, the word you tried earlier: Mesi.'
-#     - reveal_word: Mesi
 #     - "'Mesi' is the word for magic itself."
 #   children: mesi_learned
 # learn_magic_field:
