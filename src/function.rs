@@ -50,6 +50,8 @@ pub enum Nullary {
     TargetX,
     #[display(fmt = "🎯Y")]
     TargetY,
+    #[display(fmt = "🤳")]
+    Filter,
 }
 
 impl Nullary {
@@ -67,6 +69,7 @@ impl Nullary {
             Nullary::Y => ScalarField::Y(caster).into(),
             Nullary::TargetX => ScalarField::TargetX(caster).into(),
             Nullary::TargetY => ScalarField::TargetY(caster).into(),
+            Nullary::Filter => ScalarField::Filter(caster).into(),
         }
     }
 }

@@ -355,7 +355,7 @@ impl Game {
             static WORD_GRID: &[&[Word]] = &[
                 &[Ti, Tu, Ta, Te],
                 &[Seva, Sevi, Le, Po, Mesi],
-                &[Pa, Pi, Sila, Vila],
+                &[Pa, Pi, Sila, Vila, Me],
                 &[Kova, Kovi, Ke],
                 &[Ma, Na, Sa, Reso, Solo],
                 &[No, Mo, Re, Rovo],

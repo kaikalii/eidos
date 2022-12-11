@@ -10,7 +10,6 @@ use rapier2d::prelude::*;
 
 use crate::{
     field::*,
-    math::rotate,
     object::*,
     person::{Npc, NpcId, Person, PersonId},
     physics::PhysicsContext,
@@ -223,7 +222,7 @@ impl World {
             if !filter(obj, &self.physics.bodies[obj.body_handle]) {
                 return None;
             }
-            let transformed_point = rotate(p.to_vec2() - obj.pos.to_vec2(), -obj.rot).to_pos2();
+            let transformed_point = obj.transform_point(p);
             for (shapes, layer) in [
                 (&obj.def.shapes, ShapeLayer::Foreground),
                 (&obj.def.background, ShapeLayer::Background),
@@ -319,6 +318,11 @@ impl World {
                 acc + spell.field.sample_relative(self, *person_id, pos)
                     * self.person(*person_id).field_scale()
             })
+    }
+    pub fn person_is_at(&self, person_id: PersonId, pos: Pos2) -> bool {
+        let object = &self.objects[&self.person(person_id).body_handle];
+        let point = object.transform_point(pos);
+        object.def.shapes.iter().any(|shape| shape.contains(point))
     }
     pub fn people(&self) -> impl Iterator<Item = &Person> {
         self.person_ids_iter().map(|id| self.person(id))

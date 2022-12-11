@@ -145,7 +145,7 @@ impl<'w> MapPlot<'w> {
                 )));
                 let dxt = rng.gen::<f32>() + rounded_x - x;
                 let dyt = rng.gen::<f32>() + rounded_x - x;
-                let z = field_plot.get_z(self.world, pos2(x, y));
+                let z = field_plot.get_z(self.world, pos2(rounded_x, rounded_y));
                 let dx = (time + dxt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
                 let dy = (time + dyt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
                 points.push((x + dx, y + dy, z));
@@ -194,9 +194,9 @@ impl<'w> MapPlot<'w> {
                             z.format(|z| (z * 10.0).round() / 10.0),
                         );
                         for i in 0..2 {
-                            let x = p.x + ((i as f64) * 0.08 - 0.04);
+                            let x = p.x + (((i as f64) * 1.0 - 0.5) * 0.04);
                             for j in 0..2 {
-                                let y = p.y + ((j as f64) * 0.08 - 0.04);
+                                let y = p.y + (((j as f64) * 1.0 - 0.5) * 0.04);
                                 plot_ui.text(
                                     Text::new(PlotPoint::new(x, y), text.clone())
                                         .anchor(anchor)

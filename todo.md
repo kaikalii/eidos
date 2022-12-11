@@ -1,4 +1,3 @@
-- Add field filters
 - Implement story
 - Rethink numbers?
 - Improve elevation test efficiency

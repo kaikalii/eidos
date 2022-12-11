@@ -16,6 +16,7 @@ pub enum Word {
     // Scalars
     Seva,
     Sevi,
+    Me,
     // Vectors
     Kova,
     Kovi,
@@ -55,6 +56,7 @@ impl Word {
             Kovi => Nullary::OneY.into(),
             Seva => Nullary::X.into(),
             Sevi => Nullary::Y.into(),
+            Me => Nullary::Filter.into(),
             Le => ScalarInputFieldKind::Elevation.into(),
             Po => ScalarInputFieldKind::Density.into(),
             Mesi => ScalarInputFieldKind::Magic.into(),

@@ -6,7 +6,10 @@ use once_cell::sync::Lazy;
 use rapier2d::prelude::*;
 use serde::{Deserialize, Deserializer};
 
-use crate::utils::{fatal_error, resources_path};
+use crate::{
+    math::rotate,
+    utils::{fatal_error, resources_path},
+};
 
 pub struct Object {
     pub kind: ObjectKind,
@@ -85,6 +88,13 @@ impl GraphicalShape {
                     || pos.distance(pos2(0.0, -*half_height)) < *radius
             }
         }
+    }
+}
+
+impl Object {
+    /// Transform a point so that it can be checked against this object's shapes
+    pub fn transform_point(&self, pos: Pos2) -> Pos2 {
+        rotate(pos.to_vec2() - self.pos.to_vec2(), -self.rot).to_pos2()
     }
 }
 
