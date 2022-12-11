@@ -18,6 +18,7 @@ use crate::{math::round_to, world::World};
 pub trait FieldPlot {
     type Value: PartitionAndPlottable;
     fn precision(&self) -> f32;
+    fn color_midpoint(&self) -> f32;
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value;
     fn get_color(&self, t: Self::Value) -> Rgba;
     fn wiggle_delta(&self, point_radius: f32) -> f32 {
@@ -36,6 +37,10 @@ pub trait PartitionAndPlottable: Sized {
         data: PlotData<Self>,
     );
     fn format(&self, round: fn(f32) -> f32) -> String;
+}
+
+pub fn plot_log(x: f32, mid: f32) -> f32 {
+    x.signum() * (1.0 - 2f32.powf(-x.abs() / mid))
 }
 
 pub fn default_scalar_color(t: f32) -> Rgba {
@@ -317,19 +322,13 @@ impl PartitionAndPlottable for f32 {
         data: PlotData<Self>,
     ) {
         puffin::profile_function!("f32");
-        let (min_z, max_z) = data
-            .points
-            .iter()
-            .map(|(_, _, z)| *z)
-            .minmax()
-            .into_option()
-            .unwrap();
-        let max_abs_z = min_z.abs().max(max_z.abs()).max(1.0);
         let center = plot_ui.plot_bounds().center().to_pos2();
         let radius = plot_ui.plot_bounds().width() as f32 * 0.5;
         let mut grouped_points = vec![vec![Vec::new(); ALPHA_BUCKETS]; Z_BUCKETS];
+        let midpoint = field_plot.color_midpoint();
         for (x, y, z) in data.points {
-            let group = ((z / max_abs_z * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
+            let t = plot_log(z, midpoint);
+            let group = ((t * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
                 .max(0.0)
                 .round() as usize)
                 .min(Z_BUCKETS - 1);
@@ -379,32 +378,18 @@ impl PartitionAndPlottable for Vec2 {
         data: PlotData<Self>,
     ) {
         puffin::profile_function!("Vec2");
-        let (min_zx, max_zx) = data
-            .points
-            .iter()
-            .map(|(_, _, z)| z.x)
-            .minmax()
-            .into_option()
-            .unwrap();
-        let (min_zy, max_zy) = data
-            .points
-            .iter()
-            .map(|(_, _, z)| z.y)
-            .minmax()
-            .into_option()
-            .unwrap();
-        let max_abs_zx = min_zx.abs().max(max_zx.abs()).max(0.1);
-        let max_abs_zy = min_zy.abs().max(max_zy.abs()).max(0.1);
-        let max_abs = max_abs_zx.max(max_abs_zy);
         let center = plot_ui.plot_bounds().center().to_pos2();
         let radius = plot_ui.plot_bounds().width() as f32 * 0.5;
         let mut grouped_points = vec![vec![vec![Vec::new(); ALPHA_BUCKETS]; Z_BUCKETS]; Z_BUCKETS];
+        let midpoint = field_plot.color_midpoint();
         for (x, y, z) in data.points {
-            let x_group = ((z.x / max_abs * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
+            let tx = plot_log(z.x, midpoint);
+            let ty = plot_log(z.y, midpoint);
+            let x_group = ((tx * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
                 .max(0.0)
                 .round() as usize)
                 .min(Z_BUCKETS - 1);
-            let y_group = ((z.y / max_abs * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
+            let y_group = ((ty * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
                 .max(0.0)
                 .round() as usize)
                 .min(Z_BUCKETS - 1);

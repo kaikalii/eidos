@@ -2,7 +2,7 @@ use std::{collections::BTreeSet, time::Instant};
 
 use eframe::{
     egui::{style::Margin, *},
-    epaint::{ahash::HashMap, Hsva},
+    epaint::ahash::HashMap,
 };
 use enum_iterator::all;
 
@@ -534,17 +534,20 @@ impl FieldPlot for ScalarField {
     fn precision(&self) -> f32 {
         1.0
     }
+    fn color_midpoint(&self) -> f32 {
+        if let ScalarField::Input(kind) = self {
+            GenericScalarFieldKind::Input(*kind).color_midpoint()
+        } else {
+            1.0
+        }
+    }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
         self.sample_relative(world, PersonId::Player, pos)
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
-        if let ScalarField::Input(kind) = self {
-            GenericScalarFieldKind::Input(*kind).get_color(t)
-        } else {
-            let h = 0.9 * (1.0 - t);
-            let v = (2.0 * t - 1.0).abs();
-            let s = v.powf(0.5) * 0.8;
-            Hsva::new(h, s, v, 1.0).into()
+        match self {
+            ScalarField::Input(kind) => GenericScalarFieldKind::Input(*kind).get_color(t),
+            _ => default_scalar_color(t),
         }
     }
 }
@@ -554,6 +557,9 @@ impl FieldPlot for VectorField {
     type Value = Vec2;
     fn precision(&self) -> f32 {
         0.35
+    }
+    fn color_midpoint(&self) -> f32 {
+        1.0
     }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
         self.sample_relative(world, PersonId::Player, pos)
@@ -570,6 +576,14 @@ impl FieldPlot for GenericScalarFieldKind {
         match self {
             GenericScalarFieldKind::Input(ScalarInputFieldKind::Elevation) => 0.7,
             _ => 1.0,
+        }
+    }
+    fn color_midpoint(&self) -> f32 {
+        match self {
+            GenericScalarFieldKind::Input(ScalarInputFieldKind::Density) => 1.0,
+            GenericScalarFieldKind::Input(ScalarInputFieldKind::Elevation) => 3.0,
+            GenericScalarFieldKind::Input(ScalarInputFieldKind::Magic) => 10.0,
+            GenericScalarFieldKind::Output(_kind) => unreachable!(),
         }
     }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
@@ -591,6 +605,9 @@ impl FieldPlot for GenericVectorFieldKind {
     type Value = Vec2;
     fn precision(&self) -> f32 {
         0.35
+    }
+    fn color_midpoint(&self) -> f32 {
+        1.0
     }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
         world.sample_vector_field(*self, pos)
