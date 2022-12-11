@@ -1,10 +1,15 @@
 use std::{
     collections::HashMap,
+    f32::consts::PI,
+    fs,
     iter::{empty, once},
 };
 
+use anyhow::{anyhow, bail};
 use eframe::egui::*;
+use once_cell::sync::Lazy;
 use rapier2d::prelude::*;
+use serde::{Deserialize, Deserializer};
 
 use crate::{
     field::*,
@@ -12,6 +17,7 @@ use crate::{
     person::{Npc, NpcId, Person, PersonId},
     physics::PhysicsContext,
     player::Player,
+    utils::{fatal_error, resources_path},
     word::Word,
 };
 
@@ -133,13 +139,6 @@ impl World {
             RigidBodyBuilder::fixed(),
             |c| c.restitution(0.5),
         );
-        // Rock?
-        world.add_object(
-            Properties::default(),
-            GraphicalShape::Circle(1.0).offset(Vec2::ZERO).density(2.0),
-            RigidBodyBuilder::dynamic().translation([3.0, 10.0].into()),
-            |c| c,
-        );
         // Player
         const HEIGHT: f32 = 4.0 / 7.0 * 1.75;
         const HEAD_HEIGHT: f32 = 1.0 / 3.0 * HEIGHT;
@@ -149,13 +148,18 @@ impl World {
         world.player.person.body_handle = world.add_object(
             Properties { magic: 10.0 },
             vec![
-                GraphicalShape::capsule_wh(TORSO_WIDTH, TORSO_HEIGHT).offset(vec2(0.0, 0.0)),
+                GraphicalShape::capsule_wh(TORSO_WIDTH, TORSO_HEIGHT)
+                    .offset(vec2(0.0, -HEAD_HEIGHT / 2.0)),
                 GraphicalShape::capsule_wh(HEAD_WIDTH, HEAD_HEIGHT)
-                    .offset(vec2(0.0, (TORSO_HEIGHT + HEAD_HEIGHT) / 2.0)),
+                    .offset(vec2(0.0, TORSO_HEIGHT / 2.0)),
             ],
-            RigidBodyBuilder::dynamic().translation([0.0, HEIGHT / 2.0].into()),
+            RigidBodyBuilder::dynamic()
+                .rotation(PI / 2.0)
+                .translation([0.0, 0.5 + TORSO_WIDTH].into()),
             |c| c,
         );
+        // Place
+        world.load_place("magician_house");
         world
     }
 }
@@ -173,9 +177,10 @@ pub struct Properties {
     pub magic: f32,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct OffsetShape {
     pub shape: GraphicalShape,
+    #[serde(deserialize_with = "vec2_as_array")]
     pub offset: Vec2,
     pub density: f32,
 }
@@ -189,16 +194,13 @@ impl OffsetShape {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum GraphicalShape {
     Circle(f32),
-    #[allow(dead_code)]
-    Box(Vec2),
-    HalfSpace(Vec2),
-    Capsule {
-        half_height: f32,
-        radius: f32,
-    },
+    Box(#[serde(deserialize_with = "vec2_as_array")] Vec2),
+    HalfSpace(#[serde(deserialize_with = "vec2_as_array")] Vec2),
+    Capsule { half_height: f32, radius: f32 },
 }
 
 impl GraphicalShape {
@@ -218,7 +220,7 @@ impl GraphicalShape {
     pub fn contains(&self, pos: Pos2) -> bool {
         match self {
             GraphicalShape::Circle(radius) => pos.distance(Pos2::ZERO) < *radius,
-            GraphicalShape::Box(size) => pos.x.abs() < size.x / 2.0 && pos.y.abs() < size.x / 2.0,
+            GraphicalShape::Box(size) => pos.x.abs() < size.x / 2.0 && pos.y.abs() < size.y / 2.0,
             GraphicalShape::HalfSpace(normal) => pos.y < -normal.x / normal.y * pos.x,
             GraphicalShape::Capsule {
                 half_height,
@@ -382,4 +384,90 @@ impl World {
             }
         }
     }
+    pub fn load_place(&mut self, place_name: &str) {
+        let Some(place) = PLACES.get(place_name) else {
+            return;
+        };
+        // Add objects
+        for po in &place.objects {
+            let object = OBJECTS[&po.name].clone();
+            self.add_object_def(po.pos + place.offset, object);
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ObjectDef {
+    #[serde(rename = "type")]
+    pub ty: RigidBodyType,
+    pub shapes: Vec<OffsetShape>,
+}
+
+pub static OBJECTS: Lazy<HashMap<String, ObjectDef>> = Lazy::new(|| {
+    let yaml = fs::read_to_string(resources_path().join("objects.yaml"));
+    let yaml = yaml
+        .as_deref()
+        .unwrap_or(include_str!("../resources/objects.yaml"));
+    match serde_yaml::from_str::<HashMap<String, ObjectDef>>(yaml) {
+        Ok(objects) => objects,
+        Err(e) => fatal_error(format!("Unable to read objects file: {e}")),
+    }
+});
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PlacedObject {
+    name: String,
+    #[serde(deserialize_with = "pos2_as_array")]
+    pos: Pos2,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Place {
+    #[serde(deserialize_with = "vec2_as_array")]
+    offset: Vec2,
+    objects: Vec<PlacedObject>,
+}
+
+pub static PLACES: Lazy<HashMap<String, Place>> =
+    Lazy::new(|| load_places().unwrap_or_else(|e| fatal_error(e)));
+
+fn load_places() -> anyhow::Result<HashMap<String, Place>> {
+    let mut map = HashMap::new();
+    for entry in fs::read_dir(resources_path().join("places"))
+        .map_err(|e| anyhow!("Unable to open places directory: {e}"))?
+    {
+        let entry = entry.unwrap();
+        if entry.file_type()?.is_file() {
+            let path = entry.path();
+            if path.extension().map_or(false, |ext| ext == "yaml") {
+                let yaml = fs::read_to_string(&path)?;
+                let name = path.file_stem().unwrap().to_string_lossy().into_owned();
+                let place: Place = serde_yaml::from_str(&yaml)
+                    .map_err(|e| anyhow!("Unable to read {name} place: {e}"))?;
+                for po in &place.objects {
+                    if !OBJECTS.contains_key(&po.name) {
+                        bail!("Error in {name} place");
+                    }
+                }
+                map.insert(name, place);
+            }
+        }
+    }
+    Ok(map)
+}
+
+fn vec2_as_array<'de, D>(deserializer: D) -> Result<Vec2, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let [x, y] = <[f32; 2]>::deserialize(deserializer)?;
+    Ok(vec2(x, y))
+}
+
+fn pos2_as_array<'de, D>(deserializer: D) -> Result<Pos2, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let [x, y] = <[f32; 2]>::deserialize(deserializer)?;
+    Ok(pos2(x, y))
 }

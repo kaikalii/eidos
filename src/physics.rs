@@ -4,13 +4,14 @@ use std::{
 };
 
 use eframe::epaint::Vec2;
+use emath::Pos2;
 use itertools::Itertools;
 use rapier2d::{na::Unit, prelude::*};
 
 use crate::{
     field::VectorOutputFieldKind,
     math::{modulus, Convert},
-    world::{GraphicalShape, Object, OffsetShape, Properties, World},
+    world::{GraphicalShape, Object, ObjectDef, OffsetShape, Properties, World},
 };
 
 pub struct PhysicsContext {
@@ -166,6 +167,14 @@ fn graphical_shape_to_shared(shape: &GraphicalShape) -> SharedShape {
 }
 
 impl World {
+    pub fn add_object_def(&mut self, pos: Pos2, def: ObjectDef) {
+        self.add_object(
+            Properties::default(),
+            def.shapes,
+            RigidBodyBuilder::new(def.ty).translation(pos.convert()),
+            |c| c,
+        );
+    }
     pub fn add_object(
         &mut self,
         props: Properties,

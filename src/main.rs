@@ -14,6 +14,7 @@ mod physics;
 mod player;
 mod plot;
 mod stack;
+mod utils;
 mod word;
 mod world;
 
@@ -23,9 +24,12 @@ use game::Game;
 use main_menu::main_menu;
 use new_game::NewGame;
 use player::{Gender, Player};
+use world::{OBJECTS, PLACES};
 
 fn main() {
     once_cell::sync::Lazy::force(&DIALOG_SCENES);
+    once_cell::sync::Lazy::force(&OBJECTS);
+    once_cell::sync::Lazy::force(&PLACES);
     puffin::set_scopes_on(cfg!(all(feature = "profile", not(debug_assertions))));
     eframe::run_native(
         "Eidos",

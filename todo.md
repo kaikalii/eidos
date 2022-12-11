@@ -1,5 +1,6 @@
+- Add background objects
+- Add field filters
 - Implement story
 - Rethink numbers?
-- Call mana something else
 - Improve elevation test efficiency
   - Maybe just cache it?

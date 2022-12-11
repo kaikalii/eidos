@@ -1,0 +1,4 @@
+offset: [0, 0]
+objects:
+  - name: sofa
+    pos: [0, 0]
