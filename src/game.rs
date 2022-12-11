@@ -43,7 +43,7 @@ impl Game {
 }
 
 pub struct UiState {
-    fields_visible: HashMap<GenericFieldKind, bool>,
+    pub fields_visible: HashMap<GenericFieldKind, bool>,
     pub dialog: Option<DialogState>,
     last_stack_len: usize,
     paused: bool,
@@ -355,7 +355,7 @@ impl Game {
     fn words_ui_impl(&mut self, ui: &mut Ui, stack: &Stack) {
         // Release
         {
-            let show_release = !self.world.player.progression.known_words.is_empty();
+            let show_release = self.world.player.progression.release;
             let id = ui.make_persistent_id("release");
             let visibility = ui.ctx().animate_bool(id, show_release);
             if show_release {
@@ -363,6 +363,8 @@ impl Game {
                 if ui.button("Release").clicked() {
                     self.world.player.person.words.clear();
                 }
+            } else {
+                ui.label("");
             }
         }
         Grid::new("words").min_col_width(10.0).show(ui, |ui| {
@@ -391,7 +393,15 @@ impl Game {
                         .on_hover_text(f.to_string())
                         .clicked()
                     {
-                        self.world.player.person.words.push(*word);
+                        if let Function::ReadField(kind) = f {
+                            if self.world.player.progression.known_fields.insert(kind) {
+                                self.ui_state.fields_visible.insert(kind.into(), true);
+                            } else {
+                                self.world.player.person.words.push(*word);
+                            }
+                        } else {
+                            self.world.player.person.words.push(*word);
+                        }
                     }
                 }
                 ui.end_row();

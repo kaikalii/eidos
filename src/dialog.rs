@@ -94,17 +94,43 @@ fn load_scenes() -> anyhow::Result<DialogScenes> {
                     .try_into()
                     .map_err(|e| anyhow!("Error parsing fragment in {name}: {e}"))?;
                 for (node_name, node) in &scene.nodes {
-                    for child_name in node.children.keys() {
-                        if !scene.nodes.contains_key(child_name) {
-                            bail!("In {name} scene, node {node_name}'s child {child_name} does not exist")
-                        }
-                    }
+                    validate_children(&name, &scene, node_name, &node.children)?;
                 }
                 map.insert(name, scene);
             }
         }
     }
     Ok(map)
+}
+
+fn validate_children(
+    scene_name: &str,
+    scene: &DialogScene<Vec<DialogFragment>>,
+    node_name: &str,
+    children: &NodeChildren<Vec<DialogFragment>>,
+) -> anyhow::Result<()> {
+    let child_nodes = match children {
+        NodeChildren::Choices(choices) => choices.keys().collect_vec(),
+        NodeChildren::Next(node) => vec![node],
+        NodeChildren::Condition { then, els, .. } => {
+            validate_children(scene_name, scene, node_name, then)?;
+            validate_children(scene_name, scene, node_name, els)?;
+            Vec::new()
+        }
+        NodeChildren::Wait { then: node, .. } => vec![node],
+        NodeChildren::List(list) => {
+            for child in list {
+                validate_children(scene_name, scene, node_name, child)?;
+            }
+            Vec::new()
+        }
+    };
+    for child_name in child_nodes {
+        if !scene.nodes.contains_key(child_name) {
+            bail!("In {scene_name} scene, node {node_name}'s child {child_name} does not exist")
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
@@ -117,8 +143,48 @@ pub struct DialogScene<T> {
 pub struct DialogNode<T> {
     #[serde(default = "Vec::new")]
     pub lines: Vec<Line<T>>,
-    #[serde(default = "IndexMap::new")]
-    pub children: IndexMap<String, T>,
+    #[serde(default = "NodeChildren::default")]
+    pub children: NodeChildren<T>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum NodeChildren<T> {
+    Condition {
+        #[serde(rename = "if")]
+        condition: Condition,
+        then: Box<Self>,
+        #[serde(rename = "else")]
+        els: Box<Self>,
+    },
+    Wait {
+        #[serde(rename = "wait")]
+        condition: WaitCondition,
+        then: String,
+    },
+    Choices(IndexMap<String, Vec<T>>),
+    Next(String),
+    List(Vec<Self>),
+}
+
+impl<T> Default for NodeChildren<T> {
+    fn default() -> Self {
+        NodeChildren::Choices(IndexMap::new())
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Condition {
+    FieldKnown(GenericInputFieldKind),
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WaitCondition {
+    KnowField(GenericInputFieldKind),
+    SayWord(Word),
+    EmptyStack,
 }
 
 #[derive(Debug, Deserialize)]
@@ -140,24 +206,33 @@ enum SerializedLine {
 pub enum DialogCommand {
     Speaker(Option<String>),
     RevealWord(Word),
+    UnrevealWord(Word),
     RevealAllWords,
     RevealManaBar,
+    RevealRelease,
     RevealField(GenericInputFieldKind),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DialogFragment {
     String(String),
     Variable(DialogVariable),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum DialogVariable {
+    Variable(Variable),
     Gendered(GenderedWord),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Variable {
+    Name,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GenderedWord {
     Sub,
@@ -192,19 +267,59 @@ impl TryFrom<DialogScene<SerializedLine>> for DialogScene<Vec<DialogFragment>> {
                     }
                 });
             }
-            let mut children = IndexMap::new();
-            for (name, text) in node.children {
-                if let SerializedLine::String(text) = text {
-                    if let Line::Text(text) =
-                        parser.parse(text).map_err(|mut e| anyhow!(e.remove(0)))?
-                    {
-                        children.insert(name, text);
-                    }
-                }
-            }
-            nodes.insert(name, DialogNode { lines, children });
+            nodes.insert(
+                name,
+                DialogNode {
+                    lines,
+                    children: node.children.try_into()?,
+                },
+            );
         }
         Ok(DialogScene { nodes })
+    }
+}
+
+impl TryFrom<NodeChildren<SerializedLine>> for NodeChildren<Vec<DialogFragment>> {
+    type Error = anyhow::Error;
+    fn try_from(children: NodeChildren<SerializedLine>) -> Result<Self, Self::Error> {
+        let parser = line_parser();
+        Ok(match children {
+            NodeChildren::Choices(choices) => {
+                let mut children: IndexMap<_, Vec<_>> = IndexMap::new();
+                for (name, texts) in choices {
+                    for text in texts {
+                        if let SerializedLine::String(text) = text {
+                            if let Line::Text(text) =
+                                parser.parse(text).map_err(|mut e| anyhow!(e.remove(0)))?
+                            {
+                                children.entry(name.clone()).or_default().push(text);
+                            }
+                        }
+                    }
+                }
+                NodeChildren::Choices(children)
+            }
+            NodeChildren::Next(node) => NodeChildren::Next(node),
+            NodeChildren::Condition {
+                condition,
+                then,
+                els,
+            } => NodeChildren::Condition {
+                condition,
+                then: Box::new((*then).try_into()?),
+                els: Box::new((*els).try_into()?),
+            },
+            NodeChildren::Wait {
+                condition,
+                then: node,
+            } => NodeChildren::Wait {
+                condition,
+                then: node,
+            },
+            NodeChildren::List(list) => {
+                NodeChildren::List(list.into_iter().map(TryInto::try_into).try_collect()?)
+            }
+        })
     }
 }
 
@@ -287,7 +402,8 @@ impl Game {
                 dialog.node = node_name.clone();
                 dialog.line = 0;
                 dialog.character = 0;
-            } else if node.children.is_empty() {
+            } else if matches!(&node.children, NodeChildren::Choices(choices) if choices.is_empty())
+            {
                 self.ui_state.dialog = None;
             }
         }
@@ -337,25 +453,12 @@ impl Game {
                     if next() {
                         dialog.character = max_dialog_char;
                     }
-                } else if node.children.is_empty() {
-                    // No choices
-                    if line_text.is_empty() || next() {
+                } else if dialog.line < node.lines.len() - 1 {
+                    if next() {
                         self.progress_dialog();
                     }
                 } else {
-                    // Choices
-                    ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
-                        for (name, fragments) in &node.children {
-                            if ui
-                                .button(self.world.format_dialog_fragments(fragments))
-                                .clicked()
-                            {
-                                dialog.node = name.clone();
-                                dialog.line = 0;
-                                dialog.character = 0;
-                            }
-                        }
-                    });
+                    self.node_children_ui(ui, line_text, node.children.clone());
                 }
             }
             Line::Command(command) => {
@@ -365,26 +468,119 @@ impl Game {
                     DialogCommand::RevealWord(word) => {
                         progression.known_words.insert(*word);
                     }
+                    DialogCommand::UnrevealWord(word) => {
+                        progression.known_words.remove(word);
+                    }
                     DialogCommand::RevealAllWords => progression.known_words.extend(all::<Word>()),
                     DialogCommand::RevealManaBar => progression.mana_bar = true,
                     DialogCommand::RevealField(kind) => {
                         progression.known_fields.insert(*kind);
+                        self.ui_state.fields_visible.insert((*kind).into(), true);
                     }
+                    DialogCommand::RevealRelease => progression.release = true,
                 }
                 self.progress_dialog();
                 self.dialog_ui_impl(ui);
             }
         }
     }
+    fn node_children_ui(
+        &mut self,
+        ui: &mut Ui,
+        line_text: String,
+        children: NodeChildren<Vec<DialogFragment>>,
+    ) {
+        let dialog = self.ui_state.dialog.as_mut().unwrap();
+        let mut next = || {
+            ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+                ui.button("Next").clicked()
+            })
+            .inner
+        };
+        match children {
+            NodeChildren::Choices(choices) if choices.is_empty() => {
+                // No choices
+                if line_text.is_empty() || next() {
+                    self.progress_dialog();
+                }
+            }
+            NodeChildren::Choices(choices) => {
+                // Choices
+                ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+                    for (name, fragments) in choices.iter().rev() {
+                        for fragments in fragments.iter().rev() {
+                            if ui
+                                .button(self.world.format_dialog_fragments(fragments))
+                                .clicked()
+                            {
+                                dialog.node = name.clone();
+                                dialog.line = 0;
+                                dialog.character = 0;
+                            }
+                        }
+                    }
+                });
+            }
+            NodeChildren::Next(node) => {
+                if next() {
+                    dialog.node = node;
+                    dialog.line = 0;
+                    dialog.character = 0;
+                }
+            }
+            NodeChildren::Condition {
+                condition,
+                then,
+                els,
+            } => {
+                let is_true = match condition {
+                    Condition::FieldKnown(kind) => {
+                        self.world.player.progression.known_fields.contains(&kind)
+                    }
+                };
+                if is_true {
+                    self.node_children_ui(ui, line_text, *then)
+                } else {
+                    self.node_children_ui(ui, line_text, *els)
+                }
+            }
+            NodeChildren::Wait {
+                condition,
+                then: node,
+            } => {
+                if self.world.wait_condition(&condition) {
+                    dialog.node = node;
+                    dialog.line = 0;
+                    dialog.character = 0;
+                }
+                ui.allocate_exact_size(ui.available_size(), Sense::hover());
+            }
+            NodeChildren::List(list) => {
+                for children in list {
+                    self.node_children_ui(ui, line_text.clone(), children);
+                }
+            }
+        }
+    }
 }
 
 impl World {
+    fn wait_condition(&self, condition: &WaitCondition) -> bool {
+        match condition {
+            WaitCondition::SayWord(word) => self.player.person.words.last() == Some(word),
+            WaitCondition::KnowField(kind) => self.player.progression.known_fields.contains(kind),
+            WaitCondition::EmptyStack => self.player.person.words.is_empty(),
+        }
+    }
     fn format_dialog_fragments(&self, fragments: &[DialogFragment]) -> String {
         let mut formatted = String::new();
         for (i, frag) in fragments.iter().enumerate() {
             let s = match frag {
                 DialogFragment::String(s) => s,
                 DialogFragment::Variable(var) => match var {
+                    DialogVariable::Variable(var) => match var {
+                        Variable::Name => &self.player.name,
+                    },
                     DialogVariable::Gendered(pronoun) => match (pronoun, self.player.gender) {
                         (GenderedWord::Sub, Gender::Male) => "he",
                         (GenderedWord::Obj, Gender::Male) => "him",
