@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     f32::consts::PI,
     iter::{empty, once},
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 use eframe::egui::*;
@@ -24,6 +25,7 @@ pub struct World {
     pub physics: PhysicsContext,
     pub active_spells: ActiveSpells,
     pub controls: Controls,
+    sample_magic: AtomicBool,
 }
 
 type TypedActiveSpells<K, V> = HashMap<PersonId, HashMap<K, Vec<ActiveSpell<V>>>>;
@@ -124,6 +126,7 @@ impl World {
             objects: IndexMap::new(),
             active_spells: ActiveSpells::default(),
             controls: Controls::default(),
+            sample_magic: AtomicBool::new(true),
         };
         // Add objects
         // Ground
@@ -286,6 +289,10 @@ impl World {
                 } else {
                     1.0
                 };
+                if !self.sample_magic.load(Ordering::Relaxed) {
+                    return 1.0;
+                }
+                self.sample_magic.store(false, Ordering::Relaxed);
                 let mut sum = 0.0;
                 for (person_id, spells) in &self.active_spells.scalars {
                     for spell in spells.values().flatten() {
@@ -297,6 +304,7 @@ impl World {
                         sum += spell.field.sample_relative(self, *person_id, pos).length();
                     }
                 }
+                self.sample_magic.store(true, Ordering::Relaxed);
                 sum * mul
             }
         }
