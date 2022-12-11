@@ -3,7 +3,7 @@ use std::{
     f32::consts::{PI, TAU},
 };
 
-use emath::Pos2;
+use emath::{Pos2, Vec2};
 use itertools::Itertools;
 use rapier2d::{na::Unit, prelude::*};
 
@@ -100,14 +100,17 @@ impl World {
         let mut total_work = 0.0;
         for (handle, obj) in self.objects.iter_mut() {
             let body = self.physics.bodies.get(obj.body_handle).unwrap();
-            let old_pos = obj.pos;
+            let old_vel = obj.vel;
             obj.pos = body.translation().convert();
-            let dpos = obj.pos - old_pos;
+            obj.vel = body
+                .velocity_at_point(&Point::from(*body.translation()))
+                .convert();
+            let dvel = obj.vel - old_vel;
             obj.rot = body.rotation().angle();
             // Calculate work
-            if dpos.length() > 0.0 {
+            if dvel.length() > 0.0 {
                 if let Some(force) = forces.get(handle).copied() {
-                    let work_done = force.dot(dpos);
+                    let work_done = force.dot(dvel);
                     if work_done.abs() > 0.0 {
                         total_work += work_done
                     }
@@ -207,6 +210,7 @@ impl World {
             def,
             props,
             pos,
+            vel: Vec2::ZERO,
             rot,
             body_handle,
         };
