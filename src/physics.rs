@@ -3,7 +3,6 @@ use std::{
     f32::consts::{PI, TAU},
 };
 
-use eframe::epaint::Vec2;
 use emath::Pos2;
 use itertools::Itertools;
 use rapier2d::{na::Unit, prelude::*};
@@ -11,7 +10,8 @@ use rapier2d::{na::Unit, prelude::*};
 use crate::{
     field::VectorOutputFieldKind,
     math::{modulus, Convert},
-    world::{GraphicalShape, Object, ObjectDef, OffsetShape, Properties, World},
+    object::{GraphicalShape, Object, ObjectDef, ObjectKind, Properties},
+    world::World,
 };
 
 pub struct PhysicsContext {
@@ -122,32 +122,6 @@ impl World {
     }
 }
 
-pub trait IntoShapes {
-    fn into_shapes(self) -> Vec<OffsetShape>;
-}
-
-impl IntoShapes for OffsetShape {
-    fn into_shapes(self) -> Vec<OffsetShape> {
-        vec![self]
-    }
-}
-
-impl IntoShapes for GraphicalShape {
-    fn into_shapes(self) -> Vec<OffsetShape> {
-        vec![OffsetShape {
-            shape: self,
-            offset: Vec2::ZERO,
-            density: 1.0,
-        }]
-    }
-}
-
-impl IntoShapes for Vec<OffsetShape> {
-    fn into_shapes(self) -> Vec<OffsetShape> {
-        self
-    }
-}
-
 fn graphical_shape_to_shared(shape: &GraphicalShape) -> SharedShape {
     match shape {
         GraphicalShape::Circle(radius) => SharedShape::new(Ball::new(*radius)),
@@ -169,32 +143,58 @@ fn graphical_shape_to_shared(shape: &GraphicalShape) -> SharedShape {
 impl World {
     pub fn add_object_def(&mut self, pos: Pos2, def: ObjectDef) {
         self.add_object(
+            ObjectKind::Object,
+            def,
             Properties::default(),
-            def.shapes,
-            RigidBodyBuilder::new(def.ty).translation(pos.convert()),
+            |rb| rb.translation(pos.convert()),
             |c| c,
         );
     }
     pub fn add_object(
         &mut self,
+        kind: ObjectKind,
+        def: ObjectDef,
         props: Properties,
-        shapes: impl IntoShapes,
-        body_builder: RigidBodyBuilder,
+        body_builder: impl Fn(RigidBodyBuilder) -> RigidBodyBuilder,
         build_collider: impl Fn(ColliderBuilder) -> ColliderBuilder,
     ) -> RigidBodyHandle {
-        let body = body_builder
+        let body = body_builder(RigidBodyBuilder::new(def.ty))
             .linear_damping(0.5)
             .angular_damping(1.0)
             .build();
-        let offset_shapes = shapes.into_shapes();
         let pos = body.translation().convert();
         let rot = body.rotation().angle();
         let body_handle = self.physics.bodies.insert(body);
-        for offset_shape in &offset_shapes {
+        const PERSON: Group = Group::GROUP_1;
+        const OBJECT: Group = Group::GROUP_2;
+        const BACKGROUND: Group = Group::GROUP_3;
+        const GROUND: Group = Group::GROUP_4;
+        let groups = match kind {
+            ObjectKind::Player => InteractionGroups::new(PERSON, OBJECT | GROUND),
+            ObjectKind::Npc => InteractionGroups::new(PERSON, OBJECT | GROUND),
+            ObjectKind::Object => InteractionGroups::new(OBJECT, PERSON | OBJECT | GROUND),
+            ObjectKind::Background => InteractionGroups::new(BACKGROUND, BACKGROUND | GROUND),
+            ObjectKind::Ground => InteractionGroups::new(GROUND, PERSON | OBJECT | BACKGROUND),
+        };
+        for offset_shape in &def.shapes {
             let shared_shape = graphical_shape_to_shared(&offset_shape.shape);
             let collider = build_collider(ColliderBuilder::new(shared_shape))
                 .translation(offset_shape.offset.convert())
                 .density(offset_shape.density)
+                .collision_groups(groups)
+                .build();
+            self.physics.colliders.insert_with_parent(
+                collider,
+                body_handle,
+                &mut self.physics.bodies,
+            );
+        }
+        for offset_shape in &def.background {
+            let shared_shape = graphical_shape_to_shared(&offset_shape.shape);
+            let collider = build_collider(ColliderBuilder::new(shared_shape))
+                .translation(offset_shape.offset.convert())
+                .density(offset_shape.density)
+                .collision_groups(InteractionGroups::new(BACKGROUND, BACKGROUND | GROUND))
                 .build();
             self.physics.colliders.insert_with_parent(
                 collider,
@@ -203,13 +203,15 @@ impl World {
             );
         }
         let object = Object {
+            kind,
+            def,
             props,
             pos,
             rot,
-            shapes: offset_shapes,
             body_handle,
         };
         self.objects.insert(body_handle, object);
+        self.objects.sort_by(|_, a, _, b| a.kind.cmp(&b.kind));
         body_handle
     }
 }

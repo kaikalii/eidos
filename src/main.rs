@@ -9,6 +9,7 @@ mod game;
 mod main_menu;
 mod math;
 mod new_game;
+mod object;
 mod person;
 mod physics;
 mod player;
@@ -23,8 +24,8 @@ use eframe::egui::*;
 use game::Game;
 use main_menu::main_menu;
 use new_game::NewGame;
+use object::{OBJECTS, PLACES};
 use player::{Gender, Player};
-use world::{OBJECTS, PLACES};
 
 fn main() {
     once_cell::sync::Lazy::force(&DIALOG_SCENES);

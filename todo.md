@@ -1,4 +1,3 @@
-- Add background objects
 - Add field filters
 - Implement story
 - Rethink numbers?

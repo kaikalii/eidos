@@ -1,30 +1,27 @@
 use std::{
     collections::HashMap,
     f32::consts::PI,
-    fs,
     iter::{empty, once},
 };
 
-use anyhow::{anyhow, bail};
 use eframe::egui::*;
-use once_cell::sync::Lazy;
+use indexmap::IndexMap;
 use rapier2d::prelude::*;
-use serde::{Deserialize, Deserializer};
 
 use crate::{
     field::*,
     math::rotate,
+    object::*,
     person::{Npc, NpcId, Person, PersonId},
     physics::PhysicsContext,
     player::Player,
-    utils::{fatal_error, resources_path},
     word::Word,
 };
 
 pub struct World {
     pub player: Player,
     pub npcs: HashMap<NpcId, Npc>,
-    pub objects: HashMap<RigidBodyHandle, Object>,
+    pub objects: IndexMap<RigidBodyHandle, Object>,
     pub physics: PhysicsContext,
     pub active_spells: ActiveSpells,
     pub controls: Controls,
@@ -125,18 +122,21 @@ impl World {
             player,
             npcs: HashMap::new(),
             physics: PhysicsContext::default(),
-            objects: HashMap::new(),
+            objects: IndexMap::new(),
             active_spells: ActiveSpells::default(),
             controls: Controls::default(),
         };
         // Add objects
         // Ground
         world.add_object(
+            ObjectKind::Ground,
+            ObjectDef::new(RigidBodyType::Fixed).shapes(
+                GraphicalShape::HalfSpace(Vec2::Y)
+                    .offset(Vec2::ZERO)
+                    .density(3.0),
+            ),
             Properties::default(),
-            GraphicalShape::HalfSpace(Vec2::Y)
-                .offset(Vec2::ZERO)
-                .density(3.0),
-            RigidBodyBuilder::fixed(),
+            |rb| rb,
             |c| c.restitution(0.5),
         );
         // Player
@@ -146,91 +146,23 @@ impl World {
         const TORSO_HEIGHT: f32 = HEIGHT - HEAD_HEIGHT / 2.0;
         const TORSO_WIDTH: f32 = 3.0 / 8.0 * TORSO_HEIGHT;
         world.player.person.body_handle = world.add_object(
-            Properties { magic: 10.0 },
-            vec![
+            ObjectKind::Player,
+            ObjectDef::new(RigidBodyType::Dynamic).shapes(vec![
                 GraphicalShape::capsule_wh(TORSO_WIDTH, TORSO_HEIGHT)
                     .offset(vec2(0.0, -HEAD_HEIGHT / 2.0)),
                 GraphicalShape::capsule_wh(HEAD_WIDTH, HEAD_HEIGHT)
                     .offset(vec2(0.0, TORSO_HEIGHT / 2.0)),
-            ],
-            RigidBodyBuilder::dynamic()
-                .rotation(PI / 2.0)
-                .translation([0.0, 0.5 + TORSO_WIDTH].into()),
+            ]),
+            Properties { magic: 10.0 },
+            |rb| {
+                rb.rotation(PI / 2.0)
+                    .translation([0.0, 0.5 + TORSO_WIDTH].into())
+            },
             |c| c,
         );
         // Place
         world.load_place("magician_house");
         world
-    }
-}
-
-pub struct Object {
-    pub pos: Pos2,
-    pub rot: f32,
-    pub shapes: Vec<OffsetShape>,
-    pub body_handle: RigidBodyHandle,
-    pub props: Properties,
-}
-
-#[derive(Default)]
-pub struct Properties {
-    pub magic: f32,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct OffsetShape {
-    pub shape: GraphicalShape,
-    #[serde(deserialize_with = "vec2_as_array")]
-    pub offset: Vec2,
-    pub density: f32,
-}
-
-impl OffsetShape {
-    pub fn contains(&self, pos: Pos2) -> bool {
-        self.shape.contains(pos - self.offset)
-    }
-    pub fn density(self, density: f32) -> Self {
-        Self { density, ..self }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum GraphicalShape {
-    Circle(f32),
-    Box(#[serde(deserialize_with = "vec2_as_array")] Vec2),
-    HalfSpace(#[serde(deserialize_with = "vec2_as_array")] Vec2),
-    Capsule { half_height: f32, radius: f32 },
-}
-
-impl GraphicalShape {
-    pub fn capsule_wh(width: f32, height: f32) -> Self {
-        GraphicalShape::Capsule {
-            half_height: (height - width) / 2.0,
-            radius: width / 2.0,
-        }
-    }
-    pub fn offset(self, offset: Vec2) -> OffsetShape {
-        OffsetShape {
-            shape: self,
-            offset,
-            density: 1.0,
-        }
-    }
-    pub fn contains(&self, pos: Pos2) -> bool {
-        match self {
-            GraphicalShape::Circle(radius) => pos.distance(Pos2::ZERO) < *radius,
-            GraphicalShape::Box(size) => pos.x.abs() < size.x / 2.0 && pos.y.abs() < size.y / 2.0,
-            GraphicalShape::HalfSpace(normal) => pos.y < -normal.x / normal.y * pos.x,
-            GraphicalShape::Capsule {
-                half_height,
-                radius,
-            } => {
-                pos.x.abs() < *radius && pos.y.abs() < *half_height
-                    || pos.distance(pos2(0.0, *half_height)) < *radius
-                    || pos.distance(pos2(0.0, -*half_height)) < *radius
-            }
-        }
     }
 }
 
@@ -261,11 +193,30 @@ impl World {
             }
         }
     }
+}
+
+pub enum ShapeLayer {
+    Foreground,
+    Background,
+    Far,
+}
+
+impl ShapeLayer {
+    pub fn multiplier(&self) -> f32 {
+        match self {
+            ShapeLayer::Foreground => 1.0,
+            ShapeLayer::Background => 0.5,
+            ShapeLayer::Far => 0.2,
+        }
+    }
+}
+
+impl World {
     pub fn find_object_filtered_at(
         &self,
         p: Pos2,
         filter: impl Fn(&Object, &RigidBody) -> bool,
-    ) -> Option<(&Object, &OffsetShape)> {
+    ) -> Option<(&Object, &OffsetShape, ShapeLayer)> {
         puffin::profile_function!();
         self.objects.values().find_map(|obj| {
             puffin::profile_function!();
@@ -273,14 +224,22 @@ impl World {
                 return None;
             }
             let transformed_point = rotate(p.to_vec2() - obj.pos.to_vec2(), -obj.rot).to_pos2();
-            let shape = obj
-                .shapes
-                .iter()
-                .find(|shape| shape.contains(transformed_point))?;
-            Some((obj, shape))
+            for (shapes, layer) in [
+                (&obj.def.shapes, ShapeLayer::Foreground),
+                (&obj.def.background, ShapeLayer::Background),
+                (&obj.def.far, ShapeLayer::Far),
+            ] {
+                if let Some(shape) = shapes
+                    .iter()
+                    .find(|shape| shape.contains(transformed_point))
+                {
+                    return Some((obj, shape, layer));
+                }
+            }
+            None
         })
     }
-    pub fn find_object_at(&self, p: Pos2) -> Option<(&Object, &OffsetShape)> {
+    pub fn find_object_at(&self, p: Pos2) -> Option<(&Object, &OffsetShape, ShapeLayer)> {
         self.find_object_filtered_at(p, |_, _| true)
     }
     pub fn sample_scalar_field(&self, kind: GenericScalarFieldKind, pos: Pos2) -> f32 {
@@ -302,7 +261,7 @@ impl World {
         match kind {
             ScalarInputFieldKind::Density => self
                 .find_object_at(pos)
-                .map(|(_, shape)| shape.density)
+                .map(|(_, shape, layer)| shape.density * layer.multiplier())
                 .unwrap_or(0.0),
             ScalarInputFieldKind::Elevation => {
                 let mut test = pos;
@@ -319,9 +278,15 @@ impl World {
                 pos.y
             }
             ScalarInputFieldKind::Magic => {
-                if let Some((obj, _)) = self.find_object_at(pos) {
-                    return obj.props.magic;
-                }
+                let mul = if let Some((obj, _, layer)) = self.find_object_at(pos) {
+                    if let ShapeLayer::Foreground = layer {
+                        return obj.props.magic;
+                    } else {
+                        layer.multiplier()
+                    }
+                } else {
+                    1.0
+                };
                 let mut sum = 0.0;
                 for (person_id, spells) in &self.active_spells.scalars {
                     for spell in spells.values().flatten() {
@@ -333,7 +298,7 @@ impl World {
                         sum += spell.field.sample_relative(self, *person_id, pos).length();
                     }
                 }
-                sum
+                sum * mul
             }
         }
     }
@@ -394,80 +359,4 @@ impl World {
             self.add_object_def(po.pos + place.offset, object);
         }
     }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct ObjectDef {
-    #[serde(rename = "type")]
-    pub ty: RigidBodyType,
-    pub shapes: Vec<OffsetShape>,
-}
-
-pub static OBJECTS: Lazy<HashMap<String, ObjectDef>> = Lazy::new(|| {
-    let yaml = fs::read_to_string(resources_path().join("objects.yaml"));
-    let yaml = yaml
-        .as_deref()
-        .unwrap_or(include_str!("../resources/objects.yaml"));
-    match serde_yaml::from_str::<HashMap<String, ObjectDef>>(yaml) {
-        Ok(objects) => objects,
-        Err(e) => fatal_error(format!("Unable to read objects file: {e}")),
-    }
-});
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct PlacedObject {
-    name: String,
-    #[serde(deserialize_with = "pos2_as_array")]
-    pos: Pos2,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct Place {
-    #[serde(deserialize_with = "vec2_as_array")]
-    offset: Vec2,
-    objects: Vec<PlacedObject>,
-}
-
-pub static PLACES: Lazy<HashMap<String, Place>> =
-    Lazy::new(|| load_places().unwrap_or_else(|e| fatal_error(e)));
-
-fn load_places() -> anyhow::Result<HashMap<String, Place>> {
-    let mut map = HashMap::new();
-    for entry in fs::read_dir(resources_path().join("places"))
-        .map_err(|e| anyhow!("Unable to open places directory: {e}"))?
-    {
-        let entry = entry.unwrap();
-        if entry.file_type()?.is_file() {
-            let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "yaml") {
-                let yaml = fs::read_to_string(&path)?;
-                let name = path.file_stem().unwrap().to_string_lossy().into_owned();
-                let place: Place = serde_yaml::from_str(&yaml)
-                    .map_err(|e| anyhow!("Unable to read {name} place: {e}"))?;
-                for po in &place.objects {
-                    if !OBJECTS.contains_key(&po.name) {
-                        bail!("Error in {name} place");
-                    }
-                }
-                map.insert(name, place);
-            }
-        }
-    }
-    Ok(map)
-}
-
-fn vec2_as_array<'de, D>(deserializer: D) -> Result<Vec2, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let [x, y] = <[f32; 2]>::deserialize(deserializer)?;
-    Ok(vec2(x, y))
-}
-
-fn pos2_as_array<'de, D>(deserializer: D) -> Result<Pos2, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let [x, y] = <[f32; 2]>::deserialize(deserializer)?;
-    Ok(pos2(x, y))
 }
