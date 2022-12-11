@@ -18,7 +18,7 @@ pub struct Object {
     pub vel: Vec2,
     pub rot: f32,
     pub body_handle: RigidBodyHandle,
-    pub props: Properties,
+    pub props: ObjectProperties,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -31,7 +31,7 @@ pub enum ObjectKind {
 }
 
 #[derive(Default)]
-pub struct Properties {
+pub struct ObjectProperties {
     pub magic: f32,
 }
 

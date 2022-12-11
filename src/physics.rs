@@ -10,7 +10,7 @@ use rapier2d::{na::Unit, prelude::*};
 use crate::{
     field::VectorOutputFieldKind,
     math::{modulus, Convert},
-    object::{GraphicalShape, Object, ObjectDef, ObjectKind, Properties},
+    object::{GraphicalShape, Object, ObjectDef, ObjectKind, ObjectProperties},
     world::World,
 };
 
@@ -62,6 +62,16 @@ impl PhysicsContext {
             &(),
             &(),
         )
+    }
+    pub fn remove(&mut self, handle: RigidBodyHandle) {
+        self.bodies.remove(
+            handle,
+            &mut self.islands,
+            &mut self.colliders,
+            &mut self.impulse_joints,
+            &mut self.multibody_joints,
+            true,
+        );
     }
 }
 
@@ -148,7 +158,7 @@ impl World {
         self.add_object(
             ObjectKind::Object,
             def,
-            Properties::default(),
+            ObjectProperties::default(),
             |rb| rb.translation(pos.convert()),
             |c| c,
         );
@@ -157,7 +167,7 @@ impl World {
         &mut self,
         kind: ObjectKind,
         def: ObjectDef,
-        props: Properties,
+        props: ObjectProperties,
         body_builder: impl Fn(RigidBodyBuilder) -> RigidBodyBuilder,
         build_collider: impl Fn(ColliderBuilder) -> ColliderBuilder,
     ) -> RigidBodyHandle {

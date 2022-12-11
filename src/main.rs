@@ -9,6 +9,7 @@ mod game;
 mod main_menu;
 mod math;
 mod new_game;
+mod npc;
 mod object;
 mod person;
 mod physics;
@@ -24,14 +25,20 @@ use eframe::egui::*;
 use game::Game;
 use main_menu::main_menu;
 use new_game::NewGame;
+use npc::NPCS;
 use object::{OBJECTS, PLACES};
+use once_cell::sync::Lazy;
 use player::{Gender, Player};
 
 fn main() {
-    once_cell::sync::Lazy::force(&DIALOG_SCENES);
-    once_cell::sync::Lazy::force(&OBJECTS);
-    once_cell::sync::Lazy::force(&PLACES);
+    // Load resources
+    Lazy::force(&DIALOG_SCENES);
+    Lazy::force(&OBJECTS);
+    Lazy::force(&PLACES);
+    Lazy::force(&NPCS);
+    // Enable profiling
     puffin::set_scopes_on(cfg!(all(feature = "profile", not(debug_assertions))));
+    // Run
     eframe::run_native(
         "Eidos",
         eframe::NativeOptions {

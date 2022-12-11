@@ -3,7 +3,7 @@ use eframe::epaint::{Pos2, Vec2};
 use enum_iterator::Sequence;
 use rapier2d::prelude::RigidBodyHandle;
 
-use crate::{game::TICK_RATE, word::Word};
+use crate::{game::TICK_RATE, npc::NpcId, word::Word};
 
 pub const MANA_REGEN_RATE: f32 = 2.0;
 pub const MAX_MANA_EXHAUSTION: f32 = 5.0;
@@ -12,13 +12,6 @@ pub const MAX_MANA_EXHAUSTION: f32 = 5.0;
 pub enum PersonId {
     Player,
     Npc(NpcId),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Sequence)]
-pub enum NpcId {}
-
-pub struct Npc {
-    pub person: Person,
 }
 
 pub struct Person {
