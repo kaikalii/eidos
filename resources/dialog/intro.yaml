@@ -41,3 +41,4 @@ end:
     - reveal_mana_bar
     - reveal_field: Density
     - reveal_field: Elevation
+    - reveal_field: Magic

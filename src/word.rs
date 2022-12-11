@@ -20,6 +20,7 @@ pub enum Word {
     // Inputs
     Le,
     Po,
+    Mesi,
     // Outputs
     Ke,
     // Operators
@@ -54,6 +55,7 @@ impl Word {
             Sevi => Nullary::Y.into(),
             Le => ScalarInputFieldKind::Elevation.into(),
             Po => ScalarInputFieldKind::Density.into(),
+            Mesi => ScalarInputFieldKind::Magic.into(),
             Ke => VectorOutputFieldKind::Force.into(),
             Ma => HomoBinOp::Add.into(),
             Sa => HeteroBinOp::Mul.into(),

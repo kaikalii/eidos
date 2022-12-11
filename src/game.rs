@@ -371,10 +371,10 @@ impl Game {
             // #[rustfmt::skip]
             static WORD_GRID: &[&[Word]] = &[
                 &[Ti, Tu, Ta, Te],
-                &[Seva, Sevi, Le, Po],
+                &[Seva, Sevi, Le, Po, Mesi],
                 &[Pa, Pi, Sila, Vila],
                 &[Kova, Kovi, Ke],
-                &[Ma, Sa, Na, Reso, Solo],
+                &[Ma, Na, Sa, Reso, Solo],
                 &[No, Mo, Re, Rovo],
             ];
             for row in WORD_GRID {
@@ -528,10 +528,14 @@ impl FieldPlot for ScalarField {
         self.sample_relative(world, PersonId::Player, pos)
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
-        let h = 0.9 * (1.0 - t);
-        let v = (2.0 * t - 1.0).abs();
-        let s = v.powf(0.5) * 0.8;
-        Hsva::new(h, s, v, 1.0).into()
+        if let ScalarField::Input(kind) = self {
+            GenericScalarFieldKind::Input(*kind).get_color(t)
+        } else {
+            let h = 0.9 * (1.0 - t);
+            let v = (2.0 * t - 1.0).abs();
+            let s = v.powf(0.5) * 0.8;
+            Hsva::new(h, s, v, 1.0).into()
+        }
     }
 }
 
@@ -562,7 +566,13 @@ impl FieldPlot for GenericScalarFieldKind {
         world.sample_scalar_field(*self, pos)
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
-        default_scalar_color(t)
+        match self {
+            GenericScalarFieldKind::Input(ScalarInputFieldKind::Magic) => {
+                let t = (t - 0.5) / 0.5;
+                Rgba::from_rgb(0.0, t * 0.5, t)
+            }
+            _ => default_scalar_color(t),
+        }
     }
 }
 

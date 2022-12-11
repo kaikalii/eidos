@@ -10,7 +10,7 @@ use rapier2d::{na::Unit, prelude::*};
 use crate::{
     field::VectorOutputFieldKind,
     math::{modulus, Convert},
-    world::{GraphicalShape, Object, OffsetShape, World},
+    world::{GraphicalShape, Object, OffsetShape, Properties, World},
 };
 
 pub struct PhysicsContext {
@@ -168,6 +168,7 @@ fn graphical_shape_to_shared(shape: &GraphicalShape) -> SharedShape {
 impl World {
     pub fn add_object(
         &mut self,
+        props: Properties,
         shapes: impl IntoShapes,
         body_builder: RigidBodyBuilder,
         build_collider: impl Fn(ColliderBuilder) -> ColliderBuilder,
@@ -193,6 +194,7 @@ impl World {
             );
         }
         let object = Object {
+            props,
             pos,
             rot,
             shapes: offset_shapes,

@@ -126,6 +126,7 @@ impl World {
         // Add objects
         // Ground
         world.add_object(
+            Properties::default(),
             GraphicalShape::HalfSpace(Vec2::Y)
                 .offset(Vec2::ZERO)
                 .density(3.0),
@@ -134,6 +135,7 @@ impl World {
         );
         // Rock?
         world.add_object(
+            Properties::default(),
             GraphicalShape::Circle(1.0).offset(Vec2::ZERO).density(2.0),
             RigidBodyBuilder::dynamic().translation([3.0, 10.0].into()),
             |c| c,
@@ -145,6 +147,7 @@ impl World {
         const TORSO_HEIGHT: f32 = HEIGHT - HEAD_HEIGHT / 2.0;
         const TORSO_WIDTH: f32 = 3.0 / 8.0 * TORSO_HEIGHT;
         world.player.person.body_handle = world.add_object(
+            Properties { magic: 10.0 },
             vec![
                 GraphicalShape::capsule_wh(TORSO_WIDTH, TORSO_HEIGHT).offset(vec2(0.0, 0.0)),
                 GraphicalShape::capsule_wh(HEAD_WIDTH, HEAD_HEIGHT)
@@ -162,6 +165,12 @@ pub struct Object {
     pub rot: f32,
     pub shapes: Vec<OffsetShape>,
     pub body_handle: RigidBodyHandle,
+    pub props: Properties,
+}
+
+#[derive(Default)]
+pub struct Properties {
+    pub magic: f32,
 }
 
 #[derive(Clone)]
@@ -306,6 +315,23 @@ impl World {
                     test.y -= 0.5;
                 }
                 pos.y
+            }
+            ScalarInputFieldKind::Magic => {
+                if let Some((obj, _)) = self.find_object_at(pos) {
+                    return obj.props.magic;
+                }
+                let mut sum = 0.0;
+                for (person_id, spells) in &self.active_spells.scalars {
+                    for spell in spells.values().flatten() {
+                        sum += spell.field.sample_relative(self, *person_id, pos).abs();
+                    }
+                }
+                for (person_id, spells) in &self.active_spells.vectors {
+                    for spell in spells.values().flatten() {
+                        sum += spell.field.sample_relative(self, *person_id, pos).length();
+                    }
+                }
+                sum
             }
         }
     }
