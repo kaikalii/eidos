@@ -165,11 +165,17 @@ impl ScalarField {
             ScalarField::Y(person_id) => pos.y - world.person(*person_id).pos.y,
             ScalarField::TargetX(person_id) => {
                 let person = world.person(*person_id);
-                person.pos.x + person.target.unwrap_or_default().x - pos.x
+                let Some(target) = person.target else {
+                    return 0.0;
+                };
+                person.pos.x + target.x - pos.x
             }
             ScalarField::TargetY(person_id) => {
                 let person = world.person(*person_id);
-                person.pos.y + person.target.unwrap_or_default().y - pos.y
+                let Some(target) = person.target else {
+                    return 0.0;
+                };
+                person.pos.y + target.y - pos.y
             }
             ScalarField::Filter(person_id) => world.person_is_at(*person_id, pos) as u8 as f32,
             ScalarField::ScalarUn(op, field) => op.operate(field.sample_absolute(world, pos)),
