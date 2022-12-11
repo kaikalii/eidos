@@ -169,7 +169,7 @@ impl Game {
                 inner_margin: Margin {
                     left: 20.0,
                     right: 20.0,
-                    top: 20.0,
+                    top: 0.0,
                     bottom: 0.0,
                 },
                 ..Default::default()
@@ -187,37 +187,29 @@ impl Game {
         res
     }
     fn top_ui(&mut self, ui: &mut Ui) {
-        // Fps
-        let now = Instant::now();
-        let dt = (now - self.last_time).as_secs_f32();
-        if !self.ui_state.paused {
-            self.ticker += dt;
-        }
-        self.last_time = now;
-        ui.small(format!("{} fps", (1.0 / dt).round()));
-        // Mana bar
-        ui.scope(|ui| {
-            let player = &self.world.player.person;
-            let (curr, max, color) = if player.can_cast() {
-                (
-                    player.mana,
-                    player.capped_mana(),
-                    Rgba::from_rgb(0.1, 0.1, 0.9).into(),
-                )
-            } else {
-                (
-                    player.mana_exhaustion,
-                    MAX_MANA_EXHAUSTION,
-                    Color32::LIGHT_RED,
-                )
-            };
-            ui.visuals_mut().selection.bg_fill = color;
-            let id = ui.make_persistent_id("mana bar");
-            let length_mul = ui
-                .ctx()
-                .animate_bool(id, self.world.player.progression.mana_bar);
-            if length_mul > 0.0 {
-                ui.horizontal(|ui| {
+        ui.horizontal(|ui| {
+            // Mana bar
+            ui.scope(|ui| {
+                let player = &self.world.player.person;
+                let (curr, max, color) = if player.can_cast() {
+                    (
+                        player.mana,
+                        player.capped_mana(),
+                        Rgba::from_rgb(0.1, 0.1, 0.9).into(),
+                    )
+                } else {
+                    (
+                        player.mana_exhaustion,
+                        MAX_MANA_EXHAUSTION,
+                        Color32::LIGHT_RED,
+                    )
+                };
+                ui.visuals_mut().selection.bg_fill = color;
+                let id = ui.make_persistent_id("mana bar");
+                let length_mul = ui
+                    .ctx()
+                    .animate_bool(id, self.world.player.progression.mana_bar);
+                if length_mul > 0.0 {
                     ProgressBar::new(curr / max)
                         .text(format!("{} / {}", curr.round(), max.round()))
                         .desired_width(player.capped_mana() * 10.0 * length_mul)
@@ -229,8 +221,16 @@ impl Game {
                             .desired_width(player.reserved_mana() * 10.0 * length_mul)
                             .ui(ui);
                     }
-                });
+                }
+            });
+            // Fps
+            let now = Instant::now();
+            let dt = (now - self.last_time).as_secs_f32();
+            if !self.ui_state.paused {
+                self.ticker += dt;
             }
+            self.last_time = now;
+            ui.small(format!("{} fps", (1.0 / dt).round()));
         });
     }
     fn fields_ui(&mut self, ui: &mut Ui) {
