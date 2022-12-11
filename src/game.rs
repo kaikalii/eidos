@@ -143,7 +143,7 @@ impl Game {
         ctx.set_style(style);
 
         // Show bottom UIs
-        let mut panel_color = ctx.style().visuals.window_fill();
+        let mut panel_color = ctx.style().visuals.panel_fill;
         panel_color =
             Color32::from_rgba_unmultiplied(panel_color.r(), panel_color.g(), panel_color.b(), 128);
         TopBottomPanel::bottom("words")
@@ -166,12 +166,7 @@ impl Game {
         TopBottomPanel::bottom("stack")
             .show_separator_line(false)
             .frame(Frame {
-                inner_margin: Margin {
-                    left: 20.0,
-                    right: 20.0,
-                    top: 0.0,
-                    bottom: 0.0,
-                },
+                inner_margin: Margin::symmetric(20.0, 0.0),
                 ..Default::default()
             })
             .show(ctx, |ui| {
@@ -353,20 +348,6 @@ impl Game {
         ui.vertical(|ui| self.words_ui_impl(ui, stack));
     }
     fn words_ui_impl(&mut self, ui: &mut Ui, stack: &Stack) {
-        // Release
-        {
-            let show_release = self.world.player.progression.release;
-            let id = ui.make_persistent_id("release");
-            let visibility = ui.ctx().animate_bool(id, show_release);
-            if show_release {
-                apply_color_fading(ui.visuals_mut(), visibility);
-                if ui.button("Release").clicked() {
-                    self.world.player.person.words.clear();
-                }
-            } else {
-                ui.label("");
-            }
-        }
         Grid::new("words").min_col_width(10.0).show(ui, |ui| {
             // Words
             use Word::*;
@@ -379,7 +360,7 @@ impl Game {
                 &[Ma, Na, Sa, Reso, Solo],
                 &[No, Mo, Re, Rovo],
             ];
-            for row in WORD_GRID {
+            for (i, row) in WORD_GRID.iter().enumerate() {
                 for word in *row {
                     let f = word.function();
                     let known = self.world.player.progression.known_words.contains(word);
@@ -387,7 +368,11 @@ impl Game {
                         && stack.validate_function_use(f).is_ok()
                         && self.world.player.person.capped_mana() > word.cost();
                     let hilight = matches!(f, Function::WriteField(_));
-                    let button = FadeButton::new(word, known, word.to_string()).hilight(hilight);
+                    let mut text = RichText::new(word.to_string());
+                    if word >= &Word::No {
+                        text = text.small();
+                    }
+                    let button = FadeButton::new(word, known, text).hilight(hilight);
                     if ui
                         .add_enabled(enabled, button)
                         .on_hover_text(f.to_string())
@@ -402,6 +387,20 @@ impl Game {
                         } else {
                             self.world.player.person.words.push(*word);
                         }
+                    }
+                }
+                if i == 0 {
+                    // Release
+                    let show_release = self.world.player.progression.release;
+                    let id = ui.make_persistent_id("release");
+                    let visibility = ui.ctx().animate_bool(id, show_release);
+                    if show_release {
+                        apply_color_fading(ui.visuals_mut(), visibility);
+                        if ui.button("Release").clicked() {
+                            self.world.player.person.words.clear();
+                        }
+                    } else {
+                        ui.label("");
                     }
                 }
                 ui.end_row();

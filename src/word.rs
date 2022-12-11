@@ -4,7 +4,9 @@ use serde::Deserialize;
 
 use crate::{field::*, function::*};
 
-#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
+#[derive(
+    Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Hash, From, Sequence, Deserialize,
+)]
 pub enum Word {
     // Numbers
     Ti,
@@ -29,16 +31,16 @@ pub enum Word {
     Na,
     Reso,
     Solo,
-    // Combinators
-    No,
-    Mo,
-    Re,
-    Rovo,
     // Controls
     Sila,
     Vila,
     Pa,
     Pi,
+    // Combinators
+    No,
+    Mo,
+    Re,
+    Rovo,
 }
 
 impl Word {
