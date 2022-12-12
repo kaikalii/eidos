@@ -410,13 +410,13 @@ impl World {
         // Add objects
         for po in &place.objects {
             let object = OBJECTS[&po.name].clone();
-            self.add_object_def(po.pos + place.offset, object);
+            self.add_object_def(po.pos, object);
         }
         // (De)activate npcs
         for npc_id in all::<NpcId>() {
             let mut npc = self.npcs.get_mut(&npc_id).unwrap();
             let (npc_place, pos) = npc.desired_place();
-            let pos = pos + place.offset;
+            let pos = pos;
             if npc_place == place_name {
                 if !npc.active {
                     npc.active = true;

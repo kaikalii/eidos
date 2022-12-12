@@ -34,3 +34,14 @@ With that in mind, some possible core gameplay loops involve:
 
 Each level is a self-contained challenge to solve some problem.
 The play space is mostly limited to the problem area.
+The problem may be contexualized as a lesson, a task for a townsperson, or some personal challenge.
+
+Pros:
+- Can gradually introduce new fields as necessary
+- Can still inject some narrative during and between problems
+- Problems can probably be procedurally generated
+- Limited scope keeps the work of implementing each problem relatively low
+- NPCs can be absent from problem areas
+
+Cons:
+- Not as much player freedom

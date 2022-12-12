@@ -211,8 +211,6 @@ pub struct PlacedObject {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Place {
-    #[serde(deserialize_with = "vec2_as_array")]
-    pub offset: Vec2,
     pub objects: Vec<PlacedObject>,
 }
 
