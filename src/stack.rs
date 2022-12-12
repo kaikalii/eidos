@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 use crate::{
     error::EidosError,
     field::*,
@@ -101,12 +99,6 @@ impl Stack {
                 GenericInputFieldKind::Vector(kind) => self.push(word, VectorField::Input(kind)),
             },
             Function::WriteField(field_kind) => {
-                let words = self
-                    .stack
-                    .iter_mut()
-                    .flat_map(|item| item.words.drain(..))
-                    .chain([word])
-                    .collect_vec();
                 let item = self.pop();
                 match (field_kind, item.field) {
                     (GenericOutputFieldKind::Vector(kind), GenericField::Vector(field)) => {
@@ -117,7 +109,10 @@ impl Stack {
                             .or_default()
                             .entry(kind)
                             .or_default()
-                            .push(ActiveSpell { field, words });
+                            .push(ActiveSpell {
+                                field,
+                                words: item.words.into_iter().chain([word]).collect(),
+                            });
                     }
                     _ => unreachable!(),
                 }
