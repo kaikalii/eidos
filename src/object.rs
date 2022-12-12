@@ -19,6 +19,7 @@ pub struct Object {
     pub rot: f32,
     pub body_handle: RigidBodyHandle,
     pub props: ObjectProperties,
+    pub binding: GraphicalBinding,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -92,10 +93,27 @@ impl GraphicalShape {
     }
 }
 
+/// How the graphics of an object are tied to the object's physics body
+pub enum GraphicalBinding {
+    /// Match the physics body exactly
+    Linear,
+    /// Simple walking animation
+    Npc,
+}
+
 impl Object {
     /// Transform a point so that it can be checked against this object's shapes
     pub fn transform_point(&self, pos: Pos2) -> Pos2 {
-        rotate(pos.to_vec2() - self.pos.to_vec2(), -self.rot).to_pos2()
+        match self.binding {
+            GraphicalBinding::Linear => {
+                rotate(pos.to_vec2() - self.pos.to_vec2(), -self.rot).to_pos2()
+            }
+            GraphicalBinding::Npc => rotate(
+                pos.to_vec2() - self.pos.to_vec2(),
+                pos.x.sin() * 0.1 - self.rot,
+            )
+            .to_pos2(),
+        }
     }
 }
 

@@ -10,7 +10,7 @@ use rapier2d::{na::Unit, prelude::*};
 use crate::{
     field::VectorOutputFieldKind,
     math::{modulus, Convert},
-    object::{GraphicalShape, Object, ObjectDef, ObjectKind, ObjectProperties},
+    object::{GraphicalBinding, GraphicalShape, Object, ObjectDef, ObjectKind, ObjectProperties},
     world::World,
 };
 
@@ -223,6 +223,10 @@ impl World {
             vel: Vec2::ZERO,
             rot,
             body_handle,
+            binding: match kind {
+                ObjectKind::Npc => GraphicalBinding::Npc,
+                _ => GraphicalBinding::Linear,
+            },
         };
         self.objects.insert(body_handle, object);
         self.objects.sort_by(|_, a, _, b| a.kind.cmp(&b.kind));

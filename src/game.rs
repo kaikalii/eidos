@@ -568,7 +568,7 @@ impl FieldPlot for VectorField {
     }
 }
 
-/// FOr rendering scalar I/O fields
+/// For rendering scalar I/O fields
 impl FieldPlot for GenericScalarFieldKind {
     type Value = f32;
     fn precision(&self) -> f32 {
