@@ -3,7 +3,7 @@ use std::{
     f32::consts::{PI, TAU},
 };
 
-use emath::{Pos2, Vec2};
+use eframe::epaint::{Pos2, Vec2};
 use itertools::Itertools;
 use rapier2d::{na::Unit, prelude::*};
 

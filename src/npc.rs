@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs};
 
-use emath::{pos2, Pos2};
+use eframe::epaint::{pos2, Pos2};
 use enum_iterator::Sequence;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
