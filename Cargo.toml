@@ -30,6 +30,7 @@ serde_yaml = '0.8.3'
 [features]
 # default = ['profile']
 profile = ['puffin_egui']
+title = []
 
 [profile.dev.package."*"]
 opt-level = 3

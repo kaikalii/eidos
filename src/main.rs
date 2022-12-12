@@ -47,10 +47,10 @@ fn main() {
         },
         Box::new(|cc| {
             cc.egui_ctx.set_pixels_per_point(1.5);
-            Box::new(if cfg!(debug_assertions) {
-                GameState::Game(Game::new(Player::new("Kai".into(), Gender::Male)).into())
-            } else {
+            Box::new(if cfg!(feature = "title") {
                 GameState::MainMenu
+            } else {
+                GameState::Game(Game::new(Player::new("Kai".into(), Gender::Male)).into())
             })
         }),
     );
