@@ -18,7 +18,7 @@ use crate::{
     world::World,
 };
 
-type DialogScenes = HashMap<String, DialogScene<Vec<DialogFragment>>>;
+type DialogScenes = HashMap<String, DialogScene<DeserializedLine>>;
 
 pub static DIALOG_SCENES: Lazy<DialogScenes> =
     Lazy::new(|| load_scenes().map_err(fatal_error).unwrap());
@@ -40,7 +40,7 @@ fn load_scenes() -> anyhow::Result<DialogScenes> {
                 if scene.nodes.is_empty() {
                     continue;
                 }
-                let scene: DialogScene<Vec<DialogFragment>> = scene
+                let scene: DialogScene<DeserializedLine> = scene
                     .try_into()
                     .map_err(|e| anyhow!("Error parsing fragment in {name}: {e}"))?;
                 for (node_name, node) in &scene.nodes {
@@ -55,9 +55,9 @@ fn load_scenes() -> anyhow::Result<DialogScenes> {
 
 fn validate_children(
     scene_name: &str,
-    scene: &DialogScene<Vec<DialogFragment>>,
+    scene: &DialogScene<DeserializedLine>,
     node_name: &str,
-    children: &NodeChildren<Vec<DialogFragment>>,
+    children: &NodeChildren<DeserializedLine>,
 ) -> anyhow::Result<()> {
     let child_nodes = match children {
         NodeChildren::Choices(choices) => choices.keys().collect_vec(),
@@ -156,7 +156,6 @@ enum SerializedLine {
 pub enum DialogCommand {
     Speaker(Option<String>),
     RevealWord(Word),
-    UnrevealWord(Word),
     RevealAllWords,
     RevealManaBar,
     RevealRelease,
@@ -196,7 +195,9 @@ pub enum GenderedWord {
     Nibling,
 }
 
-impl TryFrom<DialogScene<SerializedLine>> for DialogScene<Vec<DialogFragment>> {
+type DeserializedLine = Vec<DialogFragment>;
+
+impl TryFrom<DialogScene<SerializedLine>> for DialogScene<DeserializedLine> {
     type Error = anyhow::Error;
     fn try_from(scene: DialogScene<SerializedLine>) -> Result<Self, Self::Error> {
         let parser = line_parser();
@@ -229,7 +230,7 @@ impl TryFrom<DialogScene<SerializedLine>> for DialogScene<Vec<DialogFragment>> {
     }
 }
 
-impl TryFrom<NodeChildren<SerializedLine>> for NodeChildren<Vec<DialogFragment>> {
+impl TryFrom<NodeChildren<SerializedLine>> for NodeChildren<DeserializedLine> {
     type Error = anyhow::Error;
     fn try_from(children: NodeChildren<SerializedLine>) -> Result<Self, Self::Error> {
         let parser = line_parser();
@@ -277,11 +278,11 @@ trait FragmentParser<T>: Parser<char, T, Error = Simple<char>> {}
 
 impl<P, T> FragmentParser<T> for P where P: Parser<char, T, Error = Simple<char>> {}
 
-fn line_parser() -> impl FragmentParser<Line<Vec<DialogFragment>>> {
+fn line_parser() -> impl FragmentParser<Line<DeserializedLine>> {
     fragments().map(Line::Text).then_ignore(end())
 }
 
-fn fragments() -> impl FragmentParser<Vec<DialogFragment>> {
+fn fragments() -> impl FragmentParser<DeserializedLine> {
     choice((
         variable().map(DialogFragment::Variable),
         string_fragment().map(DialogFragment::String),
@@ -314,9 +315,38 @@ pub struct DialogState {
     line: usize,
     character: usize,
     speaker: Option<String>,
+    can_cast: bool,
 }
 
 const DIALOG_SPEED: usize = 4;
+
+impl DialogState {
+    pub fn allows_casting(&self) -> bool {
+        if self.can_cast {
+            return true;
+        }
+        let node = &DIALOG_SCENES[&self.scene].nodes[&self.node];
+        self.line == node.lines.len() - 1 && node.children.enables_casting()
+    }
+}
+
+impl NodeChildren<DeserializedLine> {
+    fn enables_casting(&self) -> bool {
+        match self {
+            NodeChildren::Condition { then, els, .. } => {
+                then.enables_casting() || els.enables_casting()
+            }
+            NodeChildren::Wait { condition, .. } => match condition {
+                WaitCondition::KnowField(_) => true,
+                WaitCondition::SayWord(_) => true,
+                WaitCondition::EmptyStack => true,
+            },
+            NodeChildren::Choices(_) => false,
+            NodeChildren::Next(_) => false,
+            NodeChildren::List(list) => list.iter().any(Self::enables_casting),
+        }
+    }
+}
 
 impl Game {
     pub fn set_dialog(&mut self, scene_name: &str) {
@@ -327,6 +357,7 @@ impl Game {
             line: 0,
             character: 0,
             speaker: None,
+            can_cast: false,
         };
         self.ui_state.dialog = Some(dialog);
     }
@@ -418,9 +449,6 @@ impl Game {
                     DialogCommand::RevealWord(word) => {
                         progression.known_words.insert(*word);
                     }
-                    DialogCommand::UnrevealWord(word) => {
-                        progression.known_words.remove(word);
-                    }
                     DialogCommand::RevealAllWords => progression.known_words.extend(all::<Word>()),
                     DialogCommand::RevealManaBar => progression.mana_bar = true,
                     DialogCommand::RevealField(kind) => {
@@ -438,7 +466,7 @@ impl Game {
         &mut self,
         ui: &mut Ui,
         line_text: String,
-        children: NodeChildren<Vec<DialogFragment>>,
+        children: NodeChildren<DeserializedLine>,
     ) {
         let dialog = self.ui_state.dialog.as_mut().unwrap();
         let mut next = || {

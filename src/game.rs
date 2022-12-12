@@ -360,11 +360,17 @@ impl Game {
                 &[Ma, Na, Sa, Reso, Solo],
                 &[No, Mo, Re, Rovo],
             ];
+            let dialog_allows_casting = self
+                .ui_state
+                .dialog
+                .as_ref()
+                .map_or(true, |dialog| dialog.allows_casting());
             for (i, row) in WORD_GRID.iter().enumerate() {
                 for word in *row {
                     let f = word.function();
                     let known = self.world.player.progression.known_words.contains(word);
-                    let enabled = known
+                    let enabled = dialog_allows_casting
+                        && known
                         && stack.validate_function_use(f).is_ok()
                         && self.world.player.person.capped_mana() > word.cost();
                     let hilight = matches!(f, Function::WriteField(_));

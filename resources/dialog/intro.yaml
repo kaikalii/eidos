@@ -1,173 +1,171 @@
-# start:
-#   lines:
-#     - ...
-#     - '*Knock knock knock*'
-#     - ...
-#     - '~Creeeeeaaaaakk~'
-#     - speaker: Stranger
-#     - Yes, what is it?
-#     - speaker: Uncle
-#     - Sir, it's me. We spoke earlier today?
-#     - I brought my (nibling), like we discussed.
-#     - speaker: Stranger
-#     - Oh, yes, of course, I-
-#     - ...my word...
-#     - You'd better bring (obj) inside.
-#     - speaker: ~
-#     - ...
-#     - speaker: Stranger
-#     - You can lay (obj) down here.
-#     - speaker: ~
-#     - ...
-#     - speaker: Stranger
-#     - What happened to (obj)?
-#     - speaker: Uncle
-#     - (sub_was) just born that way.
-#     - No arms. No legs. Clouded eyes.
-#     - speaker: Stranger
-#     - How (has) (sub) survived this long?
-#     - speaker: Uncle
-#     - My brother - (pos) father - died in the war, so it's been mostly my sister in law taking care of (obj).
-#     - She went too though, just last week. I've had (obj) at mine, but I can't meet (pos) needs.
-#     - I figured, if (sub) learned a bit of spellcraft, (sub) might be able to take care of (reflexive).
-#     - speaker: Stranger
-#     - How do you know (sub) has magical energy?
-#     - speaker: Uncle
-#     - (pos) mother had it, but she didn't practice. I'm told her father was a trade magician though.
-#     - speaker: Stranger
-#     - Well, let's see...
-#     - Mesi
-#     - speaker: ~
-#     - ...
-#     - speaker: Stranger
-#     - reveal_word: Mesi
-#     - Yes, it does seem (sub) (has) a bit of magic.
-#   children:
-#     - wait:
-#         know_field: Magic
-#       then: say_mesi
-#     - dont_say_mesi
-# say_mesi:
-#   lines:
-#     - unreveal_word: Mesi
-#     - speaker: Stranger
-#     - Ah, quick on the uptake are we?
-#     - Can you sense the magic field?
-#     - ...
-#     - Fine, I'll take you as my apprentice.
-#   children: say_goodbye
-# dont_say_mesi:
-#   lines:
-#     - unreveal_word: Mesi
-#     - ...
-#     - Fine, I'll take (obj) as my apprentice.
-#   children: say_goodbye
-# say_goodbye:
-#   lines:
-#     - We'll get started immediately.
-#     - You two should say your goodbyes.
-#     - speaker: Uncle
-#     - Oh! Thank you Mr. Leavy! You don't know how much I appreciate this!
-#     - Goodbye, (name).
-#   children:
-#     warm: ["Goodbye, Uncle. I'll miss you. Thanks looking after me."]
-#     cold: [I knew you couldn't wait to get rid of me.]
-# warm:
-#   lines:
-#     - Good luck. I know you'll do well here.
-#   children: uncle_leaves
-# cold:
-#   lines:
-#     - This is the best place for you. I know you'll see that.
-#   children: uncle_leaves
-# uncle_leaves:
-#   lines:
-#     - speaker: ~
-#     - ...
-#     - '~Creeeeeaaaaakk~'
-#     - '*Clunk*'
-#     - speaker: Stranger
-#     - Well, now. (name), is it?
-#     - My name is Daniel Leavy, but you will address me as Master Leavy.
-#     - speaker: Master Leavy
-#     - 'Let me lay this out right from the beginning:'
-#     - I'll keep you fed and clothed, with a roof over your head.
-#     - I can only imagine what people have had to do for you until now.
-#     - But I will not feed you, bathe you, or carry you from place to place.
-#     - You'll have to do that yourself.
-#   children:
-#     you_dont_need_limbs:
-#       - Um, I'm not sure if you've noticed, but...
-#       - How am I supposed to feed and bathe myself?
-# you_dont_need_limbs:
-#   lines:
-#     - Oh, you think you're incapable?
-#     - You have magical energy in you.
-#     - With a bit of instruction, you can harness that energy to manifest spells.
-#     - A magician doesn't need arms or legs or eyes.
-#     - They need only a resourceful mind.
-#     - With magic you can move faster than any man can run.
-#     - You can see through solid walls, even without normal vision.
-#     - You can shape the very fabric of our reality to your will.
-#     - Are you ready to begin?
-#   children:
-#     first_lesson: ["Yes, I'm ready to learn magic."]
-# first_lesson:
-#   lines:
-#     - speaker: Master Leavy
-#     - Good, let's do.
-#     - Magic is manipulated by speaking words in the Old Language.
-#     - By speaking this language, magicians are able to manipulate the magical fields which permeate all things.
-#     - Every person has in their essence a magical stack. This is where spells are constructed before they are cast.
-#     - Speaking the Old Words manipulates a person's stack. While anyone can do this, only those with magical energy can execute their stack to cast spells.
-#     - Proper utilization of the Old Words is key to being an effective wielder of magic.
-#   children:
-#     if:
-#       field_known: Magic
-#     then: already_learned_magic_field
-#     else: learn_magic_field
-# already_learned_magic_field:
-#   lines:
-#     - 'Take, for example, the word you tried earlier: Mesi.'
-#     - "'Mesi' is the word for magic itself."
-#   children: mesi_learned
-# learn_magic_field:
-#   lines:
-#     - "Let's start with the word I spoke earlier: Mesi."
-#     - reveal_word: Mesi
-#     - "'Mesi' is the word for magic itself. Go ahead. Give it a try."
-#   children:
-#     wait:
-#       know_field: Magic
-#     then: learn_mesi
-# learn_mesi:
-#   lines:
-#     - There, you can sense it, can't you?
-#   children: mesi_learned
-# mesi_learned:
-#   lines:
-#     - Because Mesi represents a fundamental magical field, speaking it for the first time gives you the ability to sense that field.
-#     - But sensing a magical field is not casting spells.
-#     - I can sense the magical energy in you through the Mesi field, as I'm sure you can mine.
-#     - But can you sense the magical energy within yourself?
-#     - reveal_mana_bar
-#     - This energy is what you need to cast spells.
-#     - reveal_word: Mesi
-#     - Try saying 'Mesi' again.
-#   children:
-#     wait:
-#       say_word: Mesi
-#     then: said_mesi_again
-# said_mesi_again:
-#   lines:
-#     - Can you sense the word on your stack?
-#     - You have internalized the Mesi field.
-#     - There's not much you can do with it yet, so why don't you release your stack.
-#     - reveal_release
-#     - Feel the pent up magic within you, and let it go.
-#   children:
-#     wait: empty_stack
-#     then: end
+start:
+  lines:
+    - ...
+    - '*Knock knock knock*'
+    - ...
+    - '~Creeeeeaaaaakk~'
+    - speaker: Stranger
+    - Yes, what is it?
+    - speaker: Uncle
+    - Sir, it's me. We spoke earlier today?
+    - I brought my (nibling), like we discussed.
+    - speaker: Stranger
+    - Oh, yes, of course, I-
+    - ...my word...
+    - You'd better bring (obj) inside.
+    - speaker: ~
+    - ...
+    - speaker: Stranger
+    - You can lay (obj) down here.
+    - speaker: ~
+    - ...
+    - speaker: Stranger
+    - What happened to (obj)?
+    - speaker: Uncle
+    - (sub_was) just born that way.
+    - No arms. No legs. Clouded eyes.
+    - speaker: Stranger
+    - How (has) (sub) survived this long?
+    - speaker: Uncle
+    - My brother - (pos) father - died in the war, so it's been mostly my sister in law taking care of (obj).
+    - She went too though, just last week. I've had (obj) at mine, but I can't meet (pos) needs.
+    - I figured, if (sub) learned a bit of spellcraft, (sub) might be able to take care of (reflexive).
+    - speaker: Stranger
+    - How do you know (sub) has magical energy?
+    - speaker: Uncle
+    - (pos) mother had it, but she didn't practice. I'm told her father was a trade magician though.
+    - speaker: Stranger
+    - Well, let's see...
+    - Mesi
+    - speaker: ~
+    - ...
+    - speaker: Stranger
+    - reveal_word: Mesi
+    - Yes, it does seem (sub) (has) a bit of magic.
+  children:
+    - wait:
+        know_field: Magic
+      then: say_mesi
+    - dont_say_mesi
+say_mesi:
+  lines:
+    - speaker: Stranger
+    - Ah, quick on the uptake are we?
+    - Can you sense the magic field?
+    - ...
+    - Fine, I'll take you as my apprentice.
+  children: say_goodbye
+dont_say_mesi:
+  lines:
+    - ...
+    - Fine, I'll take (obj) as my apprentice.
+  children: say_goodbye
+say_goodbye:
+  lines:
+    - We'll get started immediately.
+    - You two should say your goodbyes.
+    - speaker: Uncle
+    - Oh! Thank you Mr. Leavy! You don't know how much I appreciate this!
+    - Goodbye, (name).
+  children:
+    warm: ["Goodbye, Uncle. I'll miss you. Thanks looking after me."]
+    cold: [I knew you couldn't wait to get rid of me.]
+warm:
+  lines:
+    - Good luck. I know you'll do well here.
+  children: uncle_leaves
+cold:
+  lines:
+    - This is the best place for you. I know you'll see that.
+  children: uncle_leaves
+uncle_leaves:
+  lines:
+    - speaker: ~
+    - ...
+    - '~Creeeeeaaaaakk~'
+    - '*Clunk*'
+    - speaker: Stranger
+    - Well, now. (name), is it?
+    - My name is Daniel Leavy, but you will address me as Master Leavy.
+    - speaker: Master Leavy
+    - 'Let me lay this out right from the beginning:'
+    - I'll keep you fed and clothed, with a roof over your head.
+    - I can only imagine what people have had to do for you until now.
+    - But I will not feed you, bathe you, or carry you from place to place.
+    - You'll have to do that yourself.
+  children:
+    you_dont_need_limbs:
+      - Um, I'm not sure if you've noticed, but...
+      - How am I supposed to feed and bathe myself?
+you_dont_need_limbs:
+  lines:
+    - Oh, you think you're incapable?
+    - You have magical energy in you.
+    - With a bit of instruction, you can harness that energy to manifest spells.
+    - A magician doesn't need arms or legs or eyes.
+    - They need only a resourceful mind.
+    - With magic you can move faster than any man can run.
+    - You can see through solid walls, even without normal vision.
+    - You can shape the very fabric of our reality to your will.
+    - Are you ready to begin?
+  children:
+    first_lesson: ["Yes, I'm ready to learn magic."]
+first_lesson:
+  lines:
+    - speaker: Master Leavy
+    - Good, let's do.
+    - Magic is manipulated by speaking words in the Old Language.
+    - By speaking this language, magicians are able to manipulate the magical fields which permeate all things.
+    - Every person has in their essence a magical stack. This is where spells are constructed before they are cast.
+    - Speaking the Old Words manipulates a person's stack. While anyone can do this, only those with magical energy can execute their stack to cast spells.
+    - Proper utilization of the Old Words is key to being an effective wielder of magic.
+  children:
+    if:
+      field_known: Magic
+    then: already_learned_magic_field
+    else: learn_magic_field
+already_learned_magic_field:
+  lines:
+    - 'Take, for example, the word you tried earlier: Mesi.'
+    - "'Mesi' is the word for magic itself."
+  children: mesi_learned
+learn_magic_field:
+  lines:
+    - "Let's start with the word I spoke earlier: Mesi."
+    - reveal_word: Mesi
+    - "'Mesi' is the word for magic itself. Go ahead. Give it a try."
+  children:
+    wait:
+      know_field: Magic
+    then: learn_mesi
+learn_mesi:
+  lines:
+    - There, you can sense it, can't you?
+  children: mesi_learned
+mesi_learned:
+  lines:
+    - Because Mesi represents a fundamental magical field, speaking it for the first time gives you the ability to sense that field.
+    - But sensing a magical field is not casting spells.
+    - I can sense the magical energy in you through the Mesi field, as I'm sure you can mine.
+    - But can you sense the magical energy within yourself?
+    - reveal_mana_bar
+    - This energy is what you need to cast spells.
+    - reveal_word: Mesi
+    - Try saying 'Mesi' again.
+  children:
+    wait:
+      say_word: Mesi
+    then: said_mesi_again
+said_mesi_again:
+  lines:
+    - Can you sense the word on your stack?
+    - You have internalized the Mesi field.
+    - There's not much you can do with it yet, so why don't you release your stack.
+    - reveal_release
+    - Feel the pent up magic within you, and let it go.
+  children:
+    wait: empty_stack
+    then: end
 end:
   lines:
     - reveal_all_words
