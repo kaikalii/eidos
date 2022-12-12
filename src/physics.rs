@@ -10,7 +10,7 @@ use rapier2d::{na::Unit, prelude::*};
 use crate::{
     field::VectorOutputFieldKind,
     math::{modulus, Convert},
-    object::{GraphicalBinding, GraphicalShape, Object, ObjectDef, ObjectKind, ObjectProperties},
+    object::{GraphicalBinding, GraphicalShape, Object, ObjectDef, ObjectKind},
     world::World,
 };
 
@@ -26,6 +26,7 @@ pub struct PhysicsContext {
     impulse_joints: ImpulseJointSet,
     multibody_joints: MultibodyJointSet,
     ccd_solver: CCDSolver,
+    queries: QueryPipeline,
 }
 
 impl Default for PhysicsContext {
@@ -42,6 +43,7 @@ impl Default for PhysicsContext {
             impulse_joints: ImpulseJointSet::default(),
             multibody_joints: MultibodyJointSet::default(),
             ccd_solver: CCDSolver::default(),
+            queries: QueryPipeline::default(),
         }
     }
 }
@@ -61,7 +63,9 @@ impl PhysicsContext {
             &mut self.ccd_solver,
             &(),
             &(),
-        )
+        );
+        self.queries
+            .update(&self.islands, &self.bodies, &self.colliders);
     }
     pub fn remove(&mut self, handle: RigidBodyHandle) {
         self.bodies.remove(
@@ -158,7 +162,6 @@ impl World {
         self.add_object(
             ObjectKind::Object,
             def,
-            ObjectProperties::default(),
             |rb| rb.translation(pos.convert()),
             |c| c,
         );
@@ -167,7 +170,6 @@ impl World {
         &mut self,
         kind: ObjectKind,
         def: ObjectDef,
-        props: ObjectProperties,
         body_builder: impl Fn(RigidBodyBuilder) -> RigidBodyBuilder,
         build_collider: impl Fn(ColliderBuilder) -> ColliderBuilder,
     ) -> RigidBodyHandle {
@@ -218,7 +220,6 @@ impl World {
         let object = Object {
             kind,
             def,
-            props,
             pos,
             vel: Vec2::ZERO,
             rot,

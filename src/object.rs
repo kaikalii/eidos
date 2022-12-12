@@ -18,7 +18,6 @@ pub struct Object {
     pub vel: Vec2,
     pub rot: f32,
     pub body_handle: RigidBodyHandle,
-    pub props: ObjectProperties,
     pub binding: GraphicalBinding,
 }
 
@@ -31,9 +30,17 @@ pub enum ObjectKind {
     Ground,
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
 pub struct ObjectProperties {
     pub magic: f32,
+    pub light: LightProperties,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct LightProperties {
+    pub falloff: f32,
+    pub intensity: f32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -155,6 +162,8 @@ pub struct ObjectDef {
     pub far: Vec<OffsetShape>,
     #[serde(default = "default_restitution")]
     pub restitution: f32,
+    #[serde(default)]
+    pub props: ObjectProperties,
 }
 
 fn default_restitution() -> f32 {
@@ -169,6 +178,7 @@ impl ObjectDef {
             background: Vec::new(),
             far: Vec::new(),
             restitution: default_restitution(),
+            props: ObjectProperties::default(),
         }
     }
     pub fn shapes(self, shapes: impl IntoShapes) -> Self {
@@ -188,6 +198,9 @@ impl ObjectDef {
             far: shapes.into_shapes(),
             ..self
         }
+    }
+    pub fn props(self, props: ObjectProperties) -> Self {
+        Self { props, ..self }
     }
 }
 

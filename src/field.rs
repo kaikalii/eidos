@@ -127,6 +127,8 @@ pub enum ScalarInputFieldKind {
     Elevation,
     #[display(fmt = "🌌Magic")]
     Magic,
+    #[display(fmt = "🕯Light")]
+    Light,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]

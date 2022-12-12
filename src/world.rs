@@ -137,7 +137,6 @@ impl World {
                     .offset(Vec2::ZERO)
                     .density(3.0),
             ),
-            ObjectProperties::default(),
             |rb| rb,
             |c| c.restitution(0.5),
         );
@@ -149,15 +148,17 @@ impl World {
         const TORSO_WIDTH: f32 = 3.0 / 8.0 * TORSO_HEIGHT;
         world.player.person.body_handle = world.add_object(
             ObjectKind::Player,
-            ObjectDef::new(RigidBodyType::Dynamic).shapes(vec![
-                GraphicalShape::capsule_wh(TORSO_WIDTH, TORSO_HEIGHT)
-                    .offset(vec2(0.0, -HEAD_HEIGHT / 2.0)),
-                GraphicalShape::capsule_wh(HEAD_WIDTH, HEAD_HEIGHT)
-                    .offset(vec2(0.0, TORSO_HEIGHT / 2.0)),
-            ]),
-            ObjectProperties {
-                magic: world.player.person.max_mana / 5.0,
-            },
+            ObjectDef::new(RigidBodyType::Dynamic)
+                .props(ObjectProperties {
+                    magic: world.player.person.max_mana / 5.0,
+                    ..Default::default()
+                })
+                .shapes(vec![
+                    GraphicalShape::capsule_wh(TORSO_WIDTH, TORSO_HEIGHT)
+                        .offset(vec2(0.0, -HEAD_HEIGHT / 2.0)),
+                    GraphicalShape::capsule_wh(HEAD_WIDTH, HEAD_HEIGHT)
+                        .offset(vec2(0.0, TORSO_HEIGHT / 2.0)),
+                ]),
             |rb| {
                 rb.rotation(PI / 2.0)
                     .translation([0.0, 0.5 + TORSO_WIDTH].into())
@@ -313,7 +314,7 @@ impl World {
             ScalarInputFieldKind::Magic => {
                 let mul = if let Some((obj, _, layer)) = self.find_object_at(pos) {
                     if let ShapeLayer::Foreground = layer {
-                        return obj.props.magic;
+                        return obj.def.props.magic;
                     } else {
                         layer.multiplier()
                     }
@@ -342,6 +343,7 @@ impl World {
                 }
                 sum * mul
             }
+            ScalarInputFieldKind::Light => todo!(),
         }
     }
     pub fn sample_input_vector_field(&self, kind: VectorInputFieldKind, _pos: Pos2) -> Vec2 {
@@ -431,15 +433,19 @@ impl World {
                     const TORSO_WIDTH: f32 = 3.0 / 8.0 * TORSO_HEIGHT;
                     self.npcs.get_mut(&npc_id).unwrap().person.body_handle = self.add_object(
                         ObjectKind::Npc,
-                        ObjectDef::new(RigidBodyType::Dynamic).shapes(vec![
-                            GraphicalShape::capsule_wh(TORSO_WIDTH, TORSO_HEIGHT)
-                                .offset(vec2(0.0, (LOWER_HEIGHT - HEAD_HEIGHT) / 2.0)),
-                            GraphicalShape::capsule_wh(HEAD_WIDTH, HEAD_HEIGHT)
-                                .offset(vec2(0.0, (LOWER_HEIGHT + TORSO_HEIGHT) / 2.0)),
-                            GraphicalShape::capsule_wh(TORSO_WIDTH, LOWER_HEIGHT)
-                                .offset(vec2(0.0, -(HEAD_HEIGHT + TORSO_HEIGHT) / 2.0)),
-                        ]),
-                        ObjectProperties { magic },
+                        ObjectDef::new(RigidBodyType::Dynamic)
+                            .props(ObjectProperties {
+                                magic,
+                                ..Default::default()
+                            })
+                            .shapes(vec![
+                                GraphicalShape::capsule_wh(TORSO_WIDTH, TORSO_HEIGHT)
+                                    .offset(vec2(0.0, (LOWER_HEIGHT - HEAD_HEIGHT) / 2.0)),
+                                GraphicalShape::capsule_wh(HEAD_WIDTH, HEAD_HEIGHT)
+                                    .offset(vec2(0.0, (LOWER_HEIGHT + TORSO_HEIGHT) / 2.0)),
+                                GraphicalShape::capsule_wh(TORSO_WIDTH, LOWER_HEIGHT)
+                                    .offset(vec2(0.0, -(HEAD_HEIGHT + TORSO_HEIGHT) / 2.0)),
+                            ]),
                         |rb| rb.translation(pos.convert()).lock_rotations(),
                         |c| c,
                     );

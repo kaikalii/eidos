@@ -588,6 +588,7 @@ impl FieldPlot for GenericScalarFieldKind {
             GenericScalarFieldKind::Input(ScalarInputFieldKind::Density) => 1.0,
             GenericScalarFieldKind::Input(ScalarInputFieldKind::Elevation) => 3.0,
             GenericScalarFieldKind::Input(ScalarInputFieldKind::Magic) => 10.0,
+            GenericScalarFieldKind::Input(ScalarInputFieldKind::Light) => 1.0,
             GenericScalarFieldKind::Output(_kind) => unreachable!(),
         }
     }
