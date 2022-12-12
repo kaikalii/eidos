@@ -2,3 +2,5 @@ offset: [0, 0]
 objects:
   - name: sofa
     pos: [0, 0]
+  - name: magician_house
+    pos: [0, 0]

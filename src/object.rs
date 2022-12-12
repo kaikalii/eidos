@@ -153,6 +153,12 @@ pub struct ObjectDef {
     pub background: Vec<OffsetShape>,
     #[serde(default)]
     pub far: Vec<OffsetShape>,
+    #[serde(default = "default_restitution")]
+    pub restitution: f32,
+}
+
+fn default_restitution() -> f32 {
+    0.5
 }
 
 impl ObjectDef {
@@ -162,6 +168,7 @@ impl ObjectDef {
             shapes: Vec::new(),
             background: Vec::new(),
             far: Vec::new(),
+            restitution: default_restitution(),
         }
     }
     pub fn shapes(self, shapes: impl IntoShapes) -> Self {

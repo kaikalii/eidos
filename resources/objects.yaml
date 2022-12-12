@@ -18,3 +18,18 @@ sofa:
         box: [1, 0.5]
       offset: [0, 0.75]
       density: 0.63
+magician_house:
+  type: Fixed
+  shapes:
+    - shape:
+        box: [0.2, 5]
+      offset: [-10, 2.5]
+      density: 0.8
+    - shape:
+        box: [0.2, 5]
+      offset: [10, 2.5]
+      density: 0.8
+    - shape:
+        box: [20, 0.2]
+      offset: [0, 5]
+      density: 0.8
