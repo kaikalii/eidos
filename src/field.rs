@@ -150,14 +150,20 @@ pub enum ControlKind {
 const DROP_OFF_FACTOR: f32 = 10.0;
 
 impl ScalarField {
-    pub fn sample_relative(&self, world: &World, caster: PersonId, pos: Pos2) -> f32 {
+    pub fn sample_relative(
+        &self,
+        world: &World,
+        caster: PersonId,
+        pos: Pos2,
+        allow_recursion: bool,
+    ) -> f32 {
         let person_pos = world.person(caster).pos;
-        self.sample_absolute(world, pos)
+        self.sample_absolute(world, pos, allow_recursion)
             / (1.0
                 + ((pos.x - person_pos.x).powf(2.0) + (pos.y - person_pos.y).powf(2.0))
                     / DROP_OFF_FACTOR)
     }
-    pub fn sample_absolute(&self, world: &World, pos: Pos2) -> f32 {
+    pub fn sample_absolute(&self, world: &World, pos: Pos2, allow_recursion: bool) -> f32 {
         puffin::profile_function!();
         match self {
             ScalarField::Uniform(v) => *v,
@@ -178,15 +184,24 @@ impl ScalarField {
                 person.pos.y + target.y - pos.y
             }
             ScalarField::Filter(person_id) => world.person_is_at(*person_id, pos) as u8 as f32,
-            ScalarField::ScalarUn(op, field) => op.operate(field.sample_absolute(world, pos)),
-            ScalarField::VectorUn(op, field) => op.operate(field.sample_absolute(world, pos)),
-            ScalarField::Bin(op, a, b) => {
-                op.operate(a.sample_absolute(world, pos), b.sample_absolute(world, pos))
+            ScalarField::ScalarUn(op, field) => {
+                op.operate(field.sample_absolute(world, pos, allow_recursion))
             }
-            ScalarField::Index(index, field) => {
-                field.sample_absolute(world, index.sample_absolute(world, pos).to_pos2())
+            ScalarField::VectorUn(op, field) => {
+                op.operate(field.sample_absolute(world, pos, allow_recursion))
             }
-            ScalarField::Input(kind) => world.sample_input_scalar_field(*kind, pos),
+            ScalarField::Bin(op, a, b) => op.operate(
+                a.sample_absolute(world, pos, allow_recursion),
+                b.sample_absolute(world, pos, allow_recursion),
+            ),
+            ScalarField::Index(index, field) => field.sample_absolute(
+                world,
+                index.sample_absolute(world, pos, allow_recursion).to_pos2(),
+                allow_recursion,
+            ),
+            ScalarField::Input(kind) => {
+                world.sample_input_scalar_field(*kind, pos, allow_recursion)
+            }
             ScalarField::Control(kind) => world.controls.get(*kind),
         }
     }
@@ -239,30 +254,43 @@ impl ScalarField {
 }
 
 impl VectorField {
-    pub fn sample_relative(&self, world: &World, caster: PersonId, pos: Pos2) -> Vec2 {
+    pub fn sample_relative(
+        &self,
+        world: &World,
+        caster: PersonId,
+        pos: Pos2,
+        allow_recursion: bool,
+    ) -> Vec2 {
         let person_pos = world.person(caster).pos;
-        self.sample_absolute(world, pos)
+        self.sample_absolute(world, pos, allow_recursion)
             / (1.0
                 + ((pos.x - person_pos.x).powf(2.0) + (pos.y - person_pos.y).powf(2.0))
                     / DROP_OFF_FACTOR)
     }
-    pub fn sample_absolute(&self, world: &World, pos: Pos2) -> Vec2 {
+    pub fn sample_absolute(&self, world: &World, pos: Pos2, allow_recursion: bool) -> Vec2 {
         puffin::profile_function!();
         match self {
             VectorField::Uniform(v) => *v,
-            VectorField::Un(op, field) => op.operate(field.sample_absolute(world, pos)),
-            VectorField::BinSV(op, a, b) => {
-                op.operate(a.sample_absolute(world, pos), b.sample_absolute(world, pos))
+            VectorField::Un(op, field) => {
+                op.operate(field.sample_absolute(world, pos, allow_recursion))
             }
-            VectorField::BinVS(op, a, b) => {
-                op.operate(a.sample_absolute(world, pos), b.sample_absolute(world, pos))
-            }
-            VectorField::BinVV(op, a, b) => {
-                op.operate(a.sample_absolute(world, pos), b.sample_absolute(world, pos))
-            }
-            VectorField::Index(index, field) => {
-                field.sample_absolute(world, index.sample_absolute(world, pos).to_pos2())
-            }
+            VectorField::BinSV(op, a, b) => op.operate(
+                a.sample_absolute(world, pos, allow_recursion),
+                b.sample_absolute(world, pos, allow_recursion),
+            ),
+            VectorField::BinVS(op, a, b) => op.operate(
+                a.sample_absolute(world, pos, allow_recursion),
+                b.sample_absolute(world, pos, allow_recursion),
+            ),
+            VectorField::BinVV(op, a, b) => op.operate(
+                a.sample_absolute(world, pos, allow_recursion),
+                b.sample_absolute(world, pos, allow_recursion),
+            ),
+            VectorField::Index(index, field) => field.sample_absolute(
+                world,
+                index.sample_absolute(world, pos, allow_recursion).to_pos2(),
+                allow_recursion,
+            ),
             VectorField::Input(kind) => world.sample_input_vector_field(*kind, pos),
         }
     }

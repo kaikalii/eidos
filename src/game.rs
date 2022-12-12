@@ -541,7 +541,7 @@ impl FieldPlot for ScalarField {
         }
     }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
-        self.sample_relative(world, PersonId::Player, pos)
+        self.sample_relative(world, PersonId::Player, pos, true)
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
         match self {
@@ -561,7 +561,7 @@ impl FieldPlot for VectorField {
         1.0
     }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
-        self.sample_relative(world, PersonId::Player, pos)
+        self.sample_relative(world, PersonId::Player, pos, true)
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
         default_vector_color(t)
@@ -586,7 +586,7 @@ impl FieldPlot for GenericScalarFieldKind {
         }
     }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
-        world.sample_scalar_field(*self, pos)
+        world.sample_scalar_field(*self, pos, true)
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
         match self {
@@ -609,7 +609,7 @@ impl FieldPlot for GenericVectorFieldKind {
         1.0
     }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
-        world.sample_vector_field(*self, pos)
+        world.sample_vector_field(*self, pos, true)
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
         default_vector_color(t)

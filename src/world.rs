@@ -1,5 +1,4 @@
 use std::{
-    cell::Cell,
     collections::HashMap,
     f32::consts::PI,
     iter::{empty, once},
@@ -28,7 +27,6 @@ pub struct World {
     pub physics: PhysicsContext,
     pub active_spells: ActiveSpells,
     pub controls: Controls,
-    sample_magic: Cell<bool>,
 }
 
 type TypedActiveSpells<K, V> = HashMap<PersonId, HashMap<K, Vec<ActiveSpell<V>>>>;
@@ -129,7 +127,6 @@ impl World {
             objects: IndexMap::new(),
             active_spells: ActiveSpells::default(),
             controls: Controls::default(),
-            sample_magic: Cell::new(true),
         };
         // Add objects
         // Ground
@@ -259,21 +256,40 @@ impl World {
     pub fn find_object_at(&self, p: Pos2) -> Option<(&Object, &OffsetShape, ShapeLayer)> {
         self.find_object_filtered_at(p, |_, _| true)
     }
-    pub fn sample_scalar_field(&self, kind: GenericScalarFieldKind, pos: Pos2) -> f32 {
+    pub fn sample_scalar_field(
+        &self,
+        kind: GenericScalarFieldKind,
+        pos: Pos2,
+        allow_recursion: bool,
+    ) -> f32 {
         puffin::profile_function!(kind.to_string());
         match kind {
-            GenericScalarFieldKind::Input(kind) => self.sample_input_scalar_field(kind, pos),
+            GenericScalarFieldKind::Input(kind) => {
+                self.sample_input_scalar_field(kind, pos, allow_recursion)
+            }
             GenericScalarFieldKind::Output(kind) => self.sample_output_scalar_field(kind, pos),
         }
     }
-    pub fn sample_vector_field(&self, kind: GenericVectorFieldKind, pos: Pos2) -> Vec2 {
+    pub fn sample_vector_field(
+        &self,
+        kind: GenericVectorFieldKind,
+        pos: Pos2,
+        allow_recursion: bool,
+    ) -> Vec2 {
         puffin::profile_function!(kind.to_string());
         match kind {
             GenericVectorFieldKind::Input(kind) => self.sample_input_vector_field(kind, pos),
-            GenericVectorFieldKind::Output(kind) => self.sample_output_vector_field(kind, pos),
+            GenericVectorFieldKind::Output(kind) => {
+                self.sample_output_vector_field(kind, pos, allow_recursion)
+            }
         }
     }
-    pub fn sample_input_scalar_field(&self, kind: ScalarInputFieldKind, pos: Pos2) -> f32 {
+    pub fn sample_input_scalar_field(
+        &self,
+        kind: ScalarInputFieldKind,
+        pos: Pos2,
+        allow_recursion: bool,
+    ) -> f32 {
         puffin::profile_function!(kind.to_string());
         match kind {
             ScalarInputFieldKind::Density => self
@@ -304,22 +320,26 @@ impl World {
                 } else {
                     1.0
                 };
-                if !self.sample_magic.get() {
+                if !allow_recursion {
                     return 1.0;
                 }
-                self.sample_magic.set(false);
                 let mut sum = 0.0;
                 for (person_id, spells) in &self.active_spells.scalars {
                     for spell in spells.values().flatten() {
-                        sum += spell.field.sample_relative(self, *person_id, pos).abs();
+                        sum += spell
+                            .field
+                            .sample_relative(self, *person_id, pos, false)
+                            .abs();
                     }
                 }
                 for (person_id, spells) in &self.active_spells.vectors {
                     for spell in spells.values().flatten() {
-                        sum += spell.field.sample_relative(self, *person_id, pos).length();
+                        sum += spell
+                            .field
+                            .sample_relative(self, *person_id, pos, false)
+                            .length();
                     }
                 }
-                self.sample_magic.set(true);
                 sum * mul
             }
         }
@@ -330,7 +350,12 @@ impl World {
     pub fn sample_output_scalar_field(&self, kind: ScalarOutputFieldKind, _pos: Pos2) -> f32 {
         match kind {}
     }
-    pub fn sample_output_vector_field(&self, kind: VectorOutputFieldKind, pos: Pos2) -> Vec2 {
+    pub fn sample_output_vector_field(
+        &self,
+        kind: VectorOutputFieldKind,
+        pos: Pos2,
+        allow_recursion: bool,
+    ) -> Vec2 {
         puffin::profile_function!(kind.to_string());
         self.active_spells
             .vectors
@@ -338,7 +363,9 @@ impl World {
             .filter_map(|(person_id, spells)| spells.get(&kind).map(|spells| (person_id, spells)))
             .flat_map(|(person_id, spells)| spells.iter().map(move |spell| (person_id, spell)))
             .fold(Vec2::ZERO, |acc, (person_id, spell)| {
-                acc + spell.field.sample_relative(self, *person_id, pos)
+                acc + spell
+                    .field
+                    .sample_relative(self, *person_id, pos, allow_recursion)
                     * self.person(*person_id).field_scale()
             })
     }

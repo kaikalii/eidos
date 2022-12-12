@@ -87,7 +87,7 @@ impl World {
                 continue;
             }
             let pos = self.objects[&handle].pos;
-            let vector = self.sample_output_vector_field(VectorOutputFieldKind::Force, pos);
+            let vector = self.sample_output_vector_field(VectorOutputFieldKind::Force, pos, true);
             let body = &mut self.physics.bodies[handle];
             body.reset_forces(true);
             body.add_force(vector.convert(), true);

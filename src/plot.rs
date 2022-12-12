@@ -12,10 +12,11 @@ use eframe::{
 use itertools::Itertools;
 use puffin::profile_scope;
 use rand::prelude::*;
+use rayon::prelude::*;
 
 use crate::{math::round_to, world::World};
 
-pub trait FieldPlot {
+pub trait FieldPlot: Sync {
     type Value: PartitionAndPlottable;
     fn precision(&self) -> f32;
     fn color_midpoint(&self) -> f32;
@@ -30,7 +31,7 @@ fn wiggle_delta(point_radius: f32, precision: f32) -> f32 {
     point_radius * 0.05 * precision
 }
 
-pub trait PartitionAndPlottable: Sized {
+pub trait PartitionAndPlottable: Sized + Send {
     fn partition_and_plot(
         plot_ui: &mut PlotUi,
         field_plot: &impl FieldPlot<Value = Self>,
@@ -127,30 +128,34 @@ impl<'w> MapPlot<'w> {
         let step = 2.0 * self.range / resolution as f32;
         let point_radius = self.size / resolution as f32 * 0.5;
         let wiggle_delta = field_plot.wiggle_delta(point_radius);
-        let mut points = Vec::with_capacity(self.resolution * resolution);
         let center = pos2(round_to(self.center.x, step), round_to(self.center.y, step));
-        for i in 0..self.resolution {
-            puffin::profile_scope!("point collection");
-            let x = (i as f32) * step + center.x - self.range;
-            let rounded_x = round_to(x, step * 0.5);
-            for j in 0..self.resolution {
-                let y = (j as f32) * step + center.y - self.range;
-                if pos2(x, y).distance(self.center) > self.range {
-                    continue;
+        let points = (0..self.resolution)
+            .par_bridge()
+            .flat_map(|i| {
+                puffin::profile_scope!("point collection");
+                let x = (i as f32) * step + center.x - self.range;
+                let rounded_x = round_to(x, step * 0.5);
+                let mut points = Vec::with_capacity(self.resolution);
+                for j in 0..self.resolution {
+                    let y = (j as f32) * step + center.y - self.range;
+                    if pos2(x, y).distance(self.center) > self.range {
+                        continue;
+                    }
+                    let rounded_y = round_to(y, step * 0.5);
+                    let mut rng = SmallRng::seed_from_u64(hash((
+                        (rounded_x * 1e6) as i64,
+                        (rounded_y * 1e6) as i64,
+                    )));
+                    let dxt = rng.gen::<f32>() + rounded_x - x;
+                    let dyt = rng.gen::<f32>() + rounded_x - x;
+                    let z = field_plot.get_z(self.world, pos2(rounded_x, rounded_y));
+                    let dx = (time + dxt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
+                    let dy = (time + dyt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
+                    points.push((x + dx, y + dy, z));
                 }
-                let rounded_y = round_to(y, step * 0.5);
-                let mut rng = SmallRng::seed_from_u64(hash((
-                    (rounded_x * 1e6) as i64,
-                    (rounded_y * 1e6) as i64,
-                )));
-                let dxt = rng.gen::<f32>() + rounded_x - x;
-                let dyt = rng.gen::<f32>() + rounded_x - x;
-                let z = field_plot.get_z(self.world, pos2(rounded_x, rounded_y));
-                let dx = (time + dxt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
-                let dy = (time + dyt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
-                points.push((x + dx, y + dy, z));
-            }
-        }
+                points
+            })
+            .collect();
         PlotData {
             points,
             center,

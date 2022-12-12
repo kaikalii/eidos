@@ -23,6 +23,7 @@ rand.features = ['small_rng']
 rand.version = '0.8.5'
 rapier2d.features = ['serde-serialize']
 rapier2d.version = '0.16.1'
+rayon = '1'
 serde.features = ['derive']
 serde.version = '1'
 serde_yaml = '0.8.3'
