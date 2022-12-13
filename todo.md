@@ -1,6 +1,4 @@
-- Implement story
-  - Add finer control over casting restrictions
-  - Un-reveal should become disable
-- Rethink numbers?
-- Improve elevation test efficiency
-  - Maybe just cache it?
+- Remove word tooltips
+- Change force to gravity
+- Design problems
+- Add activator control
