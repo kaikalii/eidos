@@ -55,6 +55,22 @@ impl ActiveSpells {
                 .any(|fields| fields.contains_key(&kind)),
         }
     }
+    pub fn person_contains(&self, person_id: PersonId, kind: GenericOutputFieldKind) -> bool {
+        match kind {
+            GenericOutputFieldKind::Scalar(kind) => self
+                .scalars
+                .get(&person_id)
+                .and_then(|fields| fields.get(&kind))
+                .map(|fields| !fields.is_empty())
+                .unwrap_or(false),
+            GenericOutputFieldKind::Vector(kind) => self
+                .vectors
+                .get(&person_id)
+                .and_then(|fields| fields.get(&kind))
+                .map(|fields| !fields.is_empty())
+                .unwrap_or(false),
+        }
+    }
     pub fn remove(&mut self, person_id: PersonId, kind: GenericOutputFieldKind, i: usize) {
         match kind {
             GenericOutputFieldKind::Scalar(kind) => {
@@ -75,6 +91,7 @@ impl ActiveSpells {
             }
         }
     }
+    /// Get an iterator over all the words of all the active spells of a given kind.
     pub fn player_spell_words(
         &self,
         kind: GenericOutputFieldKind,

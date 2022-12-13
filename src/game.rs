@@ -265,6 +265,21 @@ impl Game {
             }
             ui.end_row();
             // Draw the fields themselves
+            let visible_input_fields = known_fields
+                .iter()
+                .filter(|&&kind| self.ui_state.fields_visible[&GenericFieldKind::from(kind)])
+                .count();
+            let visible_output_fields = all::<GenericOutputFieldKind>()
+                .filter(|&kind| {
+                    self.ui_state.fields_visible[&GenericFieldKind::from(kind)]
+                        && self
+                            .world
+                            .active_spells
+                            .person_contains(PersonId::Player, kind)
+                })
+                .count();
+            let visible_fields = visible_input_fields + visible_output_fields;
+            let plot_size = BIG_PLOT_SIZE * (4.0 / visible_fields as f32).min(1.0);
             for kind in all::<GenericInputFieldKind>() {
                 let known = known_fields.contains(&kind);
                 let kind = GenericFieldKind::from(kind);
@@ -274,7 +289,7 @@ impl Game {
                     continue;
                 }
                 if self.ui_state.fields_visible[&kind] {
-                    let new_player_target = self.plot_io_field(ui, BIG_PLOT_SIZE, 100, alpha, kind);
+                    let new_player_target = self.plot_io_field(ui, plot_size, 100, alpha, kind);
                     if self.ui_state.next_player_target.is_none() {
                         self.ui_state.next_player_target = new_player_target;
                     }
@@ -291,12 +306,12 @@ impl Game {
                             ui.label("");
                         } else {
                             let new_player_target =
-                                self.plot_io_field(ui, BIG_PLOT_SIZE, 100, 1.0, kind);
+                                self.plot_io_field(ui, plot_size, 100, 1.0, kind);
                             if self.ui_state.next_player_target.is_none() {
                                 self.ui_state.next_player_target = new_player_target;
                             }
                             for words in words {
-                                Self::spell_words_ui(ui, words, BIG_PLOT_SIZE);
+                                Self::spell_words_ui(ui, words, plot_size);
                             }
                         }
                     } else {
@@ -588,7 +603,7 @@ impl FieldPlot for GenericScalarFieldKind {
             GenericScalarFieldKind::Input(ScalarInputFieldKind::Density) => 1.0,
             GenericScalarFieldKind::Input(ScalarInputFieldKind::Elevation) => 3.0,
             GenericScalarFieldKind::Input(ScalarInputFieldKind::Magic) => 10.0,
-            GenericScalarFieldKind::Input(ScalarInputFieldKind::Light) => 1.0,
+            GenericScalarFieldKind::Input(ScalarInputFieldKind::Light) => 5.0,
             GenericScalarFieldKind::Output(_kind) => unreachable!(),
         }
     }
