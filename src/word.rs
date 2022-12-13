@@ -62,7 +62,7 @@ impl Word {
             Po => ScalarInputFieldKind::Density.into(),
             Lusa => ScalarInputFieldKind::Light.into(),
             Mesi => ScalarInputFieldKind::Magic.into(),
-            Ke => VectorOutputFieldKind::Force.into(),
+            Ke => VectorOutputFieldKind::Gravity.into(),
             Ma => HomoBinOp::Add.into(),
             Sa => HeteroBinOp::Mul.into(),
             Na => MathUnOp::Neg.into(),

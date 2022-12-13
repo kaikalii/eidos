@@ -55,7 +55,7 @@ impl Default for UiState {
         UiState {
             fields_visible: [
                 ScalarInputFieldKind::Density.into(),
-                VectorOutputFieldKind::Force.into(),
+                VectorOutputFieldKind::Gravity.into(),
             ]
             .map(|kind| (kind, true))
             .into_iter()
