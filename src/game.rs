@@ -281,7 +281,7 @@ impl Game {
             let visible_fields = visible_input_fields + visible_output_fields;
             let plot_size = BIG_PLOT_SIZE * (4.0 / visible_fields as f32).min(1.0);
             for kind in all::<GenericInputFieldKind>() {
-                let known = known_fields.contains(&kind);
+                let known = self.world.player.progression.known_fields.contains(&kind);
                 let kind = GenericFieldKind::from(kind);
                 let id = ui.make_persistent_id(kind);
                 let alpha = ui.ctx().animate_bool(id, known);
@@ -289,10 +289,8 @@ impl Game {
                     continue;
                 }
                 if self.ui_state.fields_visible[&kind] {
-                    let new_player_target = self.plot_io_field(ui, plot_size, 100, alpha, kind);
-                    if self.ui_state.next_player_target.is_none() {
-                        self.ui_state.next_player_target = new_player_target;
-                    }
+                    let plot_resp = self.plot_io_field(ui, plot_size, 100, alpha, kind);
+                    self.handle_plot_response(ui, plot_resp);
                 } else {
                     ui.label("");
                 }
@@ -305,14 +303,11 @@ impl Game {
                         if words.len() == 0 {
                             ui.label("");
                         } else {
-                            let new_player_target =
-                                self.plot_io_field(ui, plot_size, 100, 1.0, kind);
-                            if self.ui_state.next_player_target.is_none() {
-                                self.ui_state.next_player_target = new_player_target;
-                            }
+                            let plot_resp = self.plot_io_field(ui, plot_size, 100, 1.0, kind);
                             for words in words {
                                 Self::spell_words_ui(ui, words, plot_size);
                             }
+                            self.handle_plot_response(ui, plot_resp);
                         }
                     } else {
                         ui.label("");
@@ -345,11 +340,9 @@ impl Game {
             ui.horizontal(|ui| {
                 ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
                 for item in stack.iter() {
-                    let new_player_target =
+                    let plot_resp =
                         self.plot_stack_field(ui, SMALL_PLOT_SIZE, 50, 1.0, &item.field);
-                    if self.ui_state.next_player_target.is_none() {
-                        self.ui_state.next_player_target = new_player_target;
-                    }
+                    self.handle_plot_response(ui, plot_resp);
                     Self::spell_words_ui(ui, &item.words, SMALL_PLOT_SIZE);
                 }
                 if self.ui_state.last_stack_len != stack.len() {
@@ -368,12 +361,12 @@ impl Game {
             use Word::*;
             #[rustfmt::skip]
             static WORD_GRID: &[&[Word]] = &[
-                &[Ti,   Tu,   Ta,   Te],
-                &[Le,   Po,   Lusa, Mesi],
-                &[Pa,   Pi,   Sila, Vila, Me],
+                &[Ti,   Tu,   Ta,   Te,   Me  ],
+                &[Le,   Po,   Lusa, Mesi      ],
+                &[Pa,   Pi,   Sila, Vila, Veni],
                 &[Kova, Kovi, Ke,   Seva, Sevi],
                 &[Ma,   Na,   Sa,   Reso, Solo],
-                &[No,   Mo,   Re,   Rovo],
+                &[No,   Mo,   Re,   Rovo      ],
             ];
             let dialog_allows_casting = self
                 .ui_state
@@ -476,30 +469,57 @@ impl Game {
         } else {
             self.world.controls.y_slider = None;
         }
-        // Horizontal slider
-        if used_controls.contains(&ControlKind::XSlider) {
-            let value = self.world.controls.x_slider.get_or_insert(0.0);
-            let something_focused = ui.memory().focus().is_some();
-            let input = ui.input();
-            if input.key_down(Key::D) || input.key_down(Key::A) {
-                if !something_focused {
-                    *value =
-                        input.key_down(Key::D) as u8 as f32 - input.key_down(Key::A) as u8 as f32;
+        ui.vertical(|ui| {
+            // Horizontal slider
+            if used_controls.contains(&ControlKind::XSlider) {
+                let value = self.world.controls.x_slider.get_or_insert(0.0);
+                let something_focused = ui.memory().focus().is_some();
+                let input = ui.input();
+                if input.key_down(Key::D) || input.key_down(Key::A) {
+                    if !something_focused {
+                        *value = input.key_down(Key::D) as u8 as f32
+                            - input.key_down(Key::A) as u8 as f32;
+                    }
+                } else if input.key_released(Key::D) || input.key_released(Key::A) {
+                    *value = 0.0;
                 }
-            } else if input.key_released(Key::D) || input.key_released(Key::A) {
-                *value = 0.0;
+                drop(input);
+                Slider::new(value, -1.0..=1.0)
+                    .fixed_decimals(1)
+                    .show_value(false)
+                    .ui(ui);
+            } else {
+                self.world.controls.x_slider = None;
             }
-            drop(input);
-            Slider::new(value, -1.0..=1.0)
-                .fixed_decimals(1)
-                .show_value(false)
-                .ui(ui);
-        } else {
-            self.world.controls.x_slider = None;
+            // Activator
+            if used_controls.contains(&ControlKind::Activation) {
+                let value = &mut self.world.controls.activation;
+                let something_focused = ui.memory().focus().is_some();
+                ui.toggle_value(value, Word::Veni.to_string());
+                let input = ui.input();
+                if input.key_pressed(Key::Space) {
+                    if !something_focused {
+                        *value = true;
+                    }
+                } else if input.key_released(Key::Space) {
+                    *value = false;
+                }
+                drop(input);
+            } else {
+                self.world.controls.activation = false;
+            }
+        });
+    }
+    fn handle_plot_response(&mut self, ui: &mut Ui, plot_resp: PlotResponse) {
+        if self.ui_state.next_player_target.is_none() {
+            self.ui_state.next_player_target = plot_resp.hovered_pos;
+        }
+        if plot_resp.response.hovered() {
+            self.world.controls.activation = ui.input().pointer.primary_down();
         }
     }
-    fn init_plot(&self, size: f32, resolution: usize, global_alpha: f32) -> MapPlot {
-        MapPlot::new(
+    fn init_plot(&self, size: f32, resolution: usize, global_alpha: f32) -> FieldPlot {
+        FieldPlot::new(
             &self.world,
             self.world.player.person.pos + vec2(0.0, 0.5),
             3.0,
@@ -516,12 +536,11 @@ impl Game {
         resolution: usize,
         global_alpha: f32,
         field: &GenericField,
-    ) -> Option<Vec2> {
+    ) -> PlotResponse {
         let plot = self.init_plot(size, resolution, global_alpha);
         match field {
             GenericField::Scalar(ScalarField::Uniform(n)) => {
-                MapPlot::number_ui(&self.world, ui, size, resolution, global_alpha, *n);
-                None
+                FieldPlot::number_ui(&self.world, ui, size, resolution, global_alpha, *n)
             }
             GenericField::Scalar(field) => plot.ui(ui, field),
             GenericField::Vector(field) => plot.ui(ui, field),
@@ -535,7 +554,7 @@ impl Game {
         resolution: usize,
         global_alpha: f32,
         kind: GenericFieldKind,
-    ) -> Option<Vec2> {
+    ) -> PlotResponse {
         let plot = self.init_plot(size, resolution, global_alpha);
         match kind {
             GenericFieldKind::Scalar(kind) => plot.ui(ui, &kind),
@@ -545,7 +564,7 @@ impl Game {
 }
 
 /// For rendering scalar stack fields
-impl FieldPlot for ScalarField {
+impl FieldPlottable for ScalarField {
     type Value = f32;
     fn precision(&self) -> f32 {
         1.0
@@ -569,7 +588,7 @@ impl FieldPlot for ScalarField {
 }
 
 /// For rendering vector stack fields
-impl FieldPlot for VectorField {
+impl FieldPlottable for VectorField {
     type Value = Vec2;
     fn precision(&self) -> f32 {
         0.35
@@ -586,7 +605,7 @@ impl FieldPlot for VectorField {
 }
 
 /// For rendering scalar I/O fields
-impl FieldPlot for GenericScalarFieldKind {
+impl FieldPlottable for GenericScalarFieldKind {
     type Value = f32;
     fn precision(&self) -> f32 {
         match self {
@@ -622,7 +641,7 @@ impl FieldPlot for GenericScalarFieldKind {
 }
 
 /// For rendering vector I/O fields
-impl FieldPlot for GenericVectorFieldKind {
+impl FieldPlottable for GenericVectorFieldKind {
     type Value = Vec2;
     fn precision(&self) -> f32 {
         0.35

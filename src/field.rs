@@ -147,6 +147,7 @@ pub enum VectorOutputFieldKind {
 pub enum ControlKind {
     XSlider,
     YSlider,
+    Activation,
 }
 
 const DROP_OFF_FACTOR: f32 = 10.0;

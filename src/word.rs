@@ -38,6 +38,7 @@ pub enum Word {
     Vila,
     Pa,
     Pi,
+    Veni,
     // Combinators
     No,
     Mo,
@@ -76,6 +77,7 @@ impl Word {
             Vila => ControlKind::YSlider.into(),
             Pa => Nullary::TargetX.into(),
             Pi => Nullary::TargetY.into(),
+            Veni => ControlKind::Activation.into(),
         }
     }
     pub fn cost(&self) -> f32 {

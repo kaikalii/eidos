@@ -123,6 +123,7 @@ impl ActiveSpells {
 pub struct Controls {
     pub x_slider: Option<f32>,
     pub y_slider: Option<f32>,
+    pub activation: bool,
 }
 
 impl Controls {
@@ -130,6 +131,7 @@ impl Controls {
         match kind {
             ControlKind::XSlider => self.x_slider.unwrap_or(0.0),
             ControlKind::YSlider => self.y_slider.unwrap_or(0.0),
+            ControlKind::Activation => self.activation as u8 as f32,
         }
     }
 }

@@ -1,3 +1,1 @@
-- Change force to gravity
 - Design problems
-- Add activator control
