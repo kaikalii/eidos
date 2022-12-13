@@ -33,7 +33,8 @@ impl Default for PhysicsContext {
     fn default() -> Self {
         PhysicsContext {
             pipline: PhysicsPipeline::default(),
-            gravity: vector!(0.0, -9.81),
+            // gravity: vector!(0.0, -9.81),
+            gravity: vector!(0.0, 0.0),
             integration_parameters: IntegrationParameters::default(),
             islands: IslandManager::default(),
             broad_phase: BroadPhase::default(),
@@ -93,8 +94,9 @@ impl World {
             let pos = self.objects[&handle].pos;
             let vector = self.sample_output_vector_field(VectorOutputFieldKind::Gravity, pos, true);
             let body = &mut self.physics.bodies[handle];
+            let scaled_vector = vector * body.mass();
             body.reset_forces(true);
-            body.add_force(vector.convert(), true);
+            body.add_force(scaled_vector.convert(), true);
             if self.player.person.body_handle == handle
                 || self
                     .npcs
@@ -106,7 +108,7 @@ impl World {
                 let torque = -(angle / PI) * 0.05;
                 body.add_torque(torque, true);
             }
-            forces.insert(handle, vector);
+            forces.insert(handle, scaled_vector);
         }
         // Step physics
         self.physics.step();

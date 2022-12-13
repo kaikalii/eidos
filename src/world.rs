@@ -376,7 +376,8 @@ impl World {
         allow_recursion: bool,
     ) -> Vec2 {
         puffin::profile_function!(kind.to_string());
-        self.active_spells
+        let from_spells = self
+            .active_spells
             .vectors
             .iter()
             .filter_map(|(person_id, spells)| spells.get(&kind).map(|spells| (person_id, spells)))
@@ -386,7 +387,10 @@ impl World {
                     .field
                     .sample_relative(self, *person_id, pos, allow_recursion)
                     * self.person(*person_id).field_scale()
-            })
+            });
+        match kind {
+            VectorOutputFieldKind::Gravity => from_spells + Vec2::new(0.0, -9.81),
+        }
     }
     pub fn person_is_at(&self, person_id: PersonId, pos: Pos2) -> bool {
         let object = &self.objects[&self.person(person_id).body_handle];

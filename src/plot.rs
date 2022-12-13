@@ -51,13 +51,17 @@ pub fn default_scalar_color(t: f32) -> Rgba {
     Hsva::new(h, s, v, 1.0).into()
 }
 
-pub fn default_vector_color(t: Vec2) -> Rgba {
+pub fn simple_vector_color(t: Vec2, offset: f32) -> Rgba {
     let t = (t - Vec2::splat(0.5)) * 2.0;
     let s = t.length();
     let v = 0.9 * t.length() + 0.1;
     let h = (t.angle() + PI) / (2.0 * PI);
-    let h = (h + 0.75) % 1.0;
+    let h = (h + offset) % 1.0;
     Hsva::new(h, s, v, 1.0).into()
+}
+
+pub fn default_vector_color(t: Vec2) -> Rgba {
+    simple_vector_color(t, 0.75)
 }
 
 pub struct MapPlot<'w> {

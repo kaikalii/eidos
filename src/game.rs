@@ -634,6 +634,11 @@ impl FieldPlot for GenericVectorFieldKind {
         world.sample_vector_field(*self, pos, true)
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
-        default_vector_color(t)
+        match self {
+            GenericVectorFieldKind::Input(_) => default_vector_color(t),
+            GenericVectorFieldKind::Output(kind) => match kind {
+                VectorOutputFieldKind::Gravity => simple_vector_color(t, 0.5),
+            },
+        }
     }
 }

@@ -139,7 +139,7 @@ pub enum ScalarOutputFieldKind {}
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
 pub enum VectorOutputFieldKind {
-    #[display(fmt = "↗ Force")]
+    #[display(fmt = "⬇ Gravity")]
     Gravity,
 }
 
