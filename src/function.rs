@@ -28,29 +28,18 @@ pub enum Function {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Sequence)]
 pub enum Nullary {
-    #[display(fmt = "0")]
     Zero,
-    #[display(fmt = "1")]
     One,
-    #[display(fmt = "2")]
     Two,
-    #[display(fmt = "5")]
     Five,
-    #[display(fmt = "10")]
     Ten,
-    #[display(fmt = "↕0↔")]
     ZeroVector,
-    #[display(fmt = "1➡")]
     OneX,
-    #[display(fmt = "1⬆")]
     OneY,
     X,
     Y,
-    #[display(fmt = "🎯X")]
     TargetX,
-    #[display(fmt = "🎯Y")]
     TargetY,
-    #[display(fmt = "🤳")]
     Filter,
 }
 
@@ -76,17 +65,13 @@ impl Nullary {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Sequence)]
 pub enum Combinator1 {
-    #[display(fmt = "⏺⏺")]
     Duplicate,
-    #[display(fmt = "⤵")]
     Drop,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Sequence)]
 pub enum Combinator2 {
-    #[display(fmt = "🔄")]
     Swap,
-    #[display(fmt = "↗↘")]
     Over,
 }
 
@@ -112,30 +97,22 @@ pub enum UnOp<T> {
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum MathUnOp {
-    #[display(fmt = "0-")]
     Neg,
-    #[display(fmt = "|x|")]
     Abs,
-    #[display(fmt = "+-?")]
     Sign,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum ScalarUnOp {
-    #[display(fmt = "~Sin")]
     Sin,
-    #[display(fmt = "~Cos")]
     Cos,
-    #[display(fmt = "~Tan")]
     Tan,
-    #[display(fmt = "1/")]
     Reciprocal,
     ToScalar(ToScalarOp),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum VectorUnScalarOp {
-    #[display(fmt = "📏Length")]
     Length,
     ToScalar(ToScalarOp),
 }

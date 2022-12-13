@@ -394,11 +394,7 @@ impl Game {
                         text = text.small();
                     }
                     let button = FadeButton::new(word, known, text).hilight(hilight);
-                    if ui
-                        .add_enabled(enabled, button)
-                        .on_hover_text(f.to_string())
-                        .clicked()
-                    {
+                    if ui.add_enabled(enabled, button).clicked() {
                         if let Function::ReadField(kind) = f {
                             if self.world.player.progression.known_fields.insert(kind) {
                                 self.ui_state.fields_visible.insert(kind.into(), true);
