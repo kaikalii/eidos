@@ -3,3 +3,5 @@ objects:
     pos: [0, 0]
   - name: magician_house
     pos: [0, 0]
+  - name: simple_light
+    pos: [-2, 3]

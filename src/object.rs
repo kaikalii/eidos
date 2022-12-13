@@ -34,21 +34,20 @@ pub enum ObjectKind {
 #[serde(default)]
 pub struct ObjectProperties {
     pub magic: f32,
-    pub light: LightProperties,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-pub struct LightProperties {
-    pub falloff: f32,
-    pub intensity: f32,
+    pub light: f32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct OffsetShape {
     pub shape: GraphicalShape,
-    #[serde(deserialize_with = "vec2_as_array")]
+    #[serde(default, deserialize_with = "vec2_as_array")]
     pub offset: Vec2,
+    #[serde(default = "default_density")]
     pub density: f32,
+}
+
+fn default_density() -> f32 {
+    1.0
 }
 
 impl OffsetShape {

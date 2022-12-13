@@ -23,6 +23,7 @@ pub enum Word {
     // Inputs
     Le,
     Po,
+    Lusa,
     Mesi,
     // Outputs
     Ke,
@@ -59,6 +60,7 @@ impl Word {
             Me => Nullary::Filter.into(),
             Le => ScalarInputFieldKind::Elevation.into(),
             Po => ScalarInputFieldKind::Density.into(),
+            Lusa => ScalarInputFieldKind::Light.into(),
             Mesi => ScalarInputFieldKind::Magic.into(),
             Ke => VectorOutputFieldKind::Force.into(),
             Ma => HomoBinOp::Add.into(),

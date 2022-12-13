@@ -33,3 +33,10 @@ magician_house:
         box: [20, 0.2]
       offset: [0, 5]
       density: 0.8
+simple_light:
+  type: Fixed
+  shapes:
+    - shape:
+        circle: 0.2
+  props:
+    light: 10

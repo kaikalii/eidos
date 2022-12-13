@@ -26,7 +26,7 @@ pub struct PhysicsContext {
     impulse_joints: ImpulseJointSet,
     multibody_joints: MultibodyJointSet,
     ccd_solver: CCDSolver,
-    queries: QueryPipeline,
+    pub queries: QueryPipeline,
 }
 
 impl Default for PhysicsContext {
@@ -157,6 +157,11 @@ fn graphical_shape_to_shared(shape: &GraphicalShape) -> SharedShape {
     }
 }
 
+const PERSON: Group = Group::GROUP_1;
+const OBJECT: Group = Group::GROUP_2;
+const BACKGROUND: Group = Group::GROUP_3;
+const GROUND: Group = Group::GROUP_4;
+
 impl World {
     pub fn add_object_def(&mut self, pos: Pos2, def: ObjectDef) {
         self.add_object(
@@ -180,10 +185,6 @@ impl World {
         let pos = body.translation().convert();
         let rot = body.rotation().angle();
         let body_handle = self.physics.bodies.insert(body);
-        const PERSON: Group = Group::GROUP_1;
-        const OBJECT: Group = Group::GROUP_2;
-        const BACKGROUND: Group = Group::GROUP_3;
-        const GROUND: Group = Group::GROUP_4;
         let groups = match kind {
             ObjectKind::Player => InteractionGroups::new(PERSON, OBJECT | GROUND),
             ObjectKind::Npc => InteractionGroups::new(PERSON, OBJECT | GROUND),
@@ -232,5 +233,32 @@ impl World {
         self.objects.insert(body_handle, object);
         self.objects.sort_by(|_, a, _, b| a.kind.cmp(&b.kind));
         body_handle
+    }
+    pub fn get_light_at(&self, pos: Pos2) -> f32 {
+        let mut max = 0f32;
+        for obj in self.objects.values() {
+            if obj.def.props.light == 0.0 {
+                continue;
+            }
+            let dist = (obj.pos - pos).length();
+            let ray = Ray::new(pos.convert(), (obj.pos - pos).normalized().convert());
+            if self
+                .physics
+                .queries
+                .cast_ray(
+                    &self.physics.bodies,
+                    &self.physics.colliders,
+                    &ray,
+                    dist,
+                    true,
+                    QueryFilter::default().exclude_rigid_body(obj.body_handle),
+                )
+                .is_none()
+            {
+                let intensity = obj.def.props.light / (1.0 + dist.powi(2));
+                max = max.max(intensity);
+            }
+        }
+        max
     }
 }

@@ -343,7 +343,7 @@ impl World {
                 }
                 sum * mul
             }
-            ScalarInputFieldKind::Light => todo!(),
+            ScalarInputFieldKind::Light => self.get_light_at(pos),
         }
     }
     pub fn sample_input_vector_field(&self, kind: VectorInputFieldKind, _pos: Pos2) -> Vec2 {

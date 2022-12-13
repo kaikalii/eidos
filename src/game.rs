@@ -351,14 +351,14 @@ impl Game {
         Grid::new("words").min_col_width(10.0).show(ui, |ui| {
             // Words
             use Word::*;
-            // #[rustfmt::skip]
+            #[rustfmt::skip]
             static WORD_GRID: &[&[Word]] = &[
-                &[Ti, Tu, Ta, Te],
-                &[Seva, Sevi, Le, Po, Mesi],
-                &[Pa, Pi, Sila, Vila, Me],
-                &[Kova, Kovi, Ke],
-                &[Ma, Na, Sa, Reso, Solo],
-                &[No, Mo, Re, Rovo],
+                &[Ti,   Tu,   Ta,   Te],
+                &[Le,   Po,   Lusa, Mesi],
+                &[Pa,   Pi,   Sila, Vila, Me],
+                &[Kova, Kovi, Ke,   Seva, Sevi],
+                &[Ma,   Na,   Sa,   Reso, Solo],
+                &[No,   Mo,   Re,   Rovo],
             ];
             let dialog_allows_casting = self
                 .ui_state
