@@ -26,10 +26,14 @@ pub struct World {
     pub objects: IndexMap<RigidBodyHandle, Object>,
     pub min_bound: Pos2,
     pub max_bound: Pos2,
+    pub heat_grid: Vec<Vec<f32>>,
     pub physics: PhysicsContext,
     pub active_spells: ActiveSpells,
     pub controls: Controls,
 }
+
+const HEAT_GRID_RESOLUTION: f32 = 0.5;
+const DEFAULT_TEMP: f32 = 20.0;
 
 type TypedActiveSpells<K, V> = HashMap<PersonId, HashMap<K, Vec<ActiveSpell<V>>>>;
 
@@ -147,23 +151,12 @@ impl World {
             physics: PhysicsContext::default(),
             min_bound: Pos2::ZERO,
             max_bound: Pos2::ZERO,
+            heat_grid: Vec::new(),
             objects: IndexMap::new(),
             active_spells: ActiveSpells::default(),
             controls: Controls::default(),
         };
-        // Add objects
-        // Ground
-        world.add_object(
-            ObjectKind::Ground,
-            ObjectDef::new(RigidBodyType::Fixed).shapes(
-                GraphicalShape::HalfSpace(Vec2::Y)
-                    .offset(Vec2::ZERO)
-                    .density(3.0),
-            ),
-            |rb| rb,
-            |c| c.restitution(0.5),
-        );
-        // Player
+        // Add player
         const HEIGHT: f32 = 4.0 / 7.0 * 1.75;
         const HEAD_HEIGHT: f32 = 1.0 / 3.0 * HEIGHT;
         const HEAD_WIDTH: f32 = 2.0 / 3.0 * HEAD_HEIGHT;
@@ -367,6 +360,15 @@ impl World {
                 sum * mul
             }
             ScalarInputFieldKind::Light => self.get_light_at(pos),
+            ScalarInputFieldKind::Heat => {
+                let i = ((pos.x - self.min_bound.x) / HEAT_GRID_RESOLUTION + 0.5) as usize;
+                let j = ((pos.y - self.min_bound.y) / HEAT_GRID_RESOLUTION + 0.5) as usize;
+                self.heat_grid
+                    .get(i)
+                    .and_then(|col| col.get(j))
+                    .copied()
+                    .unwrap_or(DEFAULT_TEMP)
+            }
         }
     }
     pub fn sample_input_vector_field(&self, kind: VectorInputFieldKind, _pos: Pos2) -> Vec2 {
@@ -431,19 +433,68 @@ impl World {
                 self.person_mut(id).regen_mana();
             }
         }
+        // Update heat grid
+        let mut new_grid = self.heat_grid.clone();
+        for (i, col) in self.heat_grid.iter().enumerate() {
+            for j in 0..col.len() {
+                let center = col[j];
+                let left = self
+                    .heat_grid
+                    .get((i as isize - 1) as usize)
+                    .map(|col| col[j])
+                    .unwrap_or(DEFAULT_TEMP);
+                let right = self
+                    .heat_grid
+                    .get((i as isize + 1) as usize)
+                    .map(|col| col[j])
+                    .unwrap_or(DEFAULT_TEMP);
+                let up = *col.get((j as isize + 1) as usize).unwrap_or(&DEFAULT_TEMP);
+                let down = *col.get((j as isize - 1) as usize).unwrap_or(&DEFAULT_TEMP);
+                new_grid[i][j] = (center + left + right + up + down) / 5.0;
+            }
+        }
+        self.heat_grid = new_grid;
+    }
+    fn hear_grid_width(&self) -> usize {
+        ((self.max_bound.x - self.min_bound.x) / HEAT_GRID_RESOLUTION).ceil() as usize
+    }
+    fn hear_grid_height(&self) -> usize {
+        ((self.max_bound.y - self.min_bound.y) / HEAT_GRID_RESOLUTION).ceil() as usize
     }
     pub fn load_place(&mut self, place_name: &str) {
         let Some(place) = PLACES.get(place_name) else {
             return;
         };
+        // Remove old objects
+        self.objects.retain(|handle, obj| {
+            if obj.kind != ObjectKind::Player {
+                self.physics.remove_body(*handle);
+                false
+            } else {
+                true
+            }
+        });
         // Add objects
-        self.objects.retain(|_, obj| obj.kind != ObjectKind::Player);
+        // Ground
+        self.add_object(
+            ObjectKind::Ground,
+            ObjectDef::new(RigidBodyType::Fixed).shapes(
+                GraphicalShape::HalfSpace(Vec2::Y)
+                    .offset(Vec2::ZERO)
+                    .density(3.0),
+            ),
+            |rb| rb,
+            |c| c.restitution(0.5),
+        );
+        // Place objects
         self.min_bound = pos2(f32::INFINITY, f32::INFINITY);
         self.max_bound = pos2(f32::NEG_INFINITY, f32::NEG_INFINITY);
         for po in &place.objects {
             let object = OBJECTS[&po.name].clone();
             self.add_object_def(po.pos, object);
         }
+        // Init heat grid
+        self.heat_grid = vec![vec![DEFAULT_TEMP; self.hear_grid_height()]; self.hear_grid_width()];
         // (De)activate npcs
         for npc_id in all::<NpcId>() {
             let mut npc = self.npcs.get_mut(&npc_id).unwrap();
@@ -483,7 +534,7 @@ impl World {
             } else {
                 npc.active = false;
                 self.objects.remove(&npc.person.body_handle);
-                self.physics.remove(npc.person.body_handle);
+                self.physics.remove_body(npc.person.body_handle);
             }
         }
     }

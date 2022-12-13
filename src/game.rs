@@ -619,6 +619,7 @@ impl FieldPlottable for GenericScalarFieldKind {
             GenericScalarFieldKind::Input(ScalarInputFieldKind::Elevation) => 3.0,
             GenericScalarFieldKind::Input(ScalarInputFieldKind::Magic) => 10.0,
             GenericScalarFieldKind::Input(ScalarInputFieldKind::Light) => 5.0,
+            GenericScalarFieldKind::Input(ScalarInputFieldKind::Heat) => 20.0,
             GenericScalarFieldKind::Output(_kind) => unreachable!(),
         }
     }

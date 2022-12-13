@@ -175,3 +175,4 @@ end:
     - reveal_field: Elevation
     - reveal_field: Magic
     - reveal_field: Light
+    - reveal_field: Heat
