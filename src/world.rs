@@ -483,7 +483,7 @@ impl World {
                         .unwrap_or(DEFAULT_TEMP);
                     let up = *col.get((j as isize + 1) as usize).unwrap_or(&DEFAULT_TEMP);
                     let down = *col.get((j as isize - 1) as usize).unwrap_or(&DEFAULT_TEMP);
-                    new_col[j] = (c * center + s * left + s * right + s * up + s * down) / 5.0;
+                    new_col[j] = (c * center + s * (left + right + up + down)) / 5.0;
                 }
                 new_col
             })

@@ -108,6 +108,7 @@ pub enum ScalarUnOp {
     Cos,
     Tan,
     Reciprocal,
+    Sqrt,
     ToScalar(ToScalarOp),
 }
 
@@ -166,13 +167,10 @@ impl UnOperator<f32> for ScalarUnOp {
             ScalarUnOp::Sin => v.sin(),
             ScalarUnOp::Cos => v.cos(),
             ScalarUnOp::Tan => v.tan(),
-            ScalarUnOp::Reciprocal => {
-                if v == 0.0 {
-                    0.0
-                } else {
-                    1.0 / v
-                }
-            }
+            ScalarUnOp::Reciprocal if v == 0.0 => 0.0,
+            ScalarUnOp::Reciprocal => 1.0 / v,
+            ScalarUnOp::Sqrt if v < 0.0 => 0.0,
+            ScalarUnOp::Sqrt => v.sqrt(),
             ScalarUnOp::ToScalar(op) => match op {
                 ToScalarOp::Magnitude => v.abs(),
             },

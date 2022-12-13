@@ -33,6 +33,7 @@ pub enum Word {
     Na,
     Reso,
     Solo,
+    Kuru,
     // Controls
     Sila,
     Vila,
@@ -69,6 +70,7 @@ impl Word {
             Na => MathUnOp::Neg.into(),
             Solo => ToScalarOp::Magnitude.into(),
             Reso => ScalarUnOp::Reciprocal.into(),
+            Kuru => ScalarUnOp::Sqrt.into(),
             No => Combinator1::Drop.into(),
             Mo => Combinator1::Duplicate.into(),
             Re => Combinator2::Swap.into(),

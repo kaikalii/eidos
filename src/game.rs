@@ -365,7 +365,7 @@ impl Game {
                 &[Le,   Po,   Lusa, Mesi      ],
                 &[Pa,   Pi,   Sila, Vila, Veni],
                 &[Kova, Kovi, Ke,   Seva, Sevi],
-                &[Ma,   Na,   Sa,   Reso, Solo],
+                &[Ma,   Na,   Sa,   Reso, Solo, Kuru],
                 &[No,   Mo,   Re,   Rovo      ],
             ];
             let dialog_allows_casting = self
@@ -641,7 +641,7 @@ impl FieldPlottable for GenericScalarFieldKind {
                 if t > 0.0 {
                     Rgba::from_rgb(t, 0.125 - 0.5 * (t - 0.25).abs(), 0.0)
                 } else {
-                    Rgba::from_rgb(0.0, 0.0, t.abs())
+                    Rgba::from_rgb(t.abs() * 0.5, t.abs() * 0.5, t.abs())
                 }
             }
             _ => default_scalar_color(t),
