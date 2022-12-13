@@ -18,7 +18,7 @@ pub enum Function {
     Nullary(Nullary),
     #[from(types(HeteroBinOp, HomoBinOp))]
     Bin(GenericBinOp),
-    #[from(types(MathUnOp, ScalarUnOp))]
+    #[from(types(MathUnOp, ScalarUnOp, ToScalarOp))]
     Un(GenericUnOp),
     #[from]
     Combinator1(Combinator1),
@@ -101,6 +101,7 @@ pub enum GenericUnOp {
     Scalar(ScalarUnOp),
     VectorScalar(VectorUnScalarOp),
     VectorVector(VectorUnVectorOp),
+    ToScalar(ToScalarOp),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
@@ -129,17 +130,24 @@ pub enum ScalarUnOp {
     Tan,
     #[display(fmt = "1/")]
     Reciprocal,
+    ToScalar(ToScalarOp),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum VectorUnScalarOp {
     #[display(fmt = "📏Length")]
     Length,
+    ToScalar(ToScalarOp),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub enum VectorUnVectorOp {
     Unit,
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum ToScalarOp {
+    Magnitude,
 }
 
 impl<A, T> UnOperator<A> for UnOp<T>
@@ -188,6 +196,9 @@ impl UnOperator<f32> for ScalarUnOp {
                     1.0 / v
                 }
             }
+            ScalarUnOp::ToScalar(op) => match op {
+                ToScalarOp::Magnitude => v.abs(),
+            },
         }
     }
 }
@@ -197,6 +208,9 @@ impl UnOperator<Vec2> for VectorUnScalarOp {
     fn operate(&self, v: Vec2) -> Self::Output {
         match self {
             VectorUnScalarOp::Length => v.length(),
+            VectorUnScalarOp::ToScalar(op) => match op {
+                ToScalarOp::Magnitude => v.length(),
+            },
         }
     }
 }
@@ -404,6 +418,7 @@ impl Function {
                 GenericUnOp::VectorScalar(_) | GenericUnOp::VectorVector(_) => {
                     vec![Constrain(ValueConstraint::Exact(Type::Vector))]
                 }
+                GenericUnOp::ToScalar(_) => vec![Any],
             },
             Function::Bin(op) => match op {
                 GenericBinOp::Math(_) => {

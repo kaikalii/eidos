@@ -66,7 +66,7 @@ impl Word {
             Ma => HomoBinOp::Add.into(),
             Sa => HeteroBinOp::Mul.into(),
             Na => MathUnOp::Neg.into(),
-            Solo => MathUnOp::Abs.into(),
+            Solo => ToScalarOp::Magnitude.into(),
             Reso => ScalarUnOp::Reciprocal.into(),
             No => Combinator1::Drop.into(),
             Mo => Combinator1::Duplicate.into(),

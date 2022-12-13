@@ -177,6 +177,18 @@ impl Stack {
                         }
                         _ => unreachable!(),
                     },
+                    GenericUnOp::ToScalar(op) => match a.field {
+                        GenericField::Scalar(f) => self.push(
+                            words,
+                            ScalarField::ScalarUn(UnOp::Typed(ScalarUnOp::ToScalar(op)), f.into())
+                                .reduce(),
+                        ),
+                        GenericField::Vector(f) => self.push(
+                            words,
+                            ScalarField::VectorUn(VectorUnScalarOp::ToScalar(op), f.into())
+                                .reduce(),
+                        ),
+                    },
                 }
             }
             Function::Bin(op) => {
