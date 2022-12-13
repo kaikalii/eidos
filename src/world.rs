@@ -24,6 +24,8 @@ pub struct World {
     pub player: Player,
     pub npcs: HashMap<NpcId, Npc>,
     pub objects: IndexMap<RigidBodyHandle, Object>,
+    pub min_bound: Pos2,
+    pub max_bound: Pos2,
     pub physics: PhysicsContext,
     pub active_spells: ActiveSpells,
     pub controls: Controls,
@@ -143,6 +145,8 @@ impl World {
             player,
             npcs: HashMap::new(),
             physics: PhysicsContext::default(),
+            min_bound: Pos2::ZERO,
+            max_bound: Pos2::ZERO,
             objects: IndexMap::new(),
             active_spells: ActiveSpells::default(),
             controls: Controls::default(),
@@ -433,6 +437,9 @@ impl World {
             return;
         };
         // Add objects
+        self.objects.retain(|_, obj| obj.kind != ObjectKind::Player);
+        self.min_bound = pos2(f32::INFINITY, f32::INFINITY);
+        self.max_bound = pos2(f32::NEG_INFINITY, f32::NEG_INFINITY);
         for po in &place.objects {
             let object = OBJECTS[&po.name].clone();
             self.add_object_def(po.pos, object);

@@ -70,6 +70,17 @@ pub enum GraphicalShape {
 }
 
 impl GraphicalShape {
+    pub fn approx_size(&self) -> f32 {
+        match self {
+            GraphicalShape::Circle(radius) => radius * 2.0,
+            GraphicalShape::Box(size) => size.x.max(size.y),
+            GraphicalShape::HalfSpace(_) => 0.0,
+            GraphicalShape::Capsule {
+                half_height,
+                radius,
+            } => half_height * 2.0 + radius * 2.0,
+        }
+    }
     pub fn capsule_wh(width: f32, height: f32) -> Self {
         GraphicalShape::Capsule {
             half_height: (height - width) / 2.0,

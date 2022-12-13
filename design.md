@@ -35,3 +35,7 @@ The problem may be contexualized as a lesson, a task for a townsperson, or some 
 
 - Magic 101
   - Learn about magic and how to move around
+- Make a torch that automatically lights at night
+  - Prerequisite fields
+    - Heat
+    - Light
