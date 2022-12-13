@@ -324,7 +324,7 @@ impl World {
                     {
                         return pos.y - test.y;
                     }
-                    test.y -= 0.5;
+                    test.y -= 0.25;
                 }
                 pos.y
             }
