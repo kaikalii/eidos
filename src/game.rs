@@ -616,6 +616,10 @@ impl FieldPlot for GenericScalarFieldKind {
                 let t = (t - 0.5) / 0.5;
                 Rgba::from_rgb(0.0, t * 0.5, t)
             }
+            GenericScalarFieldKind::Input(ScalarInputFieldKind::Light) => {
+                let t = (t - 0.5) / 0.5;
+                Rgba::from_rgb(t.powf(0.5), t.powf(0.6), t)
+            }
             _ => default_scalar_color(t),
         }
     }

@@ -189,9 +189,10 @@ impl World {
             ObjectKind::Player => InteractionGroups::new(PERSON, OBJECT | GROUND),
             ObjectKind::Npc => InteractionGroups::new(PERSON, OBJECT | GROUND),
             ObjectKind::Object => InteractionGroups::new(OBJECT, PERSON | OBJECT | GROUND),
-            ObjectKind::Background => InteractionGroups::new(BACKGROUND, BACKGROUND | GROUND),
             ObjectKind::Ground => InteractionGroups::new(GROUND, PERSON | OBJECT | BACKGROUND),
         };
+        let mut foreground_handles = Vec::new();
+        let mut background_handles = Vec::new();
         for offset_shape in &def.shapes {
             let shared_shape = graphical_shape_to_shared(&offset_shape.shape);
             let collider = build_collider(ColliderBuilder::new(shared_shape))
@@ -199,11 +200,11 @@ impl World {
                 .density(offset_shape.density)
                 .collision_groups(groups)
                 .build();
-            self.physics.colliders.insert_with_parent(
+            foreground_handles.push(self.physics.colliders.insert_with_parent(
                 collider,
                 body_handle,
                 &mut self.physics.bodies,
-            );
+            ));
         }
         for offset_shape in &def.background {
             let shared_shape = graphical_shape_to_shared(&offset_shape.shape);
@@ -212,11 +213,11 @@ impl World {
                 .density(offset_shape.density)
                 .collision_groups(InteractionGroups::new(BACKGROUND, BACKGROUND | GROUND))
                 .build();
-            self.physics.colliders.insert_with_parent(
+            background_handles.push(self.physics.colliders.insert_with_parent(
                 collider,
                 body_handle,
                 &mut self.physics.bodies,
-            );
+            ));
         }
         let object = Object {
             kind,
@@ -225,6 +226,8 @@ impl World {
             vel: Vec2::ZERO,
             rot,
             body_handle,
+            foreground_handles,
+            background_handles,
             binding: match kind {
                 ObjectKind::Npc => GraphicalBinding::Npc,
                 _ => GraphicalBinding::Linear,
@@ -236,28 +239,41 @@ impl World {
     }
     pub fn get_light_at(&self, pos: Pos2) -> f32 {
         let mut max = 0f32;
-        for obj in self.objects.values() {
-            if obj.def.props.light == 0.0 {
+        for light_obj in self.objects.values() {
+            if light_obj.def.props.light == 0.0 {
                 continue;
             }
-            let dist = (obj.pos - pos).length();
-            let ray = Ray::new(pos.convert(), (obj.pos - pos).normalized().convert());
-            if self
-                .physics
-                .queries
-                .cast_ray(
-                    &self.physics.bodies,
-                    &self.physics.colliders,
-                    &ray,
-                    dist,
-                    true,
-                    QueryFilter::default().exclude_rigid_body(obj.body_handle),
-                )
-                .is_none()
-            {
-                let intensity = obj.def.props.light / (1.0 + dist.powi(2));
-                max = max.max(intensity);
+            let dist = light_obj.pos.distance(pos);
+            let ray = Ray::new(pos.convert(), (light_obj.pos - pos).normalized().convert());
+            let mut soft_count = 0;
+            let mut hard = false;
+            self.physics.queries.intersections_with_ray(
+                &self.physics.bodies,
+                &self.physics.colliders,
+                &ray,
+                dist,
+                true,
+                QueryFilter::default().exclude_rigid_body(light_obj.body_handle),
+                |handle, _| {
+                    let body_handle = self.physics.colliders[handle].parent().unwrap();
+                    let obj = &self.objects[&body_handle];
+                    if matches!(obj.kind, ObjectKind::Player | ObjectKind::Npc)
+                        || obj.background_handles.contains(&handle)
+                    {
+                        soft_count += 1;
+                        true
+                    } else {
+                        hard = true;
+                        false
+                    }
+                },
+            );
+            if hard {
+                continue;
             }
+            let intensity =
+                light_obj.def.props.light / (1.0 + dist.powi(2)) / (soft_count + 1) as f32;
+            max = max.max(intensity);
         }
         max
     }

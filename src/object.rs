@@ -18,6 +18,8 @@ pub struct Object {
     pub vel: Vec2,
     pub rot: f32,
     pub body_handle: RigidBodyHandle,
+    pub foreground_handles: Vec<ColliderHandle>,
+    pub background_handles: Vec<ColliderHandle>,
     pub binding: GraphicalBinding,
 }
 
@@ -26,7 +28,6 @@ pub enum ObjectKind {
     Player,
     Npc,
     Object,
-    Background,
     Ground,
 }
 
