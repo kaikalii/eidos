@@ -40,3 +40,4 @@ simple_light:
         circle: 0.2
   props:
     light: 10
+    constant_heat: 300

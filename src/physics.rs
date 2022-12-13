@@ -11,7 +11,7 @@ use crate::{
     field::VectorOutputFieldKind,
     math::{modulus, Convert},
     object::{GraphicalBinding, GraphicalShape, Object, ObjectDef, ObjectKind},
-    world::World,
+    world::{World, DEFAULT_TEMP},
 };
 
 pub struct PhysicsContext {
@@ -208,8 +208,10 @@ impl World {
                 body_handle,
                 &mut self.physics.bodies,
             ));
-            let shape_min = offset_shape.offset - Vec2::splat(offset_shape.shape.approx_size());
-            let shape_max = offset_shape.offset - Vec2::splat(offset_shape.shape.approx_size());
+            let shape_min: Pos2 =
+                pos + offset_shape.offset - Vec2::splat(offset_shape.shape.approx_size());
+            let shape_max: Pos2 =
+                pos + offset_shape.offset - Vec2::splat(offset_shape.shape.approx_size());
             self.min_bound.x = self.min_bound.x.min(shape_min.x - BOUND_PADDING);
             self.min_bound.y = self.min_bound.y.min(shape_min.y - BOUND_PADDING);
             self.max_bound.x = self.max_bound.x.max(shape_max.x + BOUND_PADDING);
@@ -230,6 +232,7 @@ impl World {
         }
         let object = Object {
             kind,
+            heat: def.props.constant_heat.unwrap_or(DEFAULT_TEMP),
             def,
             pos,
             vel: Vec2::ZERO,

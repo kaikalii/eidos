@@ -16,7 +16,7 @@ use crate::{
     plot::*,
     stack::Stack,
     word::*,
-    world::World,
+    world::{World, BODY_TEMP},
     GameState,
 };
 
@@ -619,7 +619,7 @@ impl FieldPlottable for GenericScalarFieldKind {
             GenericScalarFieldKind::Input(ScalarInputFieldKind::Elevation) => 3.0,
             GenericScalarFieldKind::Input(ScalarInputFieldKind::Magic) => 10.0,
             GenericScalarFieldKind::Input(ScalarInputFieldKind::Light) => 5.0,
-            GenericScalarFieldKind::Input(ScalarInputFieldKind::Heat) => 20.0,
+            GenericScalarFieldKind::Input(ScalarInputFieldKind::Heat) => BODY_TEMP,
             GenericScalarFieldKind::Output(_kind) => unreachable!(),
         }
     }
@@ -635,6 +635,14 @@ impl FieldPlottable for GenericScalarFieldKind {
             GenericScalarFieldKind::Input(ScalarInputFieldKind::Light) => {
                 let t = (t - 0.5) / 0.5;
                 Rgba::from_rgb(t.powf(0.5), t.powf(0.6), t)
+            }
+            GenericScalarFieldKind::Input(ScalarInputFieldKind::Heat) => {
+                let t = (t - 0.5) / 0.5;
+                if t > 0.0 {
+                    Rgba::from_rgb(t, 0.125 - 0.5 * (t - 0.25).abs(), 0.0)
+                } else {
+                    Rgba::from_rgb(0.0, 0.0, t.abs())
+                }
             }
             _ => default_scalar_color(t),
         }

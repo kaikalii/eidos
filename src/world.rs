@@ -8,6 +8,7 @@ use eframe::egui::*;
 use enum_iterator::all;
 use indexmap::IndexMap;
 use rapier2d::prelude::*;
+use rayon::prelude::*;
 
 use crate::{
     field::*,
@@ -32,8 +33,9 @@ pub struct World {
     pub controls: Controls,
 }
 
-const HEAT_GRID_RESOLUTION: f32 = 0.5;
-const DEFAULT_TEMP: f32 = 20.0;
+const HEAT_GRID_RESOLUTION: f32 = 0.25;
+pub const DEFAULT_TEMP: f32 = 0.0;
+pub const BODY_TEMP: f32 = 17.0;
 
 type TypedActiveSpells<K, V> = HashMap<PersonId, HashMap<K, Vec<ActiveSpell<V>>>>;
 
@@ -167,6 +169,7 @@ impl World {
             ObjectDef::new(RigidBodyType::Dynamic)
                 .props(ObjectProperties {
                     magic: world.player.person.max_mana / 5.0,
+                    constant_heat: Some(BODY_TEMP),
                     ..Default::default()
                 })
                 .shapes(vec![
@@ -361,6 +364,9 @@ impl World {
             }
             ScalarInputFieldKind::Light => self.get_light_at(pos),
             ScalarInputFieldKind::Heat => {
+                if let Some((obj, _, _)) = self.find_object_at(pos) {
+                    return obj.heat;
+                }
                 let i = ((pos.x - self.min_bound.x) / HEAT_GRID_RESOLUTION + 0.5) as usize;
                 let j = ((pos.y - self.min_bound.y) / HEAT_GRID_RESOLUTION + 0.5) as usize;
                 self.heat_grid
@@ -433,26 +439,55 @@ impl World {
                 self.person_mut(id).regen_mana();
             }
         }
-        // Update heat grid
-        let mut new_grid = self.heat_grid.clone();
-        for (i, col) in self.heat_grid.iter().enumerate() {
-            for j in 0..col.len() {
-                let center = col[j];
-                let left = self
-                    .heat_grid
-                    .get((i as isize - 1) as usize)
-                    .map(|col| col[j])
-                    .unwrap_or(DEFAULT_TEMP);
-                let right = self
-                    .heat_grid
-                    .get((i as isize + 1) as usize)
-                    .map(|col| col[j])
-                    .unwrap_or(DEFAULT_TEMP);
-                let up = *col.get((j as isize + 1) as usize).unwrap_or(&DEFAULT_TEMP);
-                let down = *col.get((j as isize - 1) as usize).unwrap_or(&DEFAULT_TEMP);
-                new_grid[i][j] = (center + left + right + up + down) / 5.0;
+        // Transer heat between objects and grid
+        for obj in self.objects.values_mut() {
+            let i = ((obj.pos.x - self.min_bound.x) / HEAT_GRID_RESOLUTION + 0.5) as usize;
+            let j = ((obj.pos.y - self.min_bound.y) / HEAT_GRID_RESOLUTION + 0.5) as usize;
+            if let Some(cell_heat) = self.heat_grid.get_mut(i).and_then(|col| col.get_mut(j)) {
+                let diff = (obj.heat - *cell_heat) * 0.01;
+                *cell_heat += diff;
+                obj.heat -= diff;
+            }
+            if let Some(constant_heat) = obj.def.props.constant_heat {
+                obj.heat = constant_heat;
             }
         }
+        // Transfer heat between grid cells
+        let new_grid: Vec<Vec<f32>> = self
+            .heat_grid
+            .par_iter()
+            .enumerate()
+            .map(|(i, col)| {
+                let mut new_col = col.clone();
+                let pos_x = self.min_bound.x + (i as f32 + 0.5) * HEAT_GRID_RESOLUTION;
+                for j in 0..col.len() {
+                    let pos = pos2(
+                        pos_x,
+                        self.min_bound.y + (j as f32 + 0.5) * HEAT_GRID_RESOLUTION,
+                    );
+                    let (c, s) = if self.find_object_at(pos).is_some() {
+                        (4.6, 0.1)
+                    } else {
+                        (1.0, 1.0)
+                    };
+                    let center = col[j];
+                    let left = self
+                        .heat_grid
+                        .get((i as isize - 1) as usize)
+                        .map(|col| col[j])
+                        .unwrap_or(DEFAULT_TEMP);
+                    let right = self
+                        .heat_grid
+                        .get((i as isize + 1) as usize)
+                        .map(|col| col[j])
+                        .unwrap_or(DEFAULT_TEMP);
+                    let up = *col.get((j as isize + 1) as usize).unwrap_or(&DEFAULT_TEMP);
+                    let down = *col.get((j as isize - 1) as usize).unwrap_or(&DEFAULT_TEMP);
+                    new_col[j] = (c * center + s * left + s * right + s * up + s * down) / 5.0;
+                }
+                new_col
+            })
+            .collect();
         self.heat_grid = new_grid;
     }
     fn hear_grid_width(&self) -> usize {
@@ -517,6 +552,7 @@ impl World {
                         ObjectDef::new(RigidBodyType::Dynamic)
                             .props(ObjectProperties {
                                 magic,
+                                constant_heat: Some(BODY_TEMP),
                                 ..Default::default()
                             })
                             .shapes(vec![

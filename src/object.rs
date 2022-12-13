@@ -17,6 +17,7 @@ pub struct Object {
     pub pos: Pos2,
     pub vel: Vec2,
     pub rot: f32,
+    pub heat: f32,
     pub body_handle: RigidBodyHandle,
     pub foreground_handles: Vec<ColliderHandle>,
     pub background_handles: Vec<ColliderHandle>,
@@ -36,6 +37,7 @@ pub enum ObjectKind {
 pub struct ObjectProperties {
     pub magic: f32,
     pub light: f32,
+    pub constant_heat: Option<f32>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
