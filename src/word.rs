@@ -24,6 +24,7 @@ pub enum Word {
     Le,
     Po,
     Lusa,
+    Selo,
     Mesi,
     // Outputs
     Ke,
@@ -63,6 +64,7 @@ impl Word {
             Le => ScalarInputFieldKind::Elevation.into(),
             Po => ScalarInputFieldKind::Density.into(),
             Lusa => ScalarInputFieldKind::Light.into(),
+            Selo => ScalarInputFieldKind::Heat.into(),
             Mesi => ScalarInputFieldKind::Magic.into(),
             Ke => VectorOutputFieldKind::Gravity.into(),
             Ma => HomoBinOp::Add.into(),

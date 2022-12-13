@@ -362,7 +362,7 @@ impl Game {
             #[rustfmt::skip]
             static WORD_GRID: &[&[Word]] = &[
                 &[Ti,   Tu,   Ta,   Te,   Me  ],
-                &[Le,   Po,   Lusa, Mesi      ],
+                &[Le,   Po,   Lusa, Selo, Mesi],
                 &[Pa,   Pi,   Sila, Vila, Veni],
                 &[Kova, Kovi, Ke,   Seva, Sevi],
                 &[Ma,   Na,   Sa,   Reso, Solo, Kuru],
