@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{field::GenericInputFieldKind, person::Person, word::Word};
+use crate::{field::InputFieldKind, person::Person, word::Word};
 
 pub struct Player {
     pub person: Person,
@@ -18,7 +18,7 @@ pub enum Gender {
 
 pub struct Progression {
     pub known_words: HashSet<Word>,
-    pub known_fields: HashSet<GenericInputFieldKind>,
+    pub known_fields: HashSet<InputFieldKind>,
     pub mana_bar: bool,
     pub release: bool,
 }

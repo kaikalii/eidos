@@ -43,7 +43,7 @@ impl Game {
 }
 
 pub struct UiState {
-    pub fields_display: HashMap<GenericFieldKind, FieldDisplay>,
+    pub fields_display: HashMap<FieldKind, FieldDisplay>,
     pub dialog: Option<DialogState>,
     last_stack_len: usize,
     paused: bool,
@@ -57,7 +57,7 @@ pub struct FieldDisplay {
 }
 
 impl FieldDisplay {
-    pub fn default_for(kind: GenericFieldKind) -> Self {
+    pub fn default_for(kind: FieldKind) -> Self {
         let index = kind.index();
         let x = (index % 5) as f32 * 0.2 + 0.1;
         let y = (index / 5) as f32 * 0.35 + 0.2;
@@ -250,9 +250,9 @@ impl Game {
         let mut hovered = Vec::new();
         let mut double_clicked = Vec::new();
         // Input fields
-        for kind in all::<GenericInputFieldKind>() {
+        for kind in all::<InputFieldKind>() {
             let known = self.world.player.progression.known_fields.contains(&kind);
-            let kind = GenericFieldKind::from(kind);
+            let kind = FieldKind::from(kind);
             let id = ui.make_persistent_id(kind);
             let alpha = ui.ctx().animate_bool(id, known);
             if !known {
@@ -288,10 +288,10 @@ impl Game {
             }
         }
         // Output fields
-        for output_kind in all::<GenericOutputFieldKind>() {
+        for output_kind in all::<OutputFieldKind>() {
             let active_spells = &self.world.active_spells;
             if active_spells.contains(output_kind) {
-                let kind = GenericFieldKind::from(output_kind);
+                let kind = FieldKind::from(output_kind);
                 let display = self
                     .ui_state
                     .fields_display
@@ -341,11 +341,11 @@ impl Game {
         let known_fields = &self.world.player.progression.known_fields;
         ui.allocate_ui_at_rect(full_rect, |ui| {
             ui.horizontal(|ui| {
-                for kind in all::<GenericInputFieldKind>() {
+                for kind in all::<InputFieldKind>() {
                     if !known_fields.contains(&kind) {
                         continue;
                     }
-                    let kind = GenericFieldKind::from(kind);
+                    let kind = FieldKind::from(kind);
                     let enabled = &mut self
                         .ui_state
                         .fields_display
@@ -354,9 +354,9 @@ impl Game {
                         .visible;
                     ui.toggle_value(enabled, kind.to_string());
                 }
-                for output_kind in all::<GenericOutputFieldKind>() {
+                for output_kind in all::<OutputFieldKind>() {
                     if self.world.active_spells.contains(output_kind) {
-                        let kind = GenericFieldKind::from(output_kind);
+                        let kind = FieldKind::from(output_kind);
                         let enabled = &mut self
                             .ui_state
                             .fields_display
@@ -618,15 +618,15 @@ impl Game {
         size: f32,
         resolution: usize,
         global_alpha: f32,
-        field: &GenericField,
+        field: &Field,
     ) -> PlotResponse {
         let plot = self.init_plot(size, resolution, global_alpha);
         match field {
-            GenericField::Scalar(ScalarField::Uniform(n)) => {
+            Field::Scalar(ScalarField::Uniform(n)) => {
                 FieldPlot::number_ui(&self.world, ui, size, resolution, global_alpha, *n)
             }
-            GenericField::Scalar(field) => plot.ui(ui, field),
-            GenericField::Vector(field) => plot.ui(ui, field),
+            Field::Scalar(field) => plot.ui(ui, field),
+            Field::Vector(field) => plot.ui(ui, field),
         }
     }
     #[must_use]
@@ -636,12 +636,12 @@ impl Game {
         size: f32,
         resolution: usize,
         global_alpha: f32,
-        kind: GenericFieldKind,
+        kind: FieldKind,
     ) -> PlotResponse {
         let plot = self.init_plot(size, resolution, global_alpha);
         match kind {
-            GenericFieldKind::Scalar(kind) => plot.ui(ui, &kind),
-            GenericFieldKind::Vector(kind) => plot.ui(ui, &kind),
+            FieldKind::Scalar(kind) => plot.ui(ui, &kind),
+            FieldKind::Vector(kind) => plot.ui(ui, &kind),
         }
     }
 }
@@ -654,7 +654,7 @@ impl FieldPlottable for ScalarField {
     }
     fn color_midpoint(&self) -> f32 {
         if let ScalarField::Input(kind) = self {
-            GenericScalarFieldKind::Input(*kind).color_midpoint()
+            ScalarFieldKind::Input(*kind).color_midpoint()
         } else {
             1.0
         }
@@ -664,7 +664,7 @@ impl FieldPlottable for ScalarField {
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
         match self {
-            ScalarField::Input(kind) => GenericScalarFieldKind::Input(*kind).get_color(t),
+            ScalarField::Input(kind) => ScalarFieldKind::Input(*kind).get_color(t),
             _ => default_scalar_color(t),
         }
     }
@@ -688,22 +688,22 @@ impl FieldPlottable for VectorField {
 }
 
 /// For rendering scalar I/O fields
-impl FieldPlottable for GenericScalarFieldKind {
+impl FieldPlottable for ScalarFieldKind {
     type Value = f32;
     fn precision(&self) -> f32 {
         match self {
-            GenericScalarFieldKind::Input(ScalarInputFieldKind::Elevation) => 0.7,
+            ScalarFieldKind::Input(ScalarInputFieldKind::Elevation) => 0.7,
             _ => 1.0,
         }
     }
     fn color_midpoint(&self) -> f32 {
         match self {
-            GenericScalarFieldKind::Input(ScalarInputFieldKind::Density) => 1.0,
-            GenericScalarFieldKind::Input(ScalarInputFieldKind::Elevation) => 3.0,
-            GenericScalarFieldKind::Input(ScalarInputFieldKind::Magic) => 10.0,
-            GenericScalarFieldKind::Input(ScalarInputFieldKind::Light) => 5.0,
-            GenericScalarFieldKind::Input(ScalarInputFieldKind::Heat) => BODY_TEMP,
-            GenericScalarFieldKind::Output(_kind) => unreachable!(),
+            ScalarFieldKind::Input(ScalarInputFieldKind::Density) => 1.0,
+            ScalarFieldKind::Input(ScalarInputFieldKind::Elevation) => 3.0,
+            ScalarFieldKind::Input(ScalarInputFieldKind::Magic) => 10.0,
+            ScalarFieldKind::Input(ScalarInputFieldKind::Light) => 5.0,
+            ScalarFieldKind::Input(ScalarInputFieldKind::Heat) => BODY_TEMP,
+            ScalarFieldKind::Output(_kind) => unreachable!(),
         }
     }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
@@ -711,15 +711,15 @@ impl FieldPlottable for GenericScalarFieldKind {
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
         match self {
-            GenericScalarFieldKind::Input(ScalarInputFieldKind::Magic) => {
+            ScalarFieldKind::Input(ScalarInputFieldKind::Magic) => {
                 let t = (t - 0.5) / 0.5;
                 Rgba::from_rgb(0.0, t * 0.5, t)
             }
-            GenericScalarFieldKind::Input(ScalarInputFieldKind::Light) => {
+            ScalarFieldKind::Input(ScalarInputFieldKind::Light) => {
                 let t = (t - 0.5) / 0.5;
                 Rgba::from_rgb(t.powf(0.5), t.powf(0.6), t)
             }
-            GenericScalarFieldKind::Input(ScalarInputFieldKind::Heat) => {
+            ScalarFieldKind::Input(ScalarInputFieldKind::Heat) => {
                 let t = (t - 0.5) / 0.5;
                 if t > 0.0 {
                     Rgba::from_rgb(t, 0.125 - 0.5 * (t - 0.25).abs(), 0.0)
@@ -733,7 +733,7 @@ impl FieldPlottable for GenericScalarFieldKind {
 }
 
 /// For rendering vector I/O fields
-impl FieldPlottable for GenericVectorFieldKind {
+impl FieldPlottable for VectorFieldKind {
     type Value = Vec2;
     fn precision(&self) -> f32 {
         0.35
@@ -746,8 +746,8 @@ impl FieldPlottable for GenericVectorFieldKind {
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
         match self {
-            GenericVectorFieldKind::Input(_) => default_vector_color(t),
-            GenericVectorFieldKind::Output(kind) => match kind {
+            VectorFieldKind::Input(_) => default_vector_color(t),
+            VectorFieldKind::Output(kind) => match kind {
                 VectorOutputFieldKind::Gravity => simple_vector_color(t, 0.5),
             },
         }

@@ -51,13 +51,13 @@ pub struct ActiveSpell<T> {
 }
 
 impl ActiveSpells {
-    pub fn contains(&self, kind: GenericOutputFieldKind) -> bool {
+    pub fn contains(&self, kind: OutputFieldKind) -> bool {
         match kind {
-            GenericOutputFieldKind::Scalar(kind) => self
+            OutputFieldKind::Scalar(kind) => self
                 .scalars
                 .values()
                 .any(|fields| fields.contains_key(&kind)),
-            GenericOutputFieldKind::Vector(kind) => self
+            OutputFieldKind::Vector(kind) => self
                 .vectors
                 .values()
                 .any(|fields| fields.contains_key(&kind)),
@@ -83,15 +83,15 @@ impl ActiveSpells {
                 .flat_map(|(kind, spells)| spells.iter().map(move |spell| (*kind, spell)))
         })
     }
-    pub fn person_contains(&self, person_id: PersonId, kind: GenericOutputFieldKind) -> bool {
+    pub fn person_contains(&self, person_id: PersonId, kind: OutputFieldKind) -> bool {
         match kind {
-            GenericOutputFieldKind::Scalar(kind) => self
+            OutputFieldKind::Scalar(kind) => self
                 .scalars
                 .get(&person_id)
                 .and_then(|fields| fields.get(&kind))
                 .map(|fields| !fields.is_empty())
                 .unwrap_or(false),
-            GenericOutputFieldKind::Vector(kind) => self
+            OutputFieldKind::Vector(kind) => self
                 .vectors
                 .get(&person_id)
                 .and_then(|fields| fields.get(&kind))
@@ -99,9 +99,9 @@ impl ActiveSpells {
                 .unwrap_or(false),
         }
     }
-    pub fn remove(&mut self, person_id: PersonId, kind: GenericOutputFieldKind, i: usize) {
+    pub fn remove(&mut self, person_id: PersonId, kind: OutputFieldKind, i: usize) {
         match kind {
-            GenericOutputFieldKind::Scalar(kind) => {
+            OutputFieldKind::Scalar(kind) => {
                 self.scalars
                     .entry(person_id)
                     .or_default()
@@ -109,7 +109,7 @@ impl ActiveSpells {
                     .or_default()
                     .remove(i);
             }
-            GenericOutputFieldKind::Vector(kind) => {
+            OutputFieldKind::Vector(kind) => {
                 self.vectors
                     .entry(person_id)
                     .or_default()
@@ -122,10 +122,10 @@ impl ActiveSpells {
     /// Get an iterator over all the words of all the active spells of a given kind.
     pub fn player_spell_words(
         &self,
-        kind: GenericOutputFieldKind,
+        kind: OutputFieldKind,
     ) -> Box<dyn ExactSizeIterator<Item = &[Word]> + '_> {
         match kind {
-            GenericOutputFieldKind::Scalar(kind) => {
+            OutputFieldKind::Scalar(kind) => {
                 let Some(spells) = self.scalars.get(&PersonId::Player) else {
                     return Box::new(empty());
                 };
@@ -134,7 +134,7 @@ impl ActiveSpells {
                 };
                 Box::new(spells.iter().map(|spell| spell.words.as_slice()))
             }
-            GenericOutputFieldKind::Vector(kind) => {
+            OutputFieldKind::Vector(kind) => {
                 let Some(spells) = self.vectors.get(&PersonId::Player) else {
                     return Box::new(empty());
                 };
@@ -298,28 +298,28 @@ impl World {
     }
     pub fn sample_scalar_field(
         &self,
-        kind: GenericScalarFieldKind,
+        kind: ScalarFieldKind,
         pos: Pos2,
         allow_recursion: bool,
     ) -> f32 {
         puffin::profile_function!(kind.to_string());
         match kind {
-            GenericScalarFieldKind::Input(kind) => {
+            ScalarFieldKind::Input(kind) => {
                 self.sample_input_scalar_field(kind, pos, allow_recursion)
             }
-            GenericScalarFieldKind::Output(kind) => self.sample_output_scalar_field(kind, pos),
+            ScalarFieldKind::Output(kind) => self.sample_output_scalar_field(kind, pos),
         }
     }
     pub fn sample_vector_field(
         &self,
-        kind: GenericVectorFieldKind,
+        kind: VectorFieldKind,
         pos: Pos2,
         allow_recursion: bool,
     ) -> Vec2 {
         puffin::profile_function!(kind.to_string());
         match kind {
-            GenericVectorFieldKind::Input(kind) => self.sample_input_vector_field(kind, pos),
-            GenericVectorFieldKind::Output(kind) => {
+            VectorFieldKind::Input(kind) => self.sample_input_vector_field(kind, pos),
+            VectorFieldKind::Output(kind) => {
                 self.sample_output_vector_field(kind, pos, allow_recursion)
             }
         }

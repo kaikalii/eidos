@@ -10,7 +10,7 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 
 use crate::{
-    field::GenericInputFieldKind,
+    field::InputFieldKind,
     game::{FieldDisplay, Game},
     player::Gender,
     utils::{fatal_error, resources_path},
@@ -126,13 +126,13 @@ impl<T> Default for NodeChildren<T> {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Condition {
-    FieldKnown(GenericInputFieldKind),
+    FieldKnown(InputFieldKind),
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WaitCondition {
-    KnowField(GenericInputFieldKind),
+    KnowField(InputFieldKind),
     SayWord(Word),
     EmptyStack,
 }
@@ -159,7 +159,7 @@ pub enum DialogCommand {
     RevealAllWords,
     RevealManaBar,
     RevealRelease,
-    RevealField(GenericInputFieldKind),
+    RevealField(InputFieldKind),
 }
 
 #[derive(Debug, Clone)]

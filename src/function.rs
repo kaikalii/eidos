@@ -9,17 +9,17 @@ use crate::{error::EidosError, field::*, person::PersonId, stack::Stack};
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, From)]
 pub enum Function {
     #[from(types(ScalarInputFieldKind, VectorInputFieldKind))]
-    ReadField(GenericInputFieldKind),
+    ReadField(InputFieldKind),
     #[from(types(ScalarOutputFieldKind, VectorOutputFieldKind))]
-    WriteField(GenericOutputFieldKind),
+    WriteField(OutputFieldKind),
     #[from]
     Control(ControlKind),
     #[from]
     Nullary(Nullary),
     #[from(types(HeteroBinOp, HomoBinOp))]
-    Bin(GenericBinOp),
+    Bin(BinOp),
     #[from(types(MathUnOp, ScalarUnOp, ToScalarOp))]
-    Un(GenericUnOp),
+    Un(UnOp),
     #[from]
     Combinator1(Combinator1),
     #[from]
@@ -44,7 +44,7 @@ pub enum Nullary {
 }
 
 impl Nullary {
-    pub fn field(&self, caster: PersonId) -> GenericField {
+    pub fn field(&self, caster: PersonId) -> Field {
         match self {
             Nullary::Zero => ScalarField::Uniform(0.0).into(),
             Nullary::One => ScalarField::Uniform(1.0).into(),
@@ -81,7 +81,7 @@ pub trait UnOperator<T> {
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From, Sequence)]
-pub enum GenericUnOp {
+pub enum UnOp {
     Math(MathUnOp),
     Scalar(ScalarUnOp),
     VectorScalar(VectorUnScalarOp),
@@ -90,7 +90,7 @@ pub enum GenericUnOp {
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
-pub enum UnOp<T> {
+pub enum TypedUnOp<T> {
     Math(MathUnOp),
     Typed(T),
 }
@@ -128,7 +128,7 @@ pub enum ToScalarOp {
     Magnitude,
 }
 
-impl<A, T> UnOperator<A> for UnOp<T>
+impl<A, T> UnOperator<A> for TypedUnOp<T>
 where
     MathUnOp: UnOperator<A, Output = T::Output>,
     T: UnOperator<A>,
@@ -136,8 +136,8 @@ where
     type Output = T::Output;
     fn operate(&self, v: A) -> Self::Output {
         match self {
-            UnOp::Math(op) => op.operate(v),
-            UnOp::Typed(op) => op.operate(v),
+            TypedUnOp::Math(op) => op.operate(v),
+            TypedUnOp::Typed(op) => op.operate(v),
         }
     }
 }
@@ -205,7 +205,7 @@ pub trait BinOperator<A, B> {
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, From, Sequence)]
-pub enum GenericBinOp {
+pub enum BinOp {
     Math(HeteroBinOp),
     Homo(HomoBinOp),
     #[display(fmt = "🔀Index")]
@@ -213,7 +213,7 @@ pub enum GenericBinOp {
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
-pub enum BinOp<T> {
+pub enum TypedBinOp<T> {
     Hetero(HeteroBinOp),
     Typed(T),
 }
@@ -241,7 +241,7 @@ pub enum HomoBinOp {
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
 pub struct NoOp<T>(PhantomData<T>);
 
-impl<A, B, T> BinOperator<A, B> for BinOp<T>
+impl<A, B, T> BinOperator<A, B> for TypedBinOp<T>
 where
     HeteroBinOp: BinOperator<A, B, Output = T::Output>,
     T: BinOperator<A, B>,
@@ -249,8 +249,8 @@ where
     type Output = T::Output;
     fn operate(&self, a: A, b: B) -> Self::Output {
         match self {
-            BinOp::Hetero(op) => op.operate(a, b),
-            BinOp::Typed(op) => op.operate(a, b),
+            TypedBinOp::Hetero(op) => op.operate(a, b),
+            TypedBinOp::Typed(op) => op.operate(a, b),
         }
     }
 }
@@ -378,32 +378,32 @@ impl Function {
         let constraints = match self {
             Function::ReadField(_) | Function::Control(_) | Function::Nullary(_) => vec![],
             Function::WriteField(kind) => match kind {
-                GenericOutputFieldKind::Scalar(_) => {
+                OutputFieldKind::Scalar(_) => {
                     vec![Constrain(ValueConstraint::Exact(Type::Scalar))]
                 }
-                GenericOutputFieldKind::Vector(_) => {
+                OutputFieldKind::Vector(_) => {
                     vec![Constrain(ValueConstraint::Exact(Type::Vector))]
                 }
             },
             Function::Combinator1(_) => vec![Any],
             Function::Combinator2(_) => vec![Any; 2],
             Function::Un(op) => match op {
-                GenericUnOp::Math(_) => vec![Any],
-                GenericUnOp::Scalar(_) => vec![Constrain(ValueConstraint::Exact(Type::Scalar))],
-                GenericUnOp::VectorScalar(_) | GenericUnOp::VectorVector(_) => {
+                UnOp::Math(_) => vec![Any],
+                UnOp::Scalar(_) => vec![Constrain(ValueConstraint::Exact(Type::Scalar))],
+                UnOp::VectorScalar(_) | UnOp::VectorVector(_) => {
                     vec![Constrain(ValueConstraint::Exact(Type::Vector))]
                 }
-                GenericUnOp::ToScalar(_) => vec![Any],
+                UnOp::ToScalar(_) => vec![Any],
             },
             Function::Bin(op) => match op {
-                GenericBinOp::Math(_) => {
+                BinOp::Math(_) => {
                     vec![Any, Any]
                 }
-                GenericBinOp::Homo(_) => vec![
+                BinOp::Homo(_) => vec![
                     Constrain(ValueConstraint::Group(0)),
                     Constrain(ValueConstraint::Group(0)),
                 ],
-                GenericBinOp::Index => vec![Constrain(ValueConstraint::Exact(Type::Vector)), Any],
+                BinOp::Index => vec![Constrain(ValueConstraint::Exact(Type::Vector)), Any],
             },
         };
         // Validate stack size

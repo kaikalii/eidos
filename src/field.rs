@@ -6,24 +6,24 @@ use serde::Deserialize;
 use crate::{function::*, person::PersonId, world::World};
 
 #[derive(Debug, Clone, From)]
-pub enum GenericField {
+pub enum Field {
     #[from(types(f32))]
     Scalar(ScalarField),
     #[from(types(Vec2))]
     Vector(VectorField),
 }
 
-impl GenericField {
+impl Field {
     pub fn ty(&self) -> Type {
         match self {
-            GenericField::Scalar(_) => Type::Scalar,
-            GenericField::Vector(_) => Type::Vector,
+            Field::Scalar(_) => Type::Scalar,
+            Field::Vector(_) => Type::Vector,
         }
     }
     pub fn controls(&self) -> Vec<ControlKind> {
         match self {
-            GenericField::Scalar(field) => field.controls(),
-            GenericField::Vector(field) => field.controls(),
+            Field::Scalar(field) => field.controls(),
+            Field::Vector(field) => field.controls(),
         }
     }
 }
@@ -43,9 +43,9 @@ pub enum ScalarField {
     TargetX(PersonId),
     TargetY(PersonId),
     Filter(PersonId),
-    ScalarUn(UnOp<ScalarUnOp>, Box<Self>),
+    ScalarUn(TypedUnOp<ScalarUnOp>, Box<Self>),
     VectorUn(VectorUnScalarOp, Box<VectorField>),
-    Bin(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
+    Bin(TypedBinOp<HomoBinOp>, Box<Self>, Box<Self>),
     Index(Box<VectorField>, Box<Self>),
     #[from]
     Input(ScalarInputFieldKind),
@@ -56,71 +56,71 @@ pub enum ScalarField {
 #[derive(Debug, Clone, From)]
 pub enum VectorField {
     Uniform(Vec2),
-    Un(UnOp<VectorUnVectorOp>, Box<Self>),
-    BinSV(BinOp<NoOp<Vec2>>, ScalarField, Box<Self>),
-    BinVS(BinOp<NoOp<Vec2>>, Box<Self>, ScalarField),
-    BinVV(BinOp<HomoBinOp>, Box<Self>, Box<Self>),
+    Un(TypedUnOp<VectorUnVectorOp>, Box<Self>),
+    BinSV(TypedBinOp<NoOp<Vec2>>, ScalarField, Box<Self>),
+    BinVS(TypedBinOp<NoOp<Vec2>>, Box<Self>, ScalarField),
+    BinVV(TypedBinOp<HomoBinOp>, Box<Self>, Box<Self>),
     Index(Box<Self>, Box<Self>),
     Input(VectorInputFieldKind),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
 #[serde(untagged)]
-pub enum GenericFieldKind {
+pub enum FieldKind {
     #[from(types(ScalarInputFieldKind, ScalarOutputFieldKind))]
-    Scalar(GenericScalarFieldKind),
+    Scalar(ScalarFieldKind),
     #[from(types(VectorInputFieldKind, VectorOutputFieldKind))]
-    Vector(GenericVectorFieldKind),
+    Vector(VectorFieldKind),
 }
 
-impl GenericFieldKind {
+impl FieldKind {
     pub fn index(&self) -> usize {
         all::<Self>().position(|kind| &kind == self).unwrap()
     }
 }
 
-impl From<GenericInputFieldKind> for GenericFieldKind {
-    fn from(kind: GenericInputFieldKind) -> Self {
+impl From<InputFieldKind> for FieldKind {
+    fn from(kind: InputFieldKind) -> Self {
         match kind {
-            GenericInputFieldKind::Scalar(kind) => kind.into(),
-            GenericInputFieldKind::Vector(kind) => kind.into(),
+            InputFieldKind::Scalar(kind) => kind.into(),
+            InputFieldKind::Vector(kind) => kind.into(),
         }
     }
 }
 
-impl From<GenericOutputFieldKind> for GenericFieldKind {
-    fn from(kind: GenericOutputFieldKind) -> Self {
+impl From<OutputFieldKind> for FieldKind {
+    fn from(kind: OutputFieldKind) -> Self {
         match kind {
-            GenericOutputFieldKind::Scalar(kind) => kind.into(),
-            GenericOutputFieldKind::Vector(kind) => kind.into(),
+            OutputFieldKind::Scalar(kind) => kind.into(),
+            OutputFieldKind::Vector(kind) => kind.into(),
         }
     }
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
 #[serde(untagged)]
-pub enum GenericInputFieldKind {
+pub enum InputFieldKind {
     Scalar(ScalarInputFieldKind),
     Vector(VectorInputFieldKind),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
 #[serde(untagged)]
-pub enum GenericOutputFieldKind {
+pub enum OutputFieldKind {
     Scalar(ScalarOutputFieldKind),
     Vector(VectorOutputFieldKind),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
 #[serde(untagged)]
-pub enum GenericScalarFieldKind {
+pub enum ScalarFieldKind {
     Input(ScalarInputFieldKind),
     Output(ScalarOutputFieldKind),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
 #[serde(untagged)]
-pub enum GenericVectorFieldKind {
+pub enum VectorFieldKind {
     Input(VectorInputFieldKind),
     Output(VectorOutputFieldKind),
 }
