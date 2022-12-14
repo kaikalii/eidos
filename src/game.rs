@@ -1,6 +1,5 @@
 use std::{
     collections::{BTreeSet, HashMap},
-    iter::once,
     time::Instant,
 };
 
@@ -330,12 +329,12 @@ impl Game {
                 if display.visible && active_spells.player_spell_words(output_kind).len() > 0 {
                     let size = display.size;
                     let center = full_rect.min + display.pos * full_rect.size();
-                    let plot_rect = Rect::from_min_size(
+                    let plot_rect = Rect::from_min_max(
                         center - vec2(size, size) / 2.0,
-                        vec2(size * 2.0, size),
+                        pos2(full_rect.right(), full_rect.bottom()),
                     );
                     ui.allocate_ui_at_rect(plot_rect, |ui| {
-                        ui.horizontal(|ui| {
+                        ui.horizontal_wrapped(|ui| {
                             let plot_resp = self.plot_io_field(ui, size, 100, 1.0, kind);
                             let words = self.world.active_spells.player_spell_words(output_kind);
                             let mut to_dispel = None;
@@ -384,36 +383,36 @@ impl Game {
             pos.y = (pos.y * 20.0).round() / 20.0;
         }
     }
-    fn spell_words_ui(ui: &mut Ui, words: &[Word], max_height: f32, mut can_dispel: bool) -> bool {
+    fn spell_words_ui(ui: &mut Ui, words: &[Word], mut max_height: f32, can_dispel: bool) -> bool {
         let font_id = &ui.style().text_styles[&TextStyle::Body];
         let row_height = ui.fonts().row_height(font_id);
         let vert_spacing = ui.spacing().item_spacing.y;
-        let words_per_column = ((max_height / (row_height + vert_spacing)) as usize).max(1);
-        let mut dispelled = false;
-        let first_chunk_end = words.len().min(if can_dispel {
-            words_per_column - 1
-        } else {
-            words_per_column
-        });
-        let first_chunk = &words[..first_chunk_end];
-        for chunk in once(first_chunk).chain(words[first_chunk_end..].chunks(words_per_column)) {
-            ui.vertical(|ui| {
-                ui.add_space(
-                    (max_height
-                        - chunk.len() as f32 * row_height
-                        - words_per_column.saturating_sub(1) as f32 * vert_spacing)
-                        / 2.0,
-                );
-                if can_dispel && ui.button("Dispel").clicked() {
-                    dispelled = true;
-                }
-                can_dispel = false;
-                for word in chunk {
-                    ui.label(word.to_string());
+        max_height -= row_height * 2.5;
+        let mut words_per_column = ((max_height / (row_height + vert_spacing)) as usize).max(1);
+        if words.len() % words_per_column == 1 {
+            words_per_column -= 1;
+        }
+        ui.vertical(|ui| {
+            ui.add_space(row_height);
+            let dispelled = can_dispel && ui.button("Dispel").clicked();
+            ui.horizontal(|ui| {
+                for chunk in words.chunks(words_per_column) {
+                    ui.vertical(|ui| {
+                        ui.add_space(
+                            (max_height
+                                - chunk.len() as f32 * row_height
+                                - words_per_column.saturating_sub(1) as f32 * vert_spacing)
+                                / 2.0,
+                        );
+                        for word in chunk {
+                            ui.label(word.to_string());
+                        }
+                    });
                 }
             });
-        }
-        dispelled
+            dispelled
+        })
+        .inner
     }
     fn stack_ui(&mut self, ui: &mut Ui, stack: &Stack) {
         ScrollArea::horizontal().show(ui, |ui| {
