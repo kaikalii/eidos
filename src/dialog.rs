@@ -11,7 +11,7 @@ use serde::Deserialize;
 
 use crate::{
     field::GenericInputFieldKind,
-    game::Game,
+    game::{FieldDisplay, Game},
     player::Gender,
     utils::{fatal_error, resources_path},
     word::Word,
@@ -453,7 +453,9 @@ impl Game {
                     DialogCommand::RevealManaBar => progression.mana_bar = true,
                     DialogCommand::RevealField(kind) => {
                         progression.known_fields.insert(*kind);
-                        self.ui_state.fields_visible.insert((*kind).into(), true);
+                        self.ui_state
+                            .fields_display
+                            .insert((*kind).into(), FieldDisplay::default());
                     }
                     DialogCommand::RevealRelease => progression.release = true,
                 }
