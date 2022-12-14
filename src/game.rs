@@ -243,35 +243,6 @@ impl Game {
         });
     }
     fn fields_ui(&mut self, ui: &mut Ui) {
-        // Draw toggler buttons
-        let known_fields = &self.world.player.progression.known_fields;
-        ui.horizontal(|ui| {
-            for kind in all::<GenericInputFieldKind>() {
-                if !known_fields.contains(&kind) {
-                    continue;
-                }
-                let kind = GenericFieldKind::from(kind);
-                let enabled = &mut self
-                    .ui_state
-                    .fields_display
-                    .entry(kind)
-                    .or_insert_with(|| FieldDisplay::default_for(kind))
-                    .visible;
-                ui.toggle_value(enabled, kind.to_string());
-            }
-            for output_kind in all::<GenericOutputFieldKind>() {
-                if self.world.active_spells.contains(output_kind) {
-                    let kind = GenericFieldKind::from(output_kind);
-                    let enabled = &mut self
-                        .ui_state
-                        .fields_display
-                        .entry(kind)
-                        .or_insert_with(|| FieldDisplay::default_for(kind))
-                        .visible;
-                    ui.toggle_value(enabled, kind.to_string());
-                }
-            }
-        });
         // Draw the fields themselves
         let full_rect = ui.available_rect_before_wrap();
         let mut dragged = Vec::new();
@@ -366,6 +337,37 @@ impl Game {
                 }
             }
         }
+        // Draw toggler buttons
+        let known_fields = &self.world.player.progression.known_fields;
+        ui.allocate_ui_at_rect(full_rect, |ui| {
+            ui.horizontal(|ui| {
+                for kind in all::<GenericInputFieldKind>() {
+                    if !known_fields.contains(&kind) {
+                        continue;
+                    }
+                    let kind = GenericFieldKind::from(kind);
+                    let enabled = &mut self
+                        .ui_state
+                        .fields_display
+                        .entry(kind)
+                        .or_insert_with(|| FieldDisplay::default_for(kind))
+                        .visible;
+                    ui.toggle_value(enabled, kind.to_string());
+                }
+                for output_kind in all::<GenericOutputFieldKind>() {
+                    if self.world.active_spells.contains(output_kind) {
+                        let kind = GenericFieldKind::from(output_kind);
+                        let enabled = &mut self
+                            .ui_state
+                            .fields_display
+                            .entry(kind)
+                            .or_insert_with(|| FieldDisplay::default_for(kind))
+                            .visible;
+                        ui.toggle_value(enabled, kind.to_string());
+                    }
+                }
+            });
+        });
         // Handle field display dragging
         if let Some(kind) = double_clicked.pop() {
             *self.ui_state.fields_display.get_mut(&kind).unwrap() = FieldDisplay::default_for(kind);
