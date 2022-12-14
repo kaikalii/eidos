@@ -63,6 +63,26 @@ impl ActiveSpells {
                 .any(|fields| fields.contains_key(&kind)),
         }
     }
+    pub fn scalars_of(
+        &self,
+        person_id: PersonId,
+    ) -> impl Iterator<Item = (ScalarOutputFieldKind, &ActiveSpell<ScalarField>)> {
+        self.scalars.get(&person_id).into_iter().flat_map(|fields| {
+            fields
+                .iter()
+                .flat_map(|(kind, spells)| spells.iter().map(move |spell| (*kind, spell)))
+        })
+    }
+    pub fn vectors_of(
+        &self,
+        person_id: PersonId,
+    ) -> impl Iterator<Item = (VectorOutputFieldKind, &ActiveSpell<VectorField>)> {
+        self.vectors.get(&person_id).into_iter().flat_map(|fields| {
+            fields
+                .iter()
+                .flat_map(|(kind, spells)| spells.iter().map(move |spell| (*kind, spell)))
+        })
+    }
     pub fn person_contains(&self, person_id: PersonId, kind: GenericOutputFieldKind) -> bool {
         match kind {
             GenericOutputFieldKind::Scalar(kind) => self

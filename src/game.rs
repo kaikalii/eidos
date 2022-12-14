@@ -1,10 +1,8 @@
 use std::{collections::BTreeSet, time::Instant};
 
-use eframe::{
-    egui::{style::Margin, *},
-    epaint::ahash::HashMap,
-};
+use eframe::egui::{style::Margin, *};
 use enum_iterator::all;
+use indexmap::IndexMap;
 
 use crate::{
     controls::{apply_color_fading, FadeButton},
@@ -43,7 +41,7 @@ impl Game {
 }
 
 pub struct UiState {
-    pub fields_visible: HashMap<GenericFieldKind, bool>,
+    pub fields_visible: IndexMap<GenericFieldKind, bool>,
     pub dialog: Option<DialogState>,
     last_stack_len: usize,
     paused: bool,
@@ -229,57 +227,78 @@ impl Game {
         });
     }
     fn fields_ui(&mut self, ui: &mut Ui) {
-        Grid::new("fields").show(ui, |ui| {
+        ui.horizontal(|ui| {
             let known_fields = &self.world.player.progression.known_fields;
             // Draw toggler buttons
-            for kind in all::<GenericInputFieldKind>() {
-                if !known_fields.contains(&kind) {
-                    continue;
-                }
-                let kind = GenericFieldKind::from(kind);
-                let enabled = &mut self.ui_state.fields_visible.entry(kind).or_insert(false);
-                ui.toggle_value(enabled, kind.to_string());
-            }
-            for output_kind in all::<GenericOutputFieldKind>() {
-                if self.world.active_spells.contains(output_kind) {
-                    let kind = GenericFieldKind::from(output_kind);
-                    let enabled = self.ui_state.fields_visible.entry(kind).or_insert(false);
+            ui.vertical(|ui| {
+                for kind in all::<GenericInputFieldKind>() {
+                    if !known_fields.contains(&kind) {
+                        continue;
+                    }
+                    let kind = GenericFieldKind::from(kind);
+                    let enabled = &mut self.ui_state.fields_visible.entry(kind).or_insert(false);
                     ui.toggle_value(enabled, kind.to_string());
-                    if *enabled {
-                        let spell_count = self
-                            .world
-                            .active_spells
-                            .player_spell_words(output_kind)
-                            .len();
-                        for i in 0..spell_count {
-                            if ui.button("Dispel").clicked() {
-                                self.world
-                                    .active_spells
-                                    .remove(PersonId::Player, output_kind, i);
+                }
+                for output_kind in all::<GenericOutputFieldKind>() {
+                    if self.world.active_spells.contains(output_kind) {
+                        let kind = GenericFieldKind::from(output_kind);
+                        let enabled = self.ui_state.fields_visible.entry(kind).or_insert(false);
+                        if ui.toggle_value(enabled, kind.to_string()).clicked() && *enabled {
+                            let fields_visible = &mut self.ui_state.fields_visible;
+                            fields_visible.remove(&kind);
+                            fields_visible.insert(kind, true);
+                            while fields_visible.values().filter(|&&v| v).count() > 4 {
+                                *fields_visible
+                                    .iter_mut()
+                                    .find(|(_, enabled)| **enabled)
+                                    .unwrap()
+                                    .1 = false;
                             }
                         }
-                    } else {
-                        ui.label("");
+                        if self.ui_state.fields_visible[&kind] {
+                            let spell_count = self
+                                .world
+                                .active_spells
+                                .player_spell_words(output_kind)
+                                .len();
+                            for i in 0..spell_count {
+                                if ui.button("Dispel").clicked() {
+                                    self.world.active_spells.remove(
+                                        PersonId::Player,
+                                        output_kind,
+                                        i,
+                                    );
+                                }
+                            }
+                        }
                     }
                 }
-            }
-            ui.end_row();
+            });
             // Draw the fields themselves
             let visible_input_fields = known_fields
                 .iter()
                 .filter(|&&kind| self.ui_state.fields_visible[&GenericFieldKind::from(kind)])
                 .count();
-            let visible_output_fields = all::<GenericOutputFieldKind>()
-                .filter(|&kind| {
-                    self.ui_state.fields_visible[&GenericFieldKind::from(kind)]
-                        && self
-                            .world
-                            .active_spells
-                            .person_contains(PersonId::Player, kind)
+            let visible_output_fields: f32 = all::<GenericOutputFieldKind>()
+                .map(|kind| {
+                    if !self.ui_state.fields_visible[&GenericFieldKind::from(kind)] {
+                        return 0.0;
+                    };
+                    let active_spells = &self.world.active_spells;
+                    let scalar_count = active_spells.scalars_of(PersonId::Player).count();
+                    let vector_count = active_spells.vectors_of(PersonId::Player).count();
+                    let spell_count = scalar_count + vector_count;
+                    if spell_count > 0 {
+                        1.0 + spell_count as f32 * 0.3
+                    } else {
+                        0.0
+                    }
                 })
-                .count();
-            let visible_fields = visible_input_fields + visible_output_fields;
-            let plot_size = BIG_PLOT_SIZE * (4.0 / visible_fields as f32).min(1.0);
+                .sum();
+            let visible_fields = visible_input_fields as f32 + visible_output_fields;
+            let plot_size = (ui.available_width() / visible_fields.max(1.0)
+                - ui.spacing().item_spacing.x)
+                .min(BIG_PLOT_SIZE);
             for kind in all::<GenericInputFieldKind>() {
                 let known = self.world.player.progression.known_fields.contains(&kind);
                 let kind = GenericFieldKind::from(kind);
