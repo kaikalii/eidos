@@ -455,7 +455,7 @@ impl Game {
                         progression.known_fields.insert(*kind);
                         self.ui_state
                             .fields_display
-                            .insert((*kind).into(), FieldDisplay::default());
+                            .insert((*kind).into(), FieldDisplay::default_for((*kind).into()));
                     }
                     DialogCommand::RevealRelease => progression.release = true,
                 }

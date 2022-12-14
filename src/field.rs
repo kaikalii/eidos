@@ -1,6 +1,6 @@
 use derive_more::{Display, From};
 use eframe::epaint::{Pos2, Vec2};
-use enum_iterator::Sequence;
+use enum_iterator::{all, Sequence};
 use serde::Deserialize;
 
 use crate::{function::*, person::PersonId, world::World};
@@ -71,6 +71,12 @@ pub enum GenericFieldKind {
     Scalar(GenericScalarFieldKind),
     #[from(types(VectorInputFieldKind, VectorOutputFieldKind))]
     Vector(GenericVectorFieldKind),
+}
+
+impl GenericFieldKind {
+    pub fn index(&self) -> usize {
+        all::<Self>().position(|kind| &kind == self).unwrap()
+    }
 }
 
 impl From<GenericInputFieldKind> for GenericFieldKind {
