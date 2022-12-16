@@ -6,6 +6,7 @@ mod error;
 mod field;
 mod function;
 mod game;
+mod image;
 mod main_menu;
 mod math;
 mod new_game;

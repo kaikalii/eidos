@@ -25,17 +25,6 @@ Scalars
 Vectors
 - Gravity
 
-# Levels
+# Story
 
-Each level is a self-contained challenge to solve some problem.
-The play space is mostly limited to the problem area.
-The problem may be contexualized as a lesson, a task for a townsperson, or some personal challenge.
-
-## Problems
-
-- Magic 101
-  - Learn about magic and how to move around
-- Make a torch that automatically lights at night
-  - Prerequisite fields
-    - Heat
-    - Light
+The story takes place at a magical academy. The player is new student who is blind but can still sense things through magic.
