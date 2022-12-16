@@ -1,3 +1,7 @@
+bounds:
+  top: 5
+  left: -5
+  right: 5
 objects:
   - name: sofa
     pos: [0, 0]

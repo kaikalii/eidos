@@ -179,9 +179,6 @@ impl World {
         world.load_place("magician_house");
         world
     }
-}
-
-impl World {
     #[track_caller]
     pub fn person(&self, person_id: PersonId) -> &Person {
         match person_id {
@@ -207,6 +204,9 @@ impl World {
                 }
             }
         }
+    }
+    pub fn max_rect(&self) -> Rect {
+        Rect::from_min_max(self.min_bound, self.max_bound)
     }
 }
 
@@ -468,6 +468,11 @@ impl World {
         let Some(place) = PLACES.get(place_name) else {
             return;
         };
+        // Set bounds
+        self.min_bound.x = place.bounds.left;
+        self.max_bound.x = place.bounds.right;
+        self.min_bound.y = place.bounds.bottom;
+        self.max_bound.y = place.bounds.top;
         // Remove old objects
         self.objects.retain(|handle, obj| {
             if obj.kind != ObjectKind::Player {
@@ -490,8 +495,6 @@ impl World {
             |c| c.restitution(0.5),
         );
         // Place objects
-        self.min_bound = pos2(f32::INFINITY, f32::INFINITY);
-        self.max_bound = pos2(f32::NEG_INFINITY, f32::NEG_INFINITY);
         for po in &place.objects {
             let object = OBJECTS[&po.name].clone();
             self.add_object_def(po.pos, object);

@@ -72,17 +72,6 @@ pub enum GraphicalShape {
 }
 
 impl GraphicalShape {
-    pub fn approx_size(&self) -> f32 {
-        match self {
-            GraphicalShape::Circle(radius) => radius * 2.0,
-            GraphicalShape::Box(size) => size.x.max(size.y),
-            GraphicalShape::HalfSpace(_) => 0.0,
-            GraphicalShape::Capsule {
-                half_height,
-                radius,
-            } => half_height * 2.0 + radius * 2.0,
-        }
-    }
     pub fn capsule_wh(width: f32, height: f32) -> Self {
         GraphicalShape::Capsule {
             half_height: (height - width) / 2.0,
@@ -238,6 +227,20 @@ pub struct PlacedObject {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Place {
     pub objects: Vec<PlacedObject>,
+    pub bounds: Bounds,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Bounds {
+    pub top: f32,
+    #[serde(default = "default_bottom")]
+    pub bottom: f32,
+    pub left: f32,
+    pub right: f32,
+}
+
+fn default_bottom() -> f32 {
+    -1.0
 }
 
 pub static PLACES: Lazy<HashMap<String, Place>> =

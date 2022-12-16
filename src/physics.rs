@@ -177,7 +177,6 @@ impl World {
         };
         let mut foreground_handles = Vec::new();
         let mut background_handles = Vec::new();
-        const BOUND_PADDING: f32 = 2.0;
         for offset_shape in &def.shapes {
             let shared_shape = graphical_shape_to_shared(&offset_shape.shape);
             let collider = build_collider(ColliderBuilder::new(shared_shape))
@@ -190,14 +189,6 @@ impl World {
                 body_handle,
                 &mut self.physics.bodies,
             ));
-            let shape_min: Pos2 =
-                pos + offset_shape.offset - Vec2::splat(offset_shape.shape.approx_size());
-            let shape_max: Pos2 =
-                pos + offset_shape.offset - Vec2::splat(offset_shape.shape.approx_size());
-            self.min_bound.x = self.min_bound.x.min(shape_min.x - BOUND_PADDING);
-            self.min_bound.y = self.min_bound.y.min(shape_min.y - BOUND_PADDING);
-            self.max_bound.x = self.max_bound.x.max(shape_max.x + BOUND_PADDING);
-            self.max_bound.y = self.max_bound.y.max(shape_max.y + BOUND_PADDING);
         }
         for offset_shape in &def.background {
             let shared_shape = graphical_shape_to_shared(&offset_shape.shape);

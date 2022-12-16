@@ -602,7 +602,9 @@ impl Game {
         }
     }
     fn init_plot(&self, size: f32, resolution: usize, global_alpha: f32) -> FieldPlot {
-        FieldPlot::new(&self.world, pos2(0.0, 1.0), 3.0, global_alpha)
+        let rect = self.world.max_rect();
+        let range = rect.size().max_elem() * 0.5;
+        FieldPlot::new(&self.world, rect.center(), range, global_alpha)
             .size(size)
             .resolution(resolution)
     }
