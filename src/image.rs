@@ -29,7 +29,13 @@ where
     f(image)
 }
 
-pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2, alpha: f32) {
+pub enum ImagePlotKind {
+    Portrait(bool),
+    #[allow(dead_code)]
+    Background,
+}
+
+pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2, kind: ImagePlotKind) {
     use_image(name, |image| {
         let image_aspect = image.width() as f32 / image.height() as f32;
         let max_size_aspect = max_size.x / max_size.y;
@@ -38,7 +44,15 @@ pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2, alpha: f32) {
         } else {
             Vec2::new(max_size.y * image_aspect, max_size.y)
         };
-        let step = 5.0;
+        let alpha = match kind {
+            ImagePlotKind::Portrait(true) => 0.8,
+            ImagePlotKind::Portrait(false) => 0.1,
+            _ => 1.0,
+        };
+        let step = match kind {
+            ImagePlotKind::Portrait(_) => 5.0,
+            ImagePlotKind::Background => 10.0,
+        };
         let wiggle_range = step;
         let time = time();
         Plot::new(random::<u64>())

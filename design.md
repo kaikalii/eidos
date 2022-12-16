@@ -27,4 +27,5 @@ Vectors
 
 # Story
 
-The story takes place at a magical academy. The player is new student who is blind but can still sense things through magic.
+The story takes place at a magical academy. 
+The player is new student who is blind but can still sense things through magic.

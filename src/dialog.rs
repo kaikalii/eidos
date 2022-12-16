@@ -12,7 +12,7 @@ use serde::Deserialize;
 use crate::{
     field::InputFieldKind,
     game::{FieldDisplay, Game},
-    image::image_plot,
+    image::{image_plot, ImagePlotKind},
     player::Gender,
     utils::{fatal_error, resources_path},
     word::Word,
@@ -345,31 +345,31 @@ impl DialogState {
         }
         const PORTRAIT_HEIGHT: f32 = 200.0;
         if let Some(speaker) = &self.left_speaker {
-            let alpha = if self
+            let focused = self
                 .speaker
                 .as_ref()
-                .map_or(true, |name| name == &speaker.name)
-            {
-                0.8
-            } else {
-                0.1
-            };
+                .map_or(true, |name| name == &speaker.name);
             ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
-                image_plot(ui, &speaker.image, Vec2::splat(PORTRAIT_HEIGHT), alpha);
+                image_plot(
+                    ui,
+                    &speaker.image,
+                    Vec2::splat(PORTRAIT_HEIGHT),
+                    ImagePlotKind::Portrait(focused),
+                );
             });
         }
         if let Some(speaker) = &self.right_speaker {
-            let alpha = if self
+            let focused = self
                 .speaker
                 .as_ref()
-                .map_or(true, |name| name == &speaker.name)
-            {
-                0.8
-            } else {
-                0.1
-            };
+                .map_or(true, |name| name == &speaker.name);
             ui.with_layout(Layout::bottom_up(Align::Max), |ui| {
-                image_plot(ui, &speaker.image, Vec2::splat(PORTRAIT_HEIGHT), alpha);
+                image_plot(
+                    ui,
+                    &speaker.image,
+                    Vec2::splat(PORTRAIT_HEIGHT),
+                    ImagePlotKind::Portrait(focused),
+                );
             });
         }
         true
