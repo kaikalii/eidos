@@ -29,3 +29,28 @@ Vectors
 
 The story takes place at a magical academy. 
 The player is new student who is blind but can still sense things through magic.
+
+# Gameplay
+
+## Casting
+
+Spells can either be cast by speaking words or by executing pre-written spells with a spell conduit device.
+You can toggle between a live field view mode and a conduit editor mode.
+
+## Dialog
+
+There are opportunities to talk to other students and teachers before and after classes.
+
+## Classes
+
+Most days consist of going to classes.
+Classes consist of a teacher explaing how to do some kind of magic and then practicing that concept.
+Along with basic classes, the player can choose to take specialized classes for different kinds of magic.
+
+## Competitions
+
+There are sports-like magic competitions.
+The player can either participate or just write spells for other students who do.
+
+Types of competitions:
+- Pillars break
