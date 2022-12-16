@@ -417,21 +417,28 @@ impl Game {
         .inner
     }
     fn stack_ui(&mut self, ui: &mut Ui, stack: &Stack) {
-        ScrollArea::horizontal().show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
-                for item in stack.iter() {
-                    let plot_resp =
-                        self.plot_stack_field(ui, SMALL_PLOT_SIZE, 50, 1.0, &item.field);
-                    self.handle_plot_response(ui, plot_resp);
-                    Self::spell_words_ui(ui, &item.words, SMALL_PLOT_SIZE, false);
-                }
-                if self.ui_state.last_stack_len != stack.len() {
-                    ui.scroll_to_cursor(None);
-                    self.ui_state.last_stack_len = stack.len();
-                }
+        let showed_speakers_ui = self
+            .ui_state
+            .dialog
+            .as_ref()
+            .map_or(false, |dialog| dialog.speakers_ui(ui));
+        if !showed_speakers_ui {
+            ScrollArea::horizontal().show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
+                    for item in stack.iter() {
+                        let plot_resp =
+                            self.plot_stack_field(ui, SMALL_PLOT_SIZE, 50, 1.0, &item.field);
+                        self.handle_plot_response(ui, plot_resp);
+                        Self::spell_words_ui(ui, &item.words, SMALL_PLOT_SIZE, false);
+                    }
+                    if self.ui_state.last_stack_len != stack.len() {
+                        ui.scroll_to_cursor(None);
+                        self.ui_state.last_stack_len = stack.len();
+                    }
+                });
             });
-        });
+        }
     }
     fn words_ui(&mut self, ui: &mut Ui, stack: &Stack) {
         ui.vertical(|ui| self.words_ui_impl(ui, stack));

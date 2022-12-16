@@ -12,6 +12,7 @@ use serde::Deserialize;
 use crate::{
     field::InputFieldKind,
     game::{FieldDisplay, Game},
+    image::image_plot,
     player::Gender,
     utils::{fatal_error, resources_path},
     word::Word,
@@ -154,12 +155,20 @@ enum SerializedLine {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DialogCommand {
+    ShowLeft(Speaker),
+    ShowRight(Speaker),
     Speaker(Option<String>),
     RevealWord(Word),
     RevealAllWords,
     RevealManaBar,
     RevealRelease,
     RevealField(InputFieldKind),
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct Speaker {
+    pub name: String,
+    pub image: String,
 }
 
 #[derive(Debug, Clone)]
@@ -314,6 +323,8 @@ pub struct DialogState {
     node: String,
     line: usize,
     character: usize,
+    left_speaker: Option<Speaker>,
+    right_speaker: Option<Speaker>,
     speaker: Option<String>,
     can_cast: bool,
 }
@@ -327,6 +338,41 @@ impl DialogState {
         }
         let node = &DIALOG_SCENES[&self.scene].nodes[&self.node];
         self.line == node.lines.len() - 1 && node.children.enables_casting()
+    }
+    pub fn speakers_ui(&self, ui: &mut Ui) -> bool {
+        if self.left_speaker.is_none() && self.right_speaker.is_none() {
+            return false;
+        }
+        const PORTRAIT_HEIGHT: f32 = 200.0;
+        if let Some(speaker) = &self.left_speaker {
+            let alpha = if self
+                .speaker
+                .as_ref()
+                .map_or(true, |name| name == &speaker.name)
+            {
+                0.8
+            } else {
+                0.1
+            };
+            ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+                image_plot(ui, &speaker.image, Vec2::splat(PORTRAIT_HEIGHT), alpha);
+            });
+        }
+        if let Some(speaker) = &self.right_speaker {
+            let alpha = if self
+                .speaker
+                .as_ref()
+                .map_or(true, |name| name == &speaker.name)
+            {
+                0.8
+            } else {
+                0.1
+            };
+            ui.with_layout(Layout::bottom_up(Align::Max), |ui| {
+                image_plot(ui, &speaker.image, Vec2::splat(PORTRAIT_HEIGHT), alpha);
+            });
+        }
+        true
     }
 }
 
@@ -358,6 +404,8 @@ impl Game {
             character: 0,
             speaker: None,
             can_cast: false,
+            left_speaker: None,
+            right_speaker: None,
         };
         self.ui_state.dialog = Some(dialog);
     }
@@ -445,6 +493,10 @@ impl Game {
             Line::Command(command) => {
                 let progression = &mut self.world.player.progression;
                 match command {
+                    DialogCommand::ShowLeft(speaker) => dialog.left_speaker = Some(speaker.clone()),
+                    DialogCommand::ShowRight(speaker) => {
+                        dialog.right_speaker = Some(speaker.clone())
+                    }
                     DialogCommand::Speaker(speaker) => dialog.speaker = speaker.clone(),
                     DialogCommand::RevealWord(word) => {
                         progression.known_words.insert(*word);

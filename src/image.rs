@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::{collections::HashMap, f64};
 
 use eframe::{
@@ -31,7 +29,7 @@ where
     f(image)
 }
 
-pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2) {
+pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2, alpha: f32) {
     use_image(name, |image| {
         let image_aspect = image.width() as f32 / image.height() as f32;
         let max_size_aspect = max_size.x / max_size.y;
@@ -43,7 +41,7 @@ pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2) {
         let step = 5.0;
         let wiggle_range = step * 0.5;
         let time = time();
-        Plot::new(name)
+        Plot::new(random::<u64>())
             .width(size.x)
             .height(size.y)
             .show_axes([false; 2])
@@ -70,7 +68,8 @@ pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2) {
                             continue;
                         }
                         let color =
-                            Color32::from_rgba_unmultiplied(color[0], color[1], color[2], color[3]);
+                            Color32::from_rgba_unmultiplied(color[0], color[1], color[2], color[3])
+                                .linear_multiply(alpha);
                         let point = PlotPoint::new(x + dx, y + dy);
                         plot_ui.points(
                             Points::new(PlotPoints::Owned(vec![point]))
