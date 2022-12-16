@@ -5,7 +5,7 @@ start:
         image: test_image.png
     - show_right:
         name: Uncle
-        image: test_image.png
+        image: man.png
     - ...
     - '*Knock knock knock*'
     - ...

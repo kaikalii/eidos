@@ -39,7 +39,7 @@ pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2, alpha: f32) {
             Vec2::new(max_size.y * image_aspect, max_size.y)
         };
         let step = 5.0;
-        let wiggle_range = step * 0.5;
+        let wiggle_range = step;
         let time = time();
         Plot::new(random::<u64>())
             .width(size.x)
@@ -48,6 +48,10 @@ pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2, alpha: f32) {
             .show_background(false)
             .show_x(false)
             .show_y(false)
+            .include_x(-wiggle_range)
+            .include_x(size.x + wiggle_range)
+            .include_y(-wiggle_range)
+            .include_y(size.y + wiggle_range)
             .data_aspect(1.0)
             .view_aspect(image_aspect)
             .show(ui, |plot_ui| {
@@ -58,7 +62,7 @@ pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2, alpha: f32) {
                         let y = j as f32 * step;
                         let color = image.get_pixel(
                             (x / size.x * image.width() as f32) as u32,
-                            (y / size.y * image.height() as f32) as u32,
+                            ((0.9999 - y / size.y) * image.height() as f32) as u32,
                         );
                         let dx = wiggle_range
                             * (time + rng.gen_range(0.0..=f64::consts::TAU)).sin() as f32;
