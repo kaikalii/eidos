@@ -40,7 +40,6 @@ pub enum Nullary {
     Y,
     TargetX,
     TargetY,
-    Filter,
 }
 
 impl Nullary {
@@ -54,11 +53,10 @@ impl Nullary {
             Nullary::ZeroVector => VectorField::Uniform(Vec2::ZERO).into(),
             Nullary::OneX => VectorField::Uniform(Vec2::X).into(),
             Nullary::OneY => VectorField::Uniform(Vec2::Y).into(),
-            Nullary::X => ScalarField::X(caster).into(),
-            Nullary::Y => ScalarField::Y(caster).into(),
+            Nullary::X => ScalarField::X.into(),
+            Nullary::Y => ScalarField::Y.into(),
             Nullary::TargetX => ScalarField::TargetX(caster).into(),
             Nullary::TargetY => ScalarField::TargetY(caster).into(),
-            Nullary::Filter => ScalarField::Filter(caster).into(),
         }
     }
 }

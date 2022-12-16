@@ -1,7 +1,6 @@
 use derive_more::From;
-use eframe::epaint::{Pos2, Vec2};
+use eframe::epaint::Pos2;
 use enum_iterator::Sequence;
-use rapier2d::prelude::RigidBodyHandle;
 
 use crate::{game::TICK_RATE, npc::NpcId, word::Word};
 
@@ -15,20 +14,16 @@ pub enum PersonId {
 }
 
 pub struct Person {
-    pub pos: Pos2,
-    pub body_handle: RigidBodyHandle,
     pub mana: f32,
     pub max_mana: f32,
     pub mana_exhaustion: f32,
     pub words: Vec<Word>,
-    pub target: Option<Vec2>,
+    pub target: Option<Pos2>,
 }
 
 impl Person {
     pub fn new(max_mana: f32) -> Person {
         Person {
-            pos: Pos2::ZERO,
-            body_handle: RigidBodyHandle::default(),
             mana: max_mana,
             max_mana,
             mana_exhaustion: 0.0,

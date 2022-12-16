@@ -1,6 +1,5 @@
 use std::{collections::HashMap, fs};
 
-use eframe::epaint::{pos2, Pos2};
 use enum_iterator::Sequence;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
@@ -21,19 +20,7 @@ pub struct NpcDef {
 }
 
 pub struct Npc {
-    pub active: bool,
     pub person: Person,
-    pub task: ScheduleTask,
-}
-
-pub enum ScheduleTask {
-    Stand,
-}
-
-impl Npc {
-    pub fn desired_place(&self) -> (&str, Pos2) {
-        ("magician_house", pos2(2.0, 0.0))
-    }
 }
 
 pub static NPCS: Lazy<HashMap<NpcId, NpcDef>> =

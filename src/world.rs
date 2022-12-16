@@ -1,19 +1,16 @@
 use std::{
     collections::HashMap,
-    f32::consts::PI,
     iter::{empty, once},
 };
 
 use eframe::egui::*;
-use enum_iterator::all;
 use indexmap::IndexMap;
 use rapier2d::prelude::*;
 use rayon::prelude::*;
 
 use crate::{
     field::*,
-    math::Convert,
-    npc::{Npc, NpcId, ScheduleTask, NPCS},
+    npc::{Npc, NpcId},
     object::*,
     person::{Person, PersonId},
     physics::PhysicsContext,
@@ -178,42 +175,6 @@ impl World {
             active_spells: ActiveSpells::default(),
             controls: Controls::default(),
         };
-        // Add player
-        const HEIGHT: f32 = 4.0 / 7.0 * 1.75;
-        const HEAD_HEIGHT: f32 = 1.0 / 3.0 * HEIGHT;
-        const HEAD_WIDTH: f32 = 2.0 / 3.0 * HEAD_HEIGHT;
-        const TORSO_HEIGHT: f32 = HEIGHT - HEAD_HEIGHT / 2.0;
-        const TORSO_WIDTH: f32 = 3.0 / 8.0 * TORSO_HEIGHT;
-        world.player.person.body_handle = world.add_object(
-            ObjectKind::Player,
-            ObjectDef::new(RigidBodyType::Dynamic)
-                .props(ObjectProperties {
-                    magic: world.player.person.max_mana / 5.0,
-                    constant_heat: Some(BODY_TEMP),
-                    ..Default::default()
-                })
-                .shapes(vec![
-                    GraphicalShape::capsule_wh(TORSO_WIDTH, TORSO_HEIGHT)
-                        .offset(vec2(0.0, -HEAD_HEIGHT / 2.0)),
-                    GraphicalShape::capsule_wh(HEAD_WIDTH, HEAD_HEIGHT)
-                        .offset(vec2(0.0, TORSO_HEIGHT / 2.0)),
-                ]),
-            |rb| {
-                rb.rotation(PI / 2.0)
-                    .translation([0.0, 0.5 + TORSO_WIDTH].into())
-            },
-            |c| c,
-        );
-        // Npcs
-        for npc_id in all::<NpcId>() {
-            let def = &NPCS[&npc_id];
-            let npc = Npc {
-                active: false,
-                person: Person::new(def.max_mana),
-                task: ScheduleTask::Stand,
-            };
-            world.npcs.insert(npc_id, npc);
-        }
         // Place
         world.load_place("magician_house");
         world
@@ -364,20 +325,14 @@ impl World {
                     return 1.0;
                 }
                 let mut sum = 0.0;
-                for (person_id, spells) in &self.active_spells.scalars {
+                for spells in self.active_spells.scalars.values() {
                     for spell in spells.values().flatten() {
-                        sum += spell
-                            .field
-                            .sample_relative(self, *person_id, pos, false)
-                            .abs();
+                        sum += spell.field.sample(self, pos, false).abs();
                     }
                 }
-                for (person_id, spells) in &self.active_spells.vectors {
+                for spells in self.active_spells.vectors.values() {
                     for spell in spells.values().flatten() {
-                        sum += spell
-                            .field
-                            .sample_relative(self, *person_id, pos, false)
-                            .length();
+                        sum += spell.field.sample(self, pos, false).length();
                     }
                 }
                 sum * mul
@@ -417,19 +372,12 @@ impl World {
             .filter_map(|(person_id, spells)| spells.get(&kind).map(|spells| (person_id, spells)))
             .flat_map(|(person_id, spells)| spells.iter().map(move |spell| (person_id, spell)))
             .fold(Vec2::ZERO, |acc, (person_id, spell)| {
-                acc + spell
-                    .field
-                    .sample_relative(self, *person_id, pos, allow_recursion)
+                acc + spell.field.sample(self, pos, allow_recursion)
                     * self.person(*person_id).field_scale()
             });
         match kind {
             VectorOutputFieldKind::Gravity => from_spells + Vec2::new(0.0, -9.81),
         }
-    }
-    pub fn person_is_at(&self, person_id: PersonId, pos: Pos2) -> bool {
-        let object = &self.objects[&self.person(person_id).body_handle];
-        let point = object.transform_point(pos);
-        object.def.shapes.iter().any(|shape| shape.contains(point))
     }
     pub fn people(&self) -> impl Iterator<Item = &Person> {
         self.person_ids_iter().map(|id| self.person(id))
@@ -550,48 +498,5 @@ impl World {
         }
         // Init heat grid
         self.heat_grid = vec![vec![DEFAULT_TEMP; self.hear_grid_height()]; self.hear_grid_width()];
-        // (De)activate npcs
-        for npc_id in all::<NpcId>() {
-            let mut npc = self.npcs.get_mut(&npc_id).unwrap();
-            let (npc_place, pos) = npc.desired_place();
-            let pos = pos;
-            if npc_place == place_name {
-                if !npc.active {
-                    npc.active = true;
-                    npc.person.pos = pos;
-                    let magic = npc.person.max_mana / 5.0;
-                    const HEIGHT: f32 = 1.75;
-                    const UPPER_HEIGHT: f32 = 4.0 / 7.0 * HEIGHT;
-                    const LOWER_HEIGHT: f32 = HEIGHT - UPPER_HEIGHT;
-                    const HEAD_HEIGHT: f32 = 1.0 / 3.0 * UPPER_HEIGHT;
-                    const HEAD_WIDTH: f32 = 2.0 / 3.0 * HEAD_HEIGHT;
-                    const TORSO_HEIGHT: f32 = UPPER_HEIGHT - HEAD_HEIGHT / 2.0;
-                    const TORSO_WIDTH: f32 = 3.0 / 8.0 * TORSO_HEIGHT;
-                    self.npcs.get_mut(&npc_id).unwrap().person.body_handle = self.add_object(
-                        ObjectKind::Npc,
-                        ObjectDef::new(RigidBodyType::Dynamic)
-                            .props(ObjectProperties {
-                                magic,
-                                constant_heat: Some(BODY_TEMP),
-                                ..Default::default()
-                            })
-                            .shapes(vec![
-                                GraphicalShape::capsule_wh(TORSO_WIDTH, TORSO_HEIGHT)
-                                    .offset(vec2(0.0, (LOWER_HEIGHT - HEAD_HEIGHT) / 2.0)),
-                                GraphicalShape::capsule_wh(HEAD_WIDTH, HEAD_HEIGHT)
-                                    .offset(vec2(0.0, (LOWER_HEIGHT + TORSO_HEIGHT) / 2.0)),
-                                GraphicalShape::capsule_wh(TORSO_WIDTH, LOWER_HEIGHT)
-                                    .offset(vec2(0.0, -(HEAD_HEIGHT + TORSO_HEIGHT) / 2.0)),
-                            ]),
-                        |rb| rb.translation(pos.convert()).lock_rotations(),
-                        |c| c,
-                    );
-                }
-            } else {
-                npc.active = false;
-                self.objects.remove(&npc.person.body_handle);
-                self.physics.remove_body(npc.person.body_handle);
-            }
-        }
     }
 }

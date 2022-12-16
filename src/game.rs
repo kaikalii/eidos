@@ -47,7 +47,7 @@ pub struct UiState {
     pub dialog: Option<DialogState>,
     last_stack_len: usize,
     paused: bool,
-    next_player_target: Option<Vec2>,
+    next_player_target: Option<Pos2>,
 }
 
 pub struct FieldDisplay {
@@ -442,12 +442,12 @@ impl Game {
             use Word::*;
             #[rustfmt::skip]
             static WORD_GRID: &[&[Word]] = &[
-                &[Ti,   Tu,   Ta,   Te,   Me  ],
+                &[Ti,   Tu,   Ta,   Te  ],
                 &[Le,   Po,   Lusa, Selo, Mesi],
                 &[Pa,   Pi,   Sila, Vila, Veni],
                 &[Kova, Kovi, Ke,   Seva, Sevi],
                 &[Ma,   Na,   Sa,   Reso, Solo, Kuru],
-                &[No,   Mo,   Re,   Rovo      ],
+                &[No,   Mo,   Re,   Rovo],
             ];
             let dialog_allows_casting = self
                 .ui_state
@@ -602,14 +602,9 @@ impl Game {
         }
     }
     fn init_plot(&self, size: f32, resolution: usize, global_alpha: f32) -> FieldPlot {
-        FieldPlot::new(
-            &self.world,
-            self.world.player.person.pos + vec2(0.0, 0.5),
-            3.0,
-            global_alpha,
-        )
-        .size(size)
-        .resolution(resolution)
+        FieldPlot::new(&self.world, pos2(0.0, 1.0), 3.0, global_alpha)
+            .size(size)
+            .resolution(resolution)
     }
     #[must_use]
     pub fn plot_stack_field(
@@ -660,7 +655,7 @@ impl FieldPlottable for ScalarField {
         }
     }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
-        self.sample_relative(world, PersonId::Player, pos, true)
+        self.sample(world, pos, true)
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
         match self {
@@ -680,7 +675,7 @@ impl FieldPlottable for VectorField {
         1.0
     }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
-        self.sample_relative(world, PersonId::Player, pos, true)
+        self.sample(world, pos, true)
     }
     fn get_color(&self, t: Self::Value) -> Rgba {
         default_vector_color(t)

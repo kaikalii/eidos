@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    f32::consts::{PI, TAU},
-};
+use std::collections::HashMap;
 
 use eframe::epaint::{Pos2, Vec2};
 use itertools::Itertools;
@@ -9,7 +6,7 @@ use rapier2d::{na::Unit, prelude::*};
 
 use crate::{
     field::VectorOutputFieldKind,
-    math::{modulus, Convert},
+    math::Convert,
     object::{GraphicalBinding, GraphicalShape, Object, ObjectDef, ObjectKind},
     world::{World, DEFAULT_TEMP},
 };
@@ -97,17 +94,6 @@ impl World {
             let scaled_vector = vector * body.mass();
             body.reset_forces(true);
             body.add_force(scaled_vector.convert(), true);
-            if self.player.person.body_handle == handle
-                || self
-                    .npcs
-                    .values()
-                    .any(|npc| npc.person.body_handle == handle)
-            {
-                body.reset_torques(true);
-                let angle = modulus(body.rotation().angle() + PI, TAU) - PI;
-                let torque = -(angle / PI) * 0.05;
-                body.add_torque(torque, true);
-            }
             forces.insert(handle, scaled_vector);
         }
         // Step physics
@@ -132,10 +118,6 @@ impl World {
                     }
                 }
             }
-        }
-        // Set player pos
-        for id in self.person_ids() {
-            self.person_mut(id).pos = self.objects[&self.person(id).body_handle].pos;
         }
         total_work
     }

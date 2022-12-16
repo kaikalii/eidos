@@ -110,12 +110,12 @@ fn logo_ui(ui: &mut Ui) {
             plot_ui.points(
                 Points::new(PlotPoints::Owned(uncircled))
                     .color(Color32::LIGHT_BLUE)
-                    .radius(RADIUS as f32),
+                    .radius(RADIUS),
             );
             plot_ui.points(
                 Points::new(PlotPoints::Owned(circled))
                     .color(Color32::GOLD)
-                    .radius(RADIUS as f32),
+                    .radius(RADIUS),
             );
         });
 }

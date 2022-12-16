@@ -92,7 +92,7 @@ pub struct PlotData<V> {
 
 pub struct PlotResponse {
     pub response: Response,
-    pub hovered_pos: Option<Vec2>,
+    pub hovered_pos: Option<Pos2>,
 }
 
 impl<'w> FieldPlot<'w> {
@@ -196,11 +196,10 @@ impl<'w> FieldPlot<'w> {
                     } else {
                         Align2::CENTER_BOTTOM
                     };
-                    let reported_pos = ppos - self.world.player.person.pos;
                     let text = format!(
                         " ({}, {}): {} ",
-                        (reported_pos.x * 10.0).round() / 10.0,
-                        (reported_pos.y * 10.0).round() / 10.0,
+                        (ppos.x * 10.0).round() / 10.0,
+                        (ppos.y * 10.0).round() / 10.0,
                         z.format(|z| (z * 10.0).round() / 10.0),
                     );
                     for i in 0..2 {
@@ -215,7 +214,7 @@ impl<'w> FieldPlot<'w> {
                         }
                     }
                     plot_ui.text(Text::new(p, text).anchor(anchor).color(Color32::WHITE));
-                    Some(reported_pos)
+                    Some(ppos)
                 } else {
                     None
                 }
