@@ -12,7 +12,7 @@ use crate::{
     field::*,
     function::Function,
     image::{image_plot, ImagePlotKind},
-    person::{PersonId, MAX_MANA_EXHAUSTION},
+    person::PersonId,
     player::Player,
     plot::*,
     stack::Stack,
@@ -221,19 +221,9 @@ impl Game {
             // Mana bar
             ui.scope(|ui| {
                 let player = &self.world.player.person;
-                let (curr, max, color) = if player.can_cast() {
-                    (
-                        player.mana,
-                        player.capped_mana(),
-                        Rgba::from_rgb(0.1, 0.1, 0.9).into(),
-                    )
-                } else {
-                    (
-                        player.mana_exhaustion,
-                        MAX_MANA_EXHAUSTION,
-                        Color32::LIGHT_RED,
-                    )
-                };
+                let curr = player.mana;
+                let max = player.capped_mana();
+                let color = Rgba::from_rgb(0.1, 0.1, 0.9).into();
                 ui.visuals_mut().selection.bg_fill = color;
                 let id = ui.make_persistent_id("mana bar");
                 let length_mul = ui

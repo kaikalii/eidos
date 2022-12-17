@@ -390,23 +390,7 @@ impl World {
     }
     pub fn update(&mut self) {
         // Run physics
-        let work_done = self.run_physics();
-        // Update mana
-        for id in self.person_ids() {
-            self.person_mut(id).do_work(work_done);
-            let can_cast = self.person(id).can_cast();
-            let scalars = self.active_spells.scalars.entry(id).or_default();
-            let vectors = self.active_spells.vectors.entry(id).or_default();
-            if !can_cast {
-                scalars.clear();
-                vectors.clear();
-            }
-            if scalars.values().all(|spells| spells.is_empty())
-                && vectors.values().all(|spells| spells.is_empty())
-            {
-                self.person_mut(id).regen_mana();
-            }
-        }
+        self.run_physics();
         // Transer heat between objects and grid
         for obj in self.objects.values_mut() {
             let i = ((obj.pos.x - self.min_bound.x) / HEAT_GRID_RESOLUTION + 0.5) as usize;

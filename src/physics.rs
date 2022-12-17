@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use eframe::epaint::{Pos2, Vec2};
 use itertools::Itertools;
 use rapier2d::{na::Unit, prelude::*};
@@ -78,12 +76,10 @@ impl PhysicsContext {
 }
 
 impl World {
-    /// Run a physics step and return the amount of work done by output fields
-    #[must_use]
-    pub fn run_physics(&mut self) -> f32 {
+    /// Run a physics step
+    pub fn run_physics(&mut self) {
         puffin::profile_function!();
         // Set forces
-        let mut forces = HashMap::new();
         for &handle in self.objects.keys().collect_vec() {
             if !self.physics.bodies[handle].is_dynamic() {
                 continue;
@@ -94,32 +90,18 @@ impl World {
             let scaled_vector = vector * body.mass();
             body.reset_forces(true);
             body.add_force(scaled_vector.convert(), true);
-            forces.insert(handle, scaled_vector);
         }
         // Step physics
         self.physics.step();
         // Set object positions from physics system
-        let mut total_work = 0.0;
-        for (handle, obj) in self.objects.iter_mut() {
+        for obj in self.objects.values_mut() {
             let body = self.physics.bodies.get(obj.body_handle).unwrap();
-            let old_vel = obj.vel;
             obj.pos = body.translation().convert();
             obj.vel = body
                 .velocity_at_point(&Point::from(*body.translation()))
                 .convert();
-            let dvel = obj.vel - old_vel;
             obj.rot = body.rotation().angle();
-            // Calculate work
-            if dvel.length() > 0.0 {
-                if let Some(force) = forces.get(handle).copied() {
-                    let work_done = force.dot(dvel);
-                    if work_done.abs() > 0.0 {
-                        total_work += work_done
-                    }
-                }
-            }
         }
-        total_work
     }
 }
 
