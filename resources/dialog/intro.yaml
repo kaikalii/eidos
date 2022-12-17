@@ -1,9 +1,10 @@
 # start:
 #   lines:
-#     - show_left:
+#     - background: school1.png
+#     - left:
 #         name: Stranger
 #         image: test_image.png
-#     - show_right:
+#     - right:
 #         name: Uncle
 #         image: man.png
 #     - ...
@@ -174,6 +175,7 @@
 #     then: end
 end:
   lines:
+    - background: school1.png
     - reveal_all_words
     - reveal_mana_bar
     - reveal_release

@@ -11,6 +11,7 @@ use crate::{
     dialog::DialogState,
     field::*,
     function::Function,
+    image::{image_plot, ImagePlotKind},
     person::{PersonId, MAX_MANA_EXHAUSTION},
     player::Player,
     plot::*,
@@ -48,6 +49,7 @@ pub struct UiState {
     last_stack_len: usize,
     paused: bool,
     next_player_target: Option<Pos2>,
+    pub background: Option<String>,
 }
 
 pub struct FieldDisplay {
@@ -78,6 +80,7 @@ impl Default for UiState {
             last_stack_len: 0,
             paused: false,
             next_player_target: None,
+            background: None,
         }
     }
 }
@@ -111,12 +114,23 @@ impl Game {
         ctx.set_style(style.clone());
 
         // Show central UI
+        let rect = ctx.available_rect();
         CentralPanel::default().show(ctx, |ui| {
-            self.top_ui(ui);
-            self.fields_ui(ui);
-            if let Some(e) = error {
-                ui.label(RichText::new(e.to_string()).color(Color32::RED));
-            }
+            // Show background
+            ui.allocate_ui_at_rect(rect, |ui| {
+                if let Some(background) = &self.ui_state.background {
+                    let max_size = ui.available_size_before_wrap();
+                    image_plot(ui, background, max_size, ImagePlotKind::Background);
+                }
+            });
+            // Show top bar and fields
+            ui.allocate_ui_at_rect(rect.shrink(10.0), |ui| {
+                self.top_ui(ui);
+                self.fields_ui(ui);
+                if let Some(e) = error {
+                    ui.label(RichText::new(e.to_string()).color(Color32::RED));
+                }
+            });
         });
 
         // Show pause menu
@@ -159,7 +173,7 @@ impl Game {
         // Show bottom UIs
         let mut panel_color = ctx.style().visuals.panel_fill;
         panel_color =
-            Color32::from_rgba_unmultiplied(panel_color.r(), panel_color.g(), panel_color.b(), 128);
+            Color32::from_rgba_unmultiplied(panel_color.r(), panel_color.g(), panel_color.b(), 210);
         TopBottomPanel::bottom("words")
             .show_separator_line(false)
             .min_height(100.0)
@@ -184,7 +198,14 @@ impl Game {
                 ..Default::default()
             })
             .show(ctx, |ui| {
-                self.stack_ui(ui, &stack);
+                let showed_speakers_ui = self
+                    .ui_state
+                    .dialog
+                    .as_ref()
+                    .map_or(false, |dialog| dialog.speakers_ui(ui));
+                if !showed_speakers_ui {
+                    self.stack_ui(ui, &stack);
+                }
             });
 
         // Update world
@@ -417,28 +438,21 @@ impl Game {
         .inner
     }
     fn stack_ui(&mut self, ui: &mut Ui, stack: &Stack) {
-        let showed_speakers_ui = self
-            .ui_state
-            .dialog
-            .as_ref()
-            .map_or(false, |dialog| dialog.speakers_ui(ui));
-        if !showed_speakers_ui {
-            ScrollArea::horizontal().show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
-                    for item in stack.iter() {
-                        let plot_resp =
-                            self.plot_stack_field(ui, SMALL_PLOT_SIZE, 50, 1.0, &item.field);
-                        self.handle_plot_response(ui, plot_resp);
-                        Self::spell_words_ui(ui, &item.words, SMALL_PLOT_SIZE, false);
-                    }
-                    if self.ui_state.last_stack_len != stack.len() {
-                        ui.scroll_to_cursor(None);
-                        self.ui_state.last_stack_len = stack.len();
-                    }
-                });
+        ScrollArea::horizontal().show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
+                for item in stack.iter() {
+                    let plot_resp =
+                        self.plot_stack_field(ui, SMALL_PLOT_SIZE, 50, 1.0, &item.field);
+                    self.handle_plot_response(ui, plot_resp);
+                    Self::spell_words_ui(ui, &item.words, SMALL_PLOT_SIZE, false);
+                }
+                if self.ui_state.last_stack_len != stack.len() {
+                    ui.scroll_to_cursor(None);
+                    self.ui_state.last_stack_len = stack.len();
+                }
             });
-        }
+        });
     }
     fn words_ui(&mut self, ui: &mut Ui, stack: &Stack) {
         ui.vertical(|ui| self.words_ui_impl(ui, stack));

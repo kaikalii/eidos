@@ -155,8 +155,9 @@ enum SerializedLine {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DialogCommand {
-    ShowLeft(Speaker),
-    ShowRight(Speaker),
+    Left(Option<Speaker>),
+    Right(Option<Speaker>),
+    Background(Option<String>),
     Speaker(Option<String>),
     RevealWord(Word),
     RevealAllWords,
@@ -493,10 +494,9 @@ impl Game {
             Line::Command(command) => {
                 let progression = &mut self.world.player.progression;
                 match command {
-                    DialogCommand::ShowLeft(speaker) => dialog.left_speaker = Some(speaker.clone()),
-                    DialogCommand::ShowRight(speaker) => {
-                        dialog.right_speaker = Some(speaker.clone())
-                    }
+                    DialogCommand::Left(speaker) => dialog.left_speaker = speaker.clone(),
+                    DialogCommand::Right(speaker) => dialog.right_speaker = speaker.clone(),
+                    DialogCommand::Background(image) => self.ui_state.background = image.clone(),
                     DialogCommand::Speaker(speaker) => dialog.speaker = speaker.clone(),
                     DialogCommand::RevealWord(word) => {
                         progression.known_words.insert(*word);

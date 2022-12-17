@@ -14,7 +14,7 @@ use puffin::profile_scope;
 use rand::prelude::*;
 use rayon::prelude::*;
 
-use crate::{math::round_to, world::World};
+use crate::{math::round_to, texture::textures, world::World};
 
 pub trait FieldPlottable: Sync {
     type Value: PartitionAndPlottable;
@@ -173,6 +173,24 @@ impl<'w> FieldPlot<'w> {
         }
     }
     pub fn ui<F>(&self, ui: &mut Ui, field_plot: &F) -> PlotResponse
+    where
+        F: FieldPlottable,
+    {
+        let (rect, _) = ui.allocate_exact_size(Vec2::splat(self.size), Sense::hover());
+        let mut panel_color = ui.visuals().panel_fill;
+        panel_color =
+            Color32::from_rgba_unmultiplied(panel_color.r(), panel_color.g(), panel_color.b(), 210);
+        let texture_id = textures(|t| t.circle_gradient.id());
+        ui.painter().image(
+            texture_id,
+            rect,
+            Rect::from_min_max(Pos2::ZERO, pos2(1.0, 1.0)),
+            panel_color,
+        );
+        ui.allocate_ui_at_rect(rect, |ui| self.ui_impl(ui, field_plot))
+            .inner
+    }
+    fn ui_impl<F>(&self, ui: &mut Ui, field_plot: &F) -> PlotResponse
     where
         F: FieldPlottable,
     {

@@ -17,6 +17,7 @@ mod physics;
 mod player;
 mod plot;
 mod stack;
+mod texture;
 mod utils;
 mod word;
 mod world;
@@ -30,6 +31,7 @@ use npc::NPCS;
 use object::{OBJECTS, PLACES};
 use once_cell::sync::Lazy;
 use player::{Gender, Player};
+use texture::load_textures;
 
 fn main() {
     // Load resources
@@ -48,6 +50,7 @@ fn main() {
         },
         Box::new(|cc| {
             cc.egui_ctx.set_pixels_per_point(1.5);
+            load_textures(&cc.egui_ctx);
             Box::new(if cfg!(feature = "title") {
                 GameState::MainMenu
             } else {
