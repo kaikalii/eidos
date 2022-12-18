@@ -1,1 +1,4 @@
-- Design problems
+- Make mana usage depend on words in active spells and stack items instead of just the word list
+- Add spell etching
+- Design characters
+- Write plot
