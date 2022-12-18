@@ -457,7 +457,7 @@ impl Game {
                 &[Pa,   Pi,   Sila, Vila, Veni],
                 &[Kova, Kovi, Ke,   Seva, Sevi],
                 &[Ma,   Na,   Sa,   Reso, Solo, Kuru],
-                &[Sevu, Kovu, No,   Mo,   Re,   Rovo],
+                &[No,   Mo,   Reve, Rovo, Sevu, Kovu, Reko],
             ];
             let dialog_allows_casting = self
                 .ui_state
@@ -474,11 +474,7 @@ impl Game {
                         && stack.validate_function_use(f).is_ok()
                         && available_mana >= word.cost();
                     let hilight = matches!(f, Function::WriteField(_));
-                    let mut text = RichText::new(word.to_string());
-                    if word >= &Word::No {
-                        text = text.small();
-                    }
-                    let button = FadeButton::new(word, known, text).hilight(hilight);
+                    let button = FadeButton::new(word, known, word.to_string()).hilight(hilight);
                     if ui.add_enabled(enabled, button).clicked() {
                         if let Function::ReadField(kind) = f {
                             if self.world.player.progression.known_fields.insert(kind) {
@@ -500,7 +496,7 @@ impl Game {
                     let visibility = ui.ctx().animate_bool(id, show_release);
                     if show_release {
                         apply_color_fading(ui.visuals_mut(), visibility);
-                        if ui.button("Release").clicked() {
+                        if ui.button("Free").clicked() {
                             self.world.player.person.words.clear();
                         }
                     } else {

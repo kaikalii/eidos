@@ -26,6 +26,7 @@ pub enum Function {
     Combinator2(Combinator2),
     #[from]
     Variable(Variable),
+    Record,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Sequence)]
@@ -412,6 +413,7 @@ impl Function {
                 BinOp::Index => vec![Constrain(ValueConstraint::Exact(Type::Vector)), Any],
             },
             Function::Variable(_) => vec![],
+            Function::Record => vec![Any],
         };
         // Validate stack size
         if stack.len() < constraints.len() {

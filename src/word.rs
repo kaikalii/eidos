@@ -29,6 +29,7 @@ pub enum Word {
     Mesi,
     // Outputs
     Ke,
+    Reko,
     // Operators
     Ma,
     Sa,
@@ -45,7 +46,7 @@ pub enum Word {
     // Combinators
     No,
     Mo,
-    Re,
+    Reve,
     Rovo,
 }
 
@@ -77,14 +78,18 @@ impl Word {
             Kuru => ScalarUnOp::Sqrt.into(),
             No => Combinator1::Drop.into(),
             Mo => Combinator1::Duplicate.into(),
-            Re => Combinator2::Swap.into(),
+            Reve => Combinator2::Swap.into(),
             Rovo => Combinator2::Over.into(),
             Sila => ControlKind::XSlider.into(),
             Vila => ControlKind::YSlider.into(),
             Pa => Nullary::TargetX.into(),
             Pi => Nullary::TargetY.into(),
             Veni => ControlKind::Activation.into(),
+            Reko => Function::Record,
         }
+    }
+    pub fn etchable(&self) -> bool {
+        !matches!(self.function(), Function::Variable(_))
     }
     pub fn cost(&self) -> f32 {
         use Word::*;
