@@ -1,3 +1,5 @@
+use std::panic::{catch_unwind, AssertUnwindSafe};
+
 use eframe::epaint::{Pos2, Vec2};
 use itertools::Itertools;
 use rapier2d::{na::Unit, prelude::*};
@@ -214,27 +216,29 @@ impl World {
             let ray = Ray::new(pos.convert(), (light_obj.pos - pos).normalized().convert());
             let mut soft_count = 0;
             let mut hard = false;
-            self.physics.queries.intersections_with_ray(
-                &self.physics.bodies,
-                &self.physics.colliders,
-                &ray,
-                dist,
-                true,
-                QueryFilter::default().exclude_rigid_body(light_obj.body_handle),
-                |handle, _| {
-                    let body_handle = self.physics.colliders[handle].parent().unwrap();
-                    let obj = &self.objects[&body_handle];
-                    if matches!(obj.kind, ObjectKind::Player | ObjectKind::Npc)
-                        || obj.background_handles.contains(&handle)
-                    {
-                        soft_count += 1;
-                        true
-                    } else {
-                        hard = true;
-                        false
-                    }
-                },
-            );
+            let _ = catch_unwind(AssertUnwindSafe(|| {
+                self.physics.queries.intersections_with_ray(
+                    &self.physics.bodies,
+                    &self.physics.colliders,
+                    &ray,
+                    dist,
+                    true,
+                    QueryFilter::default().exclude_rigid_body(light_obj.body_handle),
+                    |handle, _| {
+                        let body_handle = self.physics.colliders[handle].parent().unwrap();
+                        let obj = &self.objects[&body_handle];
+                        if matches!(obj.kind, ObjectKind::Player | ObjectKind::Npc)
+                            || obj.background_handles.contains(&handle)
+                        {
+                            soft_count += 1;
+                            true
+                        } else {
+                            hard = true;
+                            false
+                        }
+                    },
+                );
+            }));
             if hard {
                 continue;
             }
