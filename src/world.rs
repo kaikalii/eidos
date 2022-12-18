@@ -15,6 +15,7 @@ use crate::{
     person::{Person, PersonId},
     physics::PhysicsContext,
     player::Player,
+    stack::Stack,
     word::Word,
 };
 
@@ -368,12 +369,11 @@ impl World {
         let from_spells = self
             .active_spells
             .vectors
-            .iter()
-            .filter_map(|(person_id, spells)| spells.get(&kind).map(|spells| (person_id, spells)))
-            .flat_map(|(person_id, spells)| spells.iter().map(move |spell| (person_id, spell)))
-            .fold(Vec2::ZERO, |acc, (person_id, spell)| {
+            .values()
+            .filter_map(|spells| spells.get(&kind))
+            .flatten()
+            .fold(Vec2::ZERO, |acc, spell| {
                 acc + spell.field.sample(self, pos, allow_recursion)
-                    * self.person(*person_id).field_scale()
             });
         match kind {
             VectorOutputFieldKind::Gravity => from_spells + Vec2::new(0.0, -9.81),
@@ -387,6 +387,29 @@ impl World {
     }
     pub fn person_ids(&self) -> Vec<PersonId> {
         self.person_ids_iter().collect()
+    }
+    pub fn reserved_mana(&self, person_id: PersonId, stack: &Stack) -> f32 {
+        let from_scalars: f32 = self
+            .active_spells
+            .scalars_of(person_id)
+            .flat_map(|(_, spell)| &spell.words)
+            .map(|word| word.cost())
+            .sum();
+        let from_vectors: f32 = self
+            .active_spells
+            .vectors_of(person_id)
+            .flat_map(|(_, spell)| &spell.words)
+            .map(|word| word.cost())
+            .sum();
+        let from_stack: f32 = stack
+            .iter()
+            .flat_map(|item| &item.words)
+            .map(|word| word.cost())
+            .sum();
+        from_scalars + from_vectors + from_stack
+    }
+    pub fn available_mana(&self, person_id: PersonId, stack: &Stack) -> f32 {
+        self.person(person_id).max_mana - self.reserved_mana(person_id, stack)
     }
     pub fn update(&mut self) {
         // Run physics

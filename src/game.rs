@@ -125,7 +125,7 @@ impl Game {
             });
             // Show top bar and fields
             ui.allocate_ui_at_rect(rect.shrink(10.0), |ui| {
-                self.top_ui(ui);
+                self.top_ui(ui, &stack);
                 self.fields_ui(ui);
                 if let Some(e) = error {
                     ui.label(RichText::new(e.to_string()).color(Color32::RED));
@@ -216,13 +216,12 @@ impl Game {
 
         res
     }
-    fn top_ui(&mut self, ui: &mut Ui) {
+    fn top_ui(&mut self, ui: &mut Ui, stack: &Stack) {
         ui.horizontal(|ui| {
             // Mana bar
             ui.scope(|ui| {
-                let player = &self.world.player.person;
-                let curr = player.mana;
-                let max = player.capped_mana();
+                let reserved = self.world.reserved_mana(PersonId::Player, stack);
+                let capped = self.world.person(PersonId::Player).max_mana - reserved;
                 let color = Rgba::from_rgb(0.1, 0.1, 0.9).into();
                 ui.visuals_mut().selection.bg_fill = color;
                 let id = ui.make_persistent_id("mana bar");
@@ -230,15 +229,15 @@ impl Game {
                     .ctx()
                     .animate_bool(id, self.world.player.progression.mana_bar);
                 if length_mul > 0.0 {
-                    ProgressBar::new(curr / max)
-                        .text(format!("{} / {}", curr.round(), max.round()))
-                        .desired_width(player.capped_mana() * 10.0 * length_mul)
+                    ProgressBar::new(1.0)
+                        .text(format!("{capped:.0}"))
+                        .desired_width(capped * 10.0 * length_mul)
                         .ui(ui);
-                    if player.reserved_mana() > 0.0 {
+                    if reserved > 0.0 {
                         ui.visuals_mut().selection.bg_fill = Rgba::from_rgb(0.2, 0.2, 0.9).into();
                         ProgressBar::new(1.0)
-                            .text(player.reserved_mana().to_string())
-                            .desired_width(player.reserved_mana() * 10.0 * length_mul)
+                            .text(format!("{reserved:.0}"))
+                            .desired_width(reserved * 10.0 * length_mul)
                             .ui(ui);
                     }
                 }
@@ -465,6 +464,7 @@ impl Game {
                 .dialog
                 .as_ref()
                 .map_or(true, |dialog| dialog.allows_casting());
+            let available_mana = self.world.available_mana(PersonId::Player, stack);
             for (i, row) in WORD_GRID.iter().enumerate() {
                 for word in *row {
                     let f = word.function();
@@ -472,7 +472,7 @@ impl Game {
                     let enabled = dialog_allows_casting
                         && known
                         && stack.validate_function_use(f).is_ok()
-                        && self.world.player.person.capped_mana() > word.cost();
+                        && available_mana >= word.cost();
                     let hilight = matches!(f, Function::WriteField(_));
                     let mut text = RichText::new(word.to_string());
                     if word >= &Word::No {
