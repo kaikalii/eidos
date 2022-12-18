@@ -50,6 +50,7 @@ pub enum ScalarField {
     Input(ScalarInputFieldKind),
     #[from]
     Control(ControlKind),
+    Variable,
 }
 
 #[derive(Debug, Clone, From)]
@@ -61,6 +62,7 @@ pub enum VectorField {
     BinVV(TypedBinOp<HomoBinOp>, Box<Self>, Box<Self>),
     Index(Box<Self>, Box<Self>),
     Input(VectorInputFieldKind),
+    Variable,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
@@ -197,6 +199,7 @@ impl ScalarField {
                 world.sample_input_scalar_field(*kind, pos, allow_recursion)
             }
             ScalarField::Control(kind) => world.controls.get(*kind),
+            ScalarField::Variable => pos.to_vec2().length(),
         }
     }
     fn uniform(&self) -> Option<f32> {
@@ -271,6 +274,7 @@ impl VectorField {
                 allow_recursion,
             ),
             VectorField::Input(kind) => world.sample_input_vector_field(*kind, pos),
+            VectorField::Variable => pos.to_vec2(),
         }
     }
     fn uniform(&self) -> Option<Vec2> {

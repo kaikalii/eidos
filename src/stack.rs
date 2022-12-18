@@ -251,6 +251,10 @@ impl Stack {
                     },
                 }
             }
+            Function::Variable(var) => match var {
+                Variable::Scalar => self.push(word, ScalarField::Variable),
+                Variable::Vector => self.push(word, VectorField::Variable),
+            },
         }
         Ok(())
     }
