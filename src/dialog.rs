@@ -163,6 +163,7 @@ pub enum DialogCommand {
     RevealAllWords,
     RevealManaBar,
     RevealFree,
+    RevealConduit,
     RevealField(InputFieldKind),
 }
 
@@ -510,6 +511,7 @@ impl Game {
                             .insert((*kind).into(), FieldDisplay::default_for((*kind).into()));
                     }
                     DialogCommand::RevealFree => progression.free = true,
+                    DialogCommand::RevealConduit => progression.conduit = true,
                 }
                 self.progress_dialog();
                 self.dialog_ui_impl(ui);

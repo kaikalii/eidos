@@ -436,9 +436,46 @@ impl Game {
         });
     }
     fn words_ui(&mut self, ui: &mut Ui) {
-        ui.vertical(|ui| self.words_ui_impl(ui));
+        ui.horizontal_top(|ui| {
+            self.words_grid(ui);
+            self.conduit_ui(ui);
+        });
     }
-    fn words_ui_impl(&mut self, ui: &mut Ui) {
+    fn conduit_ui(&mut self, ui: &mut Ui) {
+        if !self.world.player.progression.conduit {
+            return;
+        }
+        Grid::new("conduits").show(ui, |ui| {
+            for stone in &mut self.world.player.person.rack.conduits {
+                let mut stack = self.world.player.person.stack.clone();
+                let button = Button::new(stone.format(16));
+                let mut res = Ok(());
+                for word in &stone.words {
+                    res = stack.say(PersonId::Player, *word, None);
+                    if res.is_err() {
+                        break;
+                    }
+                }
+                let on_hover = |ui: &mut Ui| {
+                    ui.label(stone.format(usize::MAX));
+                };
+                if res.is_ok() {
+                    if button.ui(ui).on_hover_ui(on_hover).clicked() {
+                        self.world.player.person.stack = stack;
+                    }
+                } else {
+                    ui.add_enabled(false, button).on_disabled_hover_ui(on_hover);
+                }
+                let can_add = !self.world.player.person.stack.is_empty();
+                if ui.add_enabled(can_add, Button::new("+")).clicked() {
+                    stone.etch(self.world.player.person.stack.words());
+                    self.world.player.person.stack.clear();
+                }
+                ui.end_row();
+            }
+        });
+    }
+    fn words_grid(&mut self, ui: &mut Ui) {
         Grid::new("words").min_col_width(10.0).show(ui, |ui| {
             // Words
             use Word::*;
@@ -471,6 +508,17 @@ impl Game {
                     let hilight = matches!(f, Function::WriteField(_));
                     let button = FadeButton::new(word, known, word.to_string()).hilight(hilight);
                     if ui.add_enabled(enabled, button).clicked() {
+                        let player_person = &mut self.world.player.person;
+                        let mut say = || {
+                            player_person
+                                .stack
+                                .say(
+                                    PersonId::Player,
+                                    *word,
+                                    Some(&mut player_person.active_spells),
+                                )
+                                .err()
+                        };
                         let _err = if let Function::ReadField(kind) = f {
                             if self.world.player.progression.known_fields.insert(kind) {
                                 // Reveal the relevant field if this is the first time its word is said
@@ -479,10 +527,10 @@ impl Game {
                                     .insert(kind.into(), FieldDisplay::default_for(kind.into()));
                                 None
                             } else {
-                                self.world.player.person.say(PersonId::Player, *word).err()
+                                say()
                             }
                         } else {
-                            self.world.player.person.say(PersonId::Player, *word).err()
+                            say()
                         };
                     }
                 }
