@@ -2,23 +2,13 @@ use crate::{
     error::EidosError,
     field::*,
     function::*,
-    person::PersonId,
+    person::{ActiveSpell, Person, PersonId},
     word::Word,
-    world::{ActiveSpell, World},
 };
 
+#[derive(Default)]
 pub struct Stack {
-    person_id: PersonId,
     stack: Vec<StackItem>,
-}
-
-impl Stack {
-    pub fn new(person_id: PersonId) -> Self {
-        Stack {
-            person_id,
-            stack: Vec::new(),
-        }
-    }
 }
 
 pub struct StackItem {
@@ -69,7 +59,9 @@ where
 }
 
 impl Stack {
-    #[allow(clippy::len_without_is_empty)]
+    pub fn is_empty(&self) -> bool {
+        self.stack.is_empty()
+    }
     pub fn len(&self) -> usize {
         self.stack.len()
     }
@@ -89,24 +81,31 @@ impl Stack {
             words: words.into_words(),
         })
     }
-    pub fn call(&mut self, world: &mut World, word: Word) -> Result<(), EidosError> {
+    pub fn clear(&mut self) {
+        self.stack.clear();
+    }
+    pub fn words(&self) -> impl Iterator<Item = Word> + '_ {
+        self.stack.iter().flat_map(|item| &item.words).copied()
+    }
+}
+
+impl Person {
+    pub fn say(&mut self, person_id: PersonId, word: Word) -> Result<(), EidosError> {
         puffin::profile_function!();
+        let stack = &mut self.stack;
         let function = word.function();
-        self.validate_function_use(function)?;
+        stack.validate_function_use(function)?;
         match function {
             Function::ReadField(field_kind) => match field_kind {
-                InputFieldKind::Scalar(kind) => self.push(word, ScalarField::Input(kind)),
-                InputFieldKind::Vector(kind) => self.push(word, VectorField::Input(kind)),
+                InputFieldKind::Scalar(kind) => stack.push(word, ScalarField::Input(kind)),
+                InputFieldKind::Vector(kind) => stack.push(word, VectorField::Input(kind)),
             },
             Function::WriteField(field_kind) => {
-                let item = self.pop();
+                let item = stack.pop();
                 match (field_kind, item.field) {
                     (OutputFieldKind::Vector(kind), Field::Vector(field)) => {
-                        world
-                            .active_spells
+                        self.active_spells
                             .vectors
-                            .entry(self.person_id)
-                            .or_default()
                             .entry(kind)
                             .or_default()
                             .push(ActiveSpell {
@@ -116,51 +115,51 @@ impl Stack {
                     }
                     _ => unreachable!(),
                 }
-                world.person_mut(self.person_id).words.clear();
+                stack.clear();
             }
-            Function::Control(kind) => self.push(word, ScalarField::Control(kind)),
-            Function::Nullary(nullary) => self.push(word, nullary.field(self.person_id)),
+            Function::Control(kind) => stack.push(word, ScalarField::Control(kind)),
+            Function::Nullary(nullary) => stack.push(word, nullary.field(person_id)),
             Function::Combinator1(com1) => {
-                let a = self.pop();
+                let a = stack.pop();
                 match com1 {
                     Combinator1::Duplicate => {
-                        self.push(a.words, a.field.clone());
-                        self.push(word, a.field);
+                        stack.push(a.words, a.field.clone());
+                        stack.push(word, a.field);
                     }
                     Combinator1::Drop => {}
                 }
             }
             Function::Combinator2(com2) => {
-                let b = self.pop();
-                let a = self.pop();
+                let b = stack.pop();
+                let a = stack.pop();
                 match com2 {
                     Combinator2::Swap => {
-                        self.stack.push(b);
-                        self.stack.push(a);
+                        stack.stack.push(b);
+                        stack.stack.push(a);
                     }
                     Combinator2::Over => {
-                        self.push(a.words, a.field.clone());
-                        self.stack.push(b);
-                        self.push(word, a.field);
+                        stack.push(a.words, a.field.clone());
+                        stack.stack.push(b);
+                        stack.push(word, a.field);
                     }
                 }
             }
             Function::Un(op) => {
-                let a = self.pop();
+                let a = stack.pop();
                 let words = (a.words, word);
                 match op {
                     UnOp::Math(op) => match a.field {
-                        Field::Scalar(f) => self.push(
+                        Field::Scalar(f) => stack.push(
                             words,
                             ScalarField::ScalarUn(TypedUnOp::Math(op), f.into()).reduce(),
                         ),
-                        Field::Vector(f) => self.push(
+                        Field::Vector(f) => stack.push(
                             words,
                             VectorField::Un(TypedUnOp::Math(op), f.into()).reduce(),
                         ),
                     },
                     UnOp::Scalar(op) => match a.field {
-                        Field::Scalar(f) => self.push(
+                        Field::Scalar(f) => stack.push(
                             words,
                             ScalarField::ScalarUn(TypedUnOp::Typed(op), f.into()).reduce(),
                         ),
@@ -168,19 +167,19 @@ impl Stack {
                     },
                     UnOp::VectorScalar(op) => match a.field {
                         Field::Vector(f) => {
-                            self.push(words, ScalarField::VectorUn(op, f.into()).reduce())
+                            stack.push(words, ScalarField::VectorUn(op, f.into()).reduce())
                         }
                         _ => unreachable!(),
                     },
                     UnOp::VectorVector(op) => match a.field {
-                        Field::Vector(f) => self.push(
+                        Field::Vector(f) => stack.push(
                             words,
                             VectorField::Un(TypedUnOp::Typed(op), f.into()).reduce(),
                         ),
                         _ => unreachable!(),
                     },
                     UnOp::ToScalar(op) => match a.field {
-                        Field::Scalar(f) => self.push(
+                        Field::Scalar(f) => stack.push(
                             words,
                             ScalarField::ScalarUn(
                                 TypedUnOp::Typed(ScalarUnOp::ToScalar(op)),
@@ -188,7 +187,7 @@ impl Stack {
                             )
                             .reduce(),
                         ),
-                        Field::Vector(f) => self.push(
+                        Field::Vector(f) => stack.push(
                             words,
                             ScalarField::VectorUn(VectorUnScalarOp::ToScalar(op), f.into())
                                 .reduce(),
@@ -197,32 +196,32 @@ impl Stack {
                 }
             }
             Function::Bin(op) => {
-                let b = self.pop();
-                let a = self.pop();
+                let b = stack.pop();
+                let a = stack.pop();
                 let words = (a.words, b.words, word);
                 match op {
                     BinOp::Math(op) => match (a.field, b.field) {
                         (Field::Scalar(a), Field::Scalar(b)) => {
-                            self.push(
+                            stack.push(
                                 words,
                                 ScalarField::Bin(TypedBinOp::Hetero(op), a.into(), b.into())
                                     .reduce(),
                             );
                         }
                         (Field::Scalar(a), Field::Vector(b)) => {
-                            self.push(
+                            stack.push(
                                 words,
                                 VectorField::BinSV(TypedBinOp::Hetero(op), a, b.into()).reduce(),
                             );
                         }
                         (Field::Vector(a), Field::Scalar(b)) => {
-                            self.push(
+                            stack.push(
                                 words,
                                 VectorField::BinVS(TypedBinOp::Hetero(op), a.into(), b).reduce(),
                             );
                         }
                         (Field::Vector(a), Field::Vector(b)) => {
-                            self.push(
+                            stack.push(
                                 words,
                                 VectorField::BinVV(TypedBinOp::Hetero(op), a.into(), b.into())
                                     .reduce(),
@@ -230,11 +229,11 @@ impl Stack {
                         }
                     },
                     BinOp::Homo(op) => match (a.field, b.field) {
-                        (Field::Scalar(a), Field::Scalar(b)) => self.push(
+                        (Field::Scalar(a), Field::Scalar(b)) => stack.push(
                             words,
                             ScalarField::Bin(TypedBinOp::Typed(op), a.into(), b.into()).reduce(),
                         ),
-                        (Field::Vector(a), Field::Vector(b)) => self.push(
+                        (Field::Vector(a), Field::Vector(b)) => stack.push(
                             words,
                             VectorField::BinVV(TypedBinOp::Typed(op), a.into(), b.into()).reduce(),
                         ),
@@ -242,18 +241,18 @@ impl Stack {
                     },
                     BinOp::Index => match (a.field, b.field) {
                         (Field::Vector(a), Field::Scalar(b)) => {
-                            self.push(words, ScalarField::Index(a.into(), b.into()))
+                            stack.push(words, ScalarField::Index(a.into(), b.into()))
                         }
                         (Field::Vector(a), Field::Vector(b)) => {
-                            self.push(words, VectorField::Index(a.into(), b.into()))
+                            stack.push(words, VectorField::Index(a.into(), b.into()))
                         }
                         _ => unreachable!(),
                     },
                 }
             }
             Function::Variable(var) => match var {
-                Variable::Scalar => self.push(word, ScalarField::Variable),
-                Variable::Vector => self.push(word, VectorField::Variable),
+                Variable::Scalar => stack.push(word, ScalarField::Variable),
+                Variable::Vector => stack.push(word, VectorField::Variable),
             },
             Function::Record => todo!(),
         }

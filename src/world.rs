@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    iter::{empty, once},
-};
+use std::{collections::HashMap, iter::once};
 
 use eframe::egui::*;
 use indexmap::IndexMap;
@@ -15,8 +12,6 @@ use crate::{
     person::{Person, PersonId},
     physics::PhysicsContext,
     player::Player,
-    stack::Stack,
-    word::Word,
 };
 
 pub struct World {
@@ -27,123 +22,12 @@ pub struct World {
     pub max_bound: Pos2,
     pub heat_grid: Vec<Vec<f32>>,
     pub physics: PhysicsContext,
-    pub active_spells: ActiveSpells,
     pub controls: Controls,
 }
 
 const HEAT_GRID_RESOLUTION: f32 = 0.25;
 pub const DEFAULT_TEMP: f32 = 0.0;
 pub const BODY_TEMP: f32 = 17.0;
-
-type TypedActiveSpells<K, V> = HashMap<PersonId, HashMap<K, Vec<ActiveSpell<V>>>>;
-
-#[derive(Default)]
-pub struct ActiveSpells {
-    pub scalars: TypedActiveSpells<ScalarOutputFieldKind, ScalarField>,
-    pub vectors: TypedActiveSpells<VectorOutputFieldKind, VectorField>,
-}
-
-pub struct ActiveSpell<T> {
-    pub field: T,
-    pub words: Vec<Word>,
-}
-
-impl ActiveSpells {
-    pub fn contains(&self, kind: OutputFieldKind) -> bool {
-        match kind {
-            OutputFieldKind::Scalar(kind) => self
-                .scalars
-                .values()
-                .any(|fields| fields.contains_key(&kind)),
-            OutputFieldKind::Vector(kind) => self
-                .vectors
-                .values()
-                .any(|fields| fields.contains_key(&kind)),
-        }
-    }
-    pub fn scalars_of(
-        &self,
-        person_id: PersonId,
-    ) -> impl Iterator<Item = (ScalarOutputFieldKind, &ActiveSpell<ScalarField>)> {
-        self.scalars.get(&person_id).into_iter().flat_map(|fields| {
-            fields
-                .iter()
-                .flat_map(|(kind, spells)| spells.iter().map(move |spell| (*kind, spell)))
-        })
-    }
-    pub fn vectors_of(
-        &self,
-        person_id: PersonId,
-    ) -> impl Iterator<Item = (VectorOutputFieldKind, &ActiveSpell<VectorField>)> {
-        self.vectors.get(&person_id).into_iter().flat_map(|fields| {
-            fields
-                .iter()
-                .flat_map(|(kind, spells)| spells.iter().map(move |spell| (*kind, spell)))
-        })
-    }
-    pub fn person_contains(&self, person_id: PersonId, kind: OutputFieldKind) -> bool {
-        match kind {
-            OutputFieldKind::Scalar(kind) => self
-                .scalars
-                .get(&person_id)
-                .and_then(|fields| fields.get(&kind))
-                .map(|fields| !fields.is_empty())
-                .unwrap_or(false),
-            OutputFieldKind::Vector(kind) => self
-                .vectors
-                .get(&person_id)
-                .and_then(|fields| fields.get(&kind))
-                .map(|fields| !fields.is_empty())
-                .unwrap_or(false),
-        }
-    }
-    pub fn remove(&mut self, person_id: PersonId, kind: OutputFieldKind, i: usize) {
-        match kind {
-            OutputFieldKind::Scalar(kind) => {
-                self.scalars
-                    .entry(person_id)
-                    .or_default()
-                    .entry(kind)
-                    .or_default()
-                    .remove(i);
-            }
-            OutputFieldKind::Vector(kind) => {
-                self.vectors
-                    .entry(person_id)
-                    .or_default()
-                    .entry(kind)
-                    .or_default()
-                    .remove(i);
-            }
-        }
-    }
-    /// Get an iterator over all the words of all the active spells of a given kind.
-    pub fn player_spell_words(
-        &self,
-        kind: OutputFieldKind,
-    ) -> Box<dyn ExactSizeIterator<Item = &[Word]> + '_> {
-        match kind {
-            OutputFieldKind::Scalar(kind) => {
-                let Some(spells) = self.scalars.get(&PersonId::Player) else {
-                    return Box::new(empty());
-                };
-                let Some(spells) = spells.get(&kind) else {
-                    return Box::new(empty());
-                };
-                Box::new(spells.iter().map(|spell| spell.words.as_slice()))
-            }
-            OutputFieldKind::Vector(kind) => {
-                let Some(spells) = self.vectors.get(&PersonId::Player) else {
-                    return Box::new(empty());
-                };
-                let Some(spells) = spells.get(&kind) else {
-                    return Box::new(empty());
-                };
-                Box::new(spells.iter().map(|spell| spell.words.as_slice()))
-            }
-        }
-    }
-}
 
 #[derive(Default)]
 pub struct Controls {
@@ -173,7 +57,6 @@ impl World {
             max_bound: Pos2::ZERO,
             heat_grid: Vec::new(),
             objects: IndexMap::new(),
-            active_spells: ActiveSpells::default(),
             controls: Controls::default(),
         };
         // Place
@@ -326,13 +209,11 @@ impl World {
                     return 1.0;
                 }
                 let mut sum = 0.0;
-                for spells in self.active_spells.scalars.values() {
-                    for spell in spells.values().flatten() {
+                for person in self.people() {
+                    for spell in person.active_spells.scalars.values().flatten() {
                         sum += spell.field.sample(self, pos, false).abs();
                     }
-                }
-                for spells in self.active_spells.vectors.values() {
-                    for spell in spells.values().flatten() {
+                    for spell in person.active_spells.vectors.values().flatten() {
                         sum += spell.field.sample(self, pos, false).length();
                     }
                 }
@@ -367,10 +248,8 @@ impl World {
     ) -> Vec2 {
         puffin::profile_function!(kind.to_string());
         let from_spells = self
-            .active_spells
-            .vectors
-            .values()
-            .filter_map(|spells| spells.get(&kind))
+            .people()
+            .filter_map(|person| person.active_spells.vectors.get(&kind))
             .flatten()
             .fold(Vec2::ZERO, |acc, spell| {
                 acc + spell.field.sample(self, pos, allow_recursion)
@@ -387,29 +266,6 @@ impl World {
     }
     pub fn person_ids(&self) -> Vec<PersonId> {
         self.person_ids_iter().collect()
-    }
-    pub fn reserved_mana(&self, person_id: PersonId, stack: &Stack) -> f32 {
-        let from_scalars: f32 = self
-            .active_spells
-            .scalars_of(person_id)
-            .flat_map(|(_, spell)| &spell.words)
-            .map(|word| word.cost())
-            .sum();
-        let from_vectors: f32 = self
-            .active_spells
-            .vectors_of(person_id)
-            .flat_map(|(_, spell)| &spell.words)
-            .map(|word| word.cost())
-            .sum();
-        let from_stack: f32 = stack
-            .iter()
-            .flat_map(|item| &item.words)
-            .map(|word| word.cost())
-            .sum();
-        from_scalars + from_vectors + from_stack
-    }
-    pub fn available_mana(&self, person_id: PersonId, stack: &Stack) -> f32 {
-        self.person(person_id).max_mana - self.reserved_mana(person_id, stack)
     }
     pub fn update(&mut self) {
         // Run physics

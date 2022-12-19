@@ -599,9 +599,9 @@ impl Game {
 impl World {
     fn wait_condition(&self, condition: &WaitCondition) -> bool {
         match condition {
-            WaitCondition::SayWord(word) => self.player.person.words.last() == Some(word),
+            WaitCondition::SayWord(word) => self.player.person.stack.words().last() == Some(*word),
             WaitCondition::KnowField(kind) => self.player.progression.known_fields.contains(kind),
-            WaitCondition::EmptyStack => self.player.person.words.is_empty(),
+            WaitCondition::EmptyStack => self.player.person.stack.is_empty(),
         }
     }
     fn format_dialog_fragments(&self, fragments: &[DialogFragment]) -> String {

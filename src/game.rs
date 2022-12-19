@@ -5,6 +5,7 @@ use std::{
 
 use eframe::egui::{style::Margin, *};
 use enum_iterator::all;
+use itertools::Itertools;
 
 use crate::{
     controls::{apply_color_fading, FadeButton},
@@ -15,9 +16,8 @@ use crate::{
     person::PersonId,
     player::Player,
     plot::*,
-    stack::Stack,
     word::*,
-    world::{World, BODY_TEMP},
+    world::{Controls, World, BODY_TEMP},
     GameState,
 };
 
@@ -97,17 +97,6 @@ impl Game {
         // Set player target
         self.world.player.person.target = self.ui_state.next_player_target.take();
 
-        // Calculate fields
-        let mut stack = Stack::new(PersonId::Player);
-        let mut error = None;
-        // Calculate stack fields
-        for word in self.world.player.person.words.clone() {
-            if let Err(e) = stack.call(&mut self.world, word) {
-                error = Some(e);
-                break;
-            }
-        }
-
         // Set animation time
         let mut style = (*ctx.style()).clone();
         style.animation_time = 2.0;
@@ -125,11 +114,8 @@ impl Game {
             });
             // Show top bar and fields
             ui.allocate_ui_at_rect(rect.shrink(10.0), |ui| {
-                self.top_ui(ui, &stack);
+                self.top_ui(ui);
                 self.fields_ui(ui);
-                if let Some(e) = error {
-                    ui.label(RichText::new(e.to_string()).color(Color32::RED));
-                }
             });
         });
 
@@ -184,8 +170,8 @@ impl Game {
             })
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    self.words_ui(ui, &stack);
-                    self.controls_ui(ui, &stack);
+                    self.words_ui(ui);
+                    self.controls_ui(ui);
                     ui.with_layout(Layout::top_down(Align::Max), |ui| {
                         ui.with_layout(Layout::top_down(Align::Min), |ui| self.dialog_ui(ui))
                     });
@@ -204,7 +190,7 @@ impl Game {
                     .as_ref()
                     .map_or(false, |dialog| dialog.speakers_ui(ui));
                 if !showed_speakers_ui {
-                    self.stack_ui(ui, &stack);
+                    self.stack_ui(ui);
                 }
             });
 
@@ -216,11 +202,11 @@ impl Game {
 
         res
     }
-    fn top_ui(&mut self, ui: &mut Ui, stack: &Stack) {
+    fn top_ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
             // Mana bar
             ui.scope(|ui| {
-                let reserved = self.world.reserved_mana(PersonId::Player, stack);
+                let reserved = self.world.player.person.reserved_mana();
                 let capped = self.world.person(PersonId::Player).max_mana - reserved;
                 let color = Rgba::from_rgb(0.1, 0.1, 0.9).into();
                 ui.visuals_mut().selection.bg_fill = color;
@@ -299,15 +285,16 @@ impl Game {
         }
         // Output fields
         for output_kind in all::<OutputFieldKind>() {
-            let active_spells = &self.world.active_spells;
-            if active_spells.contains(output_kind) {
+            let player_person = &self.world.player.person;
+            if player_person.active_spells.contains(output_kind) {
                 let kind = FieldKind::from(output_kind);
                 let display = self
                     .ui_state
                     .fields_display
                     .entry(kind)
                     .or_insert_with(|| FieldDisplay::default_for(kind));
-                if display.visible && active_spells.player_spell_words(output_kind).len() > 0 {
+                if display.visible && player_person.active_spells.spell_words(output_kind).len() > 0
+                {
                     let size = display.size;
                     let center = full_rect.min + display.pos * full_rect.size();
                     let plot_rect = Rect::from_min_max(
@@ -317,7 +304,8 @@ impl Game {
                     ui.allocate_ui_at_rect(plot_rect, |ui| {
                         ui.horizontal_wrapped(|ui| {
                             let plot_resp = self.plot_io_field(ui, size, 100, 1.0, kind);
-                            let words = self.world.active_spells.player_spell_words(output_kind);
+                            let player_person = &mut self.world.player.person;
+                            let words = player_person.active_spells.spell_words(output_kind);
                             let mut to_dispel = None;
                             for (i, words) in words.enumerate() {
                                 if Self::spell_words_ui(ui, words, size, true) {
@@ -325,9 +313,7 @@ impl Game {
                                 }
                             }
                             if let Some(i) = to_dispel {
-                                self.world
-                                    .active_spells
-                                    .remove(PersonId::Player, output_kind, i);
+                                player_person.active_spells.remove(output_kind, i);
                             }
                             if plot_resp
                                 .response
@@ -365,7 +351,7 @@ impl Game {
                     ui.toggle_value(enabled, kind.to_string());
                 }
                 for output_kind in all::<OutputFieldKind>() {
-                    if self.world.active_spells.contains(output_kind) {
+                    if self.world.player.person.active_spells.contains(output_kind) {
                         let kind = FieldKind::from(output_kind);
                         let enabled = &mut self
                             .ui_state
@@ -426,16 +412,22 @@ impl Game {
         })
         .inner
     }
-    fn stack_ui(&mut self, ui: &mut Ui, stack: &Stack) {
+    fn stack_ui(&mut self, ui: &mut Ui) {
         ScrollArea::horizontal().show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
-                for item in stack.iter() {
+                for item in self.world.player.person.stack.iter().collect_vec() {
                     let plot_resp =
                         self.plot_stack_field(ui, SMALL_PLOT_SIZE, 50, 1.0, &item.field);
-                    self.handle_plot_response(ui, plot_resp);
+                    Self::handle_plot_response_impl(
+                        ui,
+                        &mut self.ui_state,
+                        &mut self.world.controls,
+                        plot_resp,
+                    );
                     Self::spell_words_ui(ui, &item.words, SMALL_PLOT_SIZE, false);
                 }
+                let stack = &self.world.player.person.stack;
                 if self.ui_state.last_stack_len != stack.len() {
                     ui.scroll_to_cursor(None);
                     self.ui_state.last_stack_len = stack.len();
@@ -443,10 +435,10 @@ impl Game {
             });
         });
     }
-    fn words_ui(&mut self, ui: &mut Ui, stack: &Stack) {
-        ui.vertical(|ui| self.words_ui_impl(ui, stack));
+    fn words_ui(&mut self, ui: &mut Ui) {
+        ui.vertical(|ui| self.words_ui_impl(ui));
     }
-    fn words_ui_impl(&mut self, ui: &mut Ui, stack: &Stack) {
+    fn words_ui_impl(&mut self, ui: &mut Ui) {
         Grid::new("words").min_col_width(10.0).show(ui, |ui| {
             // Words
             use Word::*;
@@ -464,29 +456,34 @@ impl Game {
                 .dialog
                 .as_ref()
                 .map_or(true, |dialog| dialog.allows_casting());
-            let available_mana = self.world.available_mana(PersonId::Player, stack);
+            let available_mana = self.world.player.person.capped_mana();
+            // Rows
             for (i, row) in WORD_GRID.iter().enumerate() {
+                // Words in the row
                 for word in *row {
+                    let player_person = &self.world.player.person;
                     let f = word.function();
                     let known = self.world.player.progression.known_words.contains(word);
                     let enabled = dialog_allows_casting
                         && known
-                        && stack.validate_function_use(f).is_ok()
+                        && player_person.stack.validate_function_use(f).is_ok()
                         && available_mana >= word.cost();
                     let hilight = matches!(f, Function::WriteField(_));
                     let button = FadeButton::new(word, known, word.to_string()).hilight(hilight);
                     if ui.add_enabled(enabled, button).clicked() {
-                        if let Function::ReadField(kind) = f {
+                        let _err = if let Function::ReadField(kind) = f {
                             if self.world.player.progression.known_fields.insert(kind) {
+                                // Reveal the relevant field if this is the first time its word is said
                                 self.ui_state
                                     .fields_display
                                     .insert(kind.into(), FieldDisplay::default_for(kind.into()));
+                                None
                             } else {
-                                self.world.player.person.words.push(*word);
+                                self.world.player.person.say(PersonId::Player, *word).err()
                             }
                         } else {
-                            self.world.player.person.words.push(*word);
-                        }
+                            self.world.player.person.say(PersonId::Player, *word).err()
+                        };
                     }
                 }
                 if i == 0 {
@@ -497,7 +494,7 @@ impl Game {
                     if show_release {
                         apply_color_fading(ui.visuals_mut(), visibility);
                         if ui.button("Free").clicked() {
-                            self.world.player.person.words.clear();
+                            self.world.player.person.stack.clear();
                         }
                     } else {
                         ui.label("");
@@ -507,21 +504,22 @@ impl Game {
             }
         });
     }
-    fn controls_ui(&mut self, ui: &mut Ui, stack: &Stack) {
+    fn controls_ui(&mut self, ui: &mut Ui) {
         // Controls
-        let stack_controls = stack.iter().flat_map(|item| item.field.controls());
-        let outputs = &mut self.world.active_spells;
-        let scalar_output_controls = outputs
+        let player_person = &mut self.world.player.person;
+        let stack_controls = player_person
+            .stack
+            .iter()
+            .flat_map(|item| item.field.controls());
+        let scalar_output_controls = player_person
+            .active_spells
             .scalars
-            .entry(PersonId::Player)
-            .or_default()
             .values()
             .flatten()
             .flat_map(|spell| spell.field.controls());
-        let vector_output_controls = outputs
+        let vector_output_controls = player_person
+            .active_spells
             .vectors
-            .entry(PersonId::Player)
-            .or_default()
             .values()
             .flatten()
             .flat_map(|spell| spell.field.controls());
@@ -600,12 +598,20 @@ impl Game {
             }
         });
     }
-    fn handle_plot_response(&mut self, ui: &mut Ui, plot_resp: PlotResponse) {
-        if self.ui_state.next_player_target.is_none() {
-            self.ui_state.next_player_target = plot_resp.hovered_pos;
+    fn handle_plot_response(&mut self, ui: &Ui, plot_resp: PlotResponse) {
+        Self::handle_plot_response_impl(ui, &mut self.ui_state, &mut self.world.controls, plot_resp)
+    }
+    fn handle_plot_response_impl(
+        ui: &Ui,
+        ui_state: &mut UiState,
+        controls: &mut Controls,
+        plot_resp: PlotResponse,
+    ) {
+        if ui_state.next_player_target.is_none() {
+            ui_state.next_player_target = plot_resp.hovered_pos;
         }
         if plot_resp.response.hovered() {
-            self.world.controls.activation = ui.input().pointer.primary_down();
+            controls.activation = ui.input().pointer.primary_down();
         }
     }
     fn init_plot(&self, size: f32, resolution: usize, global_alpha: f32) -> FieldPlot {
