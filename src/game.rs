@@ -487,11 +487,11 @@ impl Game {
                     }
                 }
                 if i == 0 {
-                    // Release
-                    let show_release = self.world.player.progression.release;
-                    let id = ui.make_persistent_id("release");
-                    let visibility = ui.ctx().animate_bool(id, show_release);
-                    if show_release {
+                    // Free
+                    let show_free = self.world.player.progression.free;
+                    let id = ui.make_persistent_id("free");
+                    let visibility = ui.ctx().animate_bool(id, show_free);
+                    if show_free {
                         apply_color_fading(ui.visuals_mut(), visibility);
                         if ui.button("Free").clicked() {
                             self.world.player.person.stack.clear();

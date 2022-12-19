@@ -102,6 +102,7 @@ impl Word {
             Vila => 2.0,
             Pa => 3.0,
             Pi => 3.0,
+            No | Reve | Rovo => 0.0,
             _ => 1.0,
         }
     }

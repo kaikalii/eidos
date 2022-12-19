@@ -167,8 +167,8 @@
 #   lines:
 #     - Can you sense the word on your stack?
 #     - You have internalized the Mesi field.
-#     - There's not much you can do with it yet, so why don't you release your stack.
-#     - reveal_release
+#     - There's not much you can do with it yet, so why don't you free your stack.
+#     - reveal_free
 #     - Feel the pent up magic within you, and let it go.
 #   children:
 #     wait: empty_stack
@@ -178,7 +178,7 @@ end:
     - background: school1.png
     - reveal_all_words
     - reveal_mana_bar
-    - reveal_release
+    - reveal_free
     - reveal_field: Density
     - reveal_field: Elevation
     - reveal_field: Magic

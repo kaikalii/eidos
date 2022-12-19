@@ -20,7 +20,7 @@ pub struct Progression {
     pub known_words: HashSet<Word>,
     pub known_fields: HashSet<InputFieldKind>,
     pub mana_bar: bool,
-    pub release: bool,
+    pub free: bool,
 }
 
 #[allow(clippy::derivable_impls)]
@@ -30,7 +30,7 @@ impl Default for Progression {
             known_words: HashSet::new(),
             known_fields: HashSet::new(),
             mana_bar: false,
-            release: false,
+            free: false,
         }
     }
 }

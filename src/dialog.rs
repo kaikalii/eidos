@@ -162,7 +162,7 @@ pub enum DialogCommand {
     RevealWord(Word),
     RevealAllWords,
     RevealManaBar,
-    RevealRelease,
+    RevealFree,
     RevealField(InputFieldKind),
 }
 
@@ -509,7 +509,7 @@ impl Game {
                             .fields_display
                             .insert((*kind).into(), FieldDisplay::default_for((*kind).into()));
                     }
-                    DialogCommand::RevealRelease => progression.release = true,
+                    DialogCommand::RevealFree => progression.free = true,
                 }
                 self.progress_dialog();
                 self.dialog_ui_impl(ui);
