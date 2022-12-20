@@ -361,7 +361,17 @@ impl World {
         // Place objects
         for po in &place.objects {
             let object = OBJECTS[&po.name].clone();
-            self.add_object_def(po.pos, object);
+            if let Some(repli) = &po.replication {
+                for i in 0..repli.right {
+                    for j in 0..repli.up {
+                        let pos =
+                            po.pos + vec2(repli.spacing.x * i as f32, repli.spacing.y * j as f32);
+                        self.add_object_def(pos, object.clone());
+                    }
+                }
+            } else {
+                self.add_object_def(po.pos, object);
+            }
         }
         // Init heat grid
         self.heat_grid = vec![vec![DEFAULT_TEMP; self.hear_grid_height()]; self.hear_grid_width()];

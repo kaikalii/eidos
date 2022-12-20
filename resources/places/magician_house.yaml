@@ -9,3 +9,9 @@ objects:
     pos: [0, 0]
   - name: simple_light
     pos: [-2, 3]
+  - name: small_cube
+    pos: [2, 0.1]
+    replication:
+      spacing: [0.4, 0.4]
+      right: 2
+      up: 5

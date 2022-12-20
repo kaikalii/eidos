@@ -41,3 +41,9 @@ simple_light:
   props:
     light: 10
     constant_heat: 300
+small_cube:
+  type: Dynamic
+  shapes:
+    - shape:
+        box: [0.4, 0.4]
+      density: 0.8

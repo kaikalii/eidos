@@ -222,6 +222,16 @@ pub struct PlacedObject {
     pub name: String,
     #[serde(deserialize_with = "pos2_as_array")]
     pub pos: Pos2,
+    #[serde(default)]
+    pub replication: Option<Replication>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Replication {
+    #[serde(deserialize_with = "vec2_as_array")]
+    pub spacing: Vec2,
+    pub right: usize,
+    pub up: usize,
 }
 
 #[derive(Debug, Clone, Deserialize)]
