@@ -484,9 +484,9 @@ impl Game {
                 &[Ti,   Tu,   Ta,   Te  ],
                 &[Le,   Po,   Lusa, Selo, Mesi],
                 &[Pa,   Pi,   Sila, Vila, Veni],
-                &[Kova, Kovi, Ke,   Seva, Sevi],
+                &[Kova, Kovi, Ke,   Pe,   Seva, Sevi],
                 &[Ma,   Na,   Sa,   Reso, Solo, Kuru],
-                &[No,   Mo,   Reve, Rovo, Sevu, Kovu, Reko],
+                &[No,   Mo,   Revi, Rovo, Sevu, Kovu],
             ];
             let dialog_allows_casting = self
                 .ui_state
@@ -807,6 +807,7 @@ impl FieldPlottable for VectorFieldKind {
             VectorFieldKind::Input(_) => default_vector_color(t),
             VectorFieldKind::Output(kind) => match kind {
                 VectorOutputFieldKind::Gravity => simple_vector_color(t, 0.5),
+                VectorOutputFieldKind::Force => simple_vector_color(t, 0.5),
             },
         }
     }

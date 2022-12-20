@@ -29,7 +29,7 @@ pub enum Word {
     Mesi,
     // Outputs
     Ke,
-    Reko,
+    Pe,
     // Operators
     Ma,
     Sa,
@@ -46,7 +46,7 @@ pub enum Word {
     // Combinators
     No,
     Mo,
-    Reve,
+    Revi,
     Rovo,
 }
 
@@ -70,6 +70,7 @@ impl Word {
             Selo => ScalarInputFieldKind::Heat.into(),
             Mesi => ScalarInputFieldKind::Magic.into(),
             Ke => VectorOutputFieldKind::Gravity.into(),
+            Pe => VectorOutputFieldKind::Force.into(),
             Ma => HomoBinOp::Add.into(),
             Sa => HeteroBinOp::Mul.into(),
             Na => MathUnOp::Neg.into(),
@@ -78,14 +79,13 @@ impl Word {
             Kuru => ScalarUnOp::Sqrt.into(),
             No => Combinator1::Drop.into(),
             Mo => Combinator1::Duplicate.into(),
-            Reve => Combinator2::Swap.into(),
+            Revi => Combinator2::Swap.into(),
             Rovo => Combinator2::Over.into(),
             Sila => ControlKind::XSlider.into(),
             Vila => ControlKind::YSlider.into(),
             Pa => Nullary::TargetX.into(),
             Pi => Nullary::TargetY.into(),
             Veni => ControlKind::Activation.into(),
-            Reko => Function::Record,
         }
     }
     pub fn etchable(&self) -> bool {
@@ -102,7 +102,7 @@ impl Word {
             Vila => 2.0,
             Pa => 3.0,
             Pi => 3.0,
-            No | Reve | Rovo => 0.0,
+            No | Revi | Rovo => 0.0,
             _ => 1.0,
         }
     }

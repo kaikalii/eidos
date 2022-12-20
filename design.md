@@ -24,11 +24,14 @@ Scalars
 
 Vectors
 - Gravity
+- Force
 
 # Story
 
 The story takes place at a magical academy. 
 The player is new student who is blind but can still sense things through magic.
+
+## Characters
 
 # Gameplay
 
@@ -46,6 +49,11 @@ There are opportunities to talk to other students and teachers before and after 
 Most days consist of going to classes.
 Classes consist of a teacher explaing how to do some kind of magic and then practicing that concept.
 Along with basic classes, the player can choose to take specialized classes for different kinds of magic.
+
+List of classes:
+- Basic casting
+  - Verbal casting
+  - Conduit etching
 
 ## Competitions
 

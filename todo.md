@@ -1,3 +1,2 @@
-- Add spell etching
 - Design characters
 - Write plot

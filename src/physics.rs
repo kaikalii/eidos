@@ -87,11 +87,15 @@ impl World {
                 continue;
             }
             let pos = self.objects[&handle].pos;
-            let vector = self.sample_output_vector_field(VectorOutputFieldKind::Gravity, pos, true);
+            let gravity_acc =
+                self.sample_output_vector_field(VectorOutputFieldKind::Gravity, pos, true);
+            let field_force =
+                self.sample_output_vector_field(VectorOutputFieldKind::Force, pos, true);
             let body = &mut self.physics.bodies[handle];
-            let scaled_vector = vector * body.mass();
+            let gravity_force = gravity_acc * body.mass();
+            let total_force = field_force + gravity_force;
             body.reset_forces(true);
-            body.add_force(scaled_vector.convert(), true);
+            body.add_force(total_force.convert(), true);
         }
         // Step physics
         self.physics.step();

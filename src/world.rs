@@ -256,6 +256,7 @@ impl World {
             });
         match kind {
             VectorOutputFieldKind::Gravity => from_spells + Vec2::new(0.0, -9.81),
+            VectorOutputFieldKind::Force => from_spells,
         }
     }
     pub fn people(&self) -> impl Iterator<Item = &Person> {
