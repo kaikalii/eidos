@@ -481,11 +481,11 @@ impl Game {
             use Word::*;
             #[rustfmt::skip]
             static WORD_GRID: &[&[Word]] = &[
-                &[Ti,   Tu,   Ta,   Te  ],
-                &[Le,   Po,   Lusa, Selo, Mesi],
-                &[Pa,   Pi,   Sila, Vila, Veni],
-                &[Kova, Kovi, Ke,   Pe,   Seva, Sevi],
-                &[Ma,   Na,   Sa,   Reso, Solo, Kuru, Riva],
+                &[Ti,   Tu,   Ta,   Te,   Kova, Kovi],
+                &[Ma,   Na,   Sa,   Seva, Sevi, Ke, ],
+                &[Le,   Po,   Lusa, Selo, Mesi, Pe, ],
+                &[Reso, Solo, Kuru, Wava, Riva,     ],
+                &[Pa,   Pi,   Sila, Vila, Veni,     ],
                 &[No,   Mo,   Revi, Rovo, Sevu, Kovu],
             ];
             let dialog_allows_casting = self
