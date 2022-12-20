@@ -18,7 +18,7 @@ pub enum Function {
     Nullary(Nullary),
     #[from(types(HeteroBinOp, HomoBinOp))]
     Bin(BinOp),
-    #[from(types(MathUnOp, ScalarUnOp, ToScalarOp))]
+    #[from(types(MathUnOp, ScalarUnOp, ToScalarOp, ScalarUnVectorOp))]
     Un(UnOp),
     #[from]
     Combinator1(Combinator1),
@@ -91,6 +91,7 @@ pub trait UnOperator<T> {
 pub enum UnOp {
     Math(MathUnOp),
     Scalar(ScalarUnOp),
+    ScalarVector(ScalarUnVectorOp),
     VectorScalar(VectorUnScalarOp),
     VectorVector(VectorUnVectorOp),
     ToScalar(ToScalarOp),
@@ -123,6 +124,11 @@ pub enum ScalarUnOp {
 pub enum VectorUnScalarOp {
     Length,
     ToScalar(ToScalarOp),
+}
+
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum ScalarUnVectorOp {
+    Derivative,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
@@ -396,7 +402,9 @@ impl Function {
             Function::Combinator2(_) => vec![Any; 2],
             Function::Un(op) => match op {
                 UnOp::Math(_) => vec![Any],
-                UnOp::Scalar(_) => vec![Constrain(ValueConstraint::Exact(Type::Scalar))],
+                UnOp::Scalar(_) | UnOp::ScalarVector(_) => {
+                    vec![Constrain(ValueConstraint::Exact(Type::Scalar))]
+                }
                 UnOp::VectorScalar(_) | UnOp::VectorVector(_) => {
                     vec![Constrain(ValueConstraint::Exact(Type::Vector))]
                 }

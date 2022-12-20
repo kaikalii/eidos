@@ -255,7 +255,7 @@ impl World {
                 acc + spell.field.sample(self, pos, allow_recursion)
             });
         match kind {
-            VectorOutputFieldKind::Gravity => from_spells + Vec2::new(0.0, -9.81),
+            VectorOutputFieldKind::Gravity => from_spells + vec2(0.0, -9.81),
             VectorOutputFieldKind::Force => from_spells,
         }
     }

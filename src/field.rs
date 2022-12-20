@@ -56,7 +56,8 @@ pub enum ScalarField {
 #[derive(Debug, Clone, From)]
 pub enum VectorField {
     Uniform(Vec2),
-    Un(TypedUnOp<VectorUnVectorOp>, Box<Self>),
+    VectorUn(TypedUnOp<VectorUnVectorOp>, Box<Self>),
+    ScalarUn(ScalarUnVectorOp, Box<ScalarField>),
     BinSV(TypedBinOp<NoOp<Vec2>>, ScalarField, Box<Self>),
     BinVS(TypedBinOp<NoOp<Vec2>>, Box<Self>, ScalarField),
     BinVV(TypedBinOp<HomoBinOp>, Box<Self>, Box<Self>),
@@ -250,6 +251,14 @@ impl ScalarField {
             _ => Vec::new(),
         }
     }
+    pub fn derivative_at(&self, world: &World, pos: Pos2, allow_recursion: bool) -> Vec2 {
+        const RANGE: f32 = 0.1;
+        let left_x = self.sample(world, pos - Vec2::X * RANGE, allow_recursion);
+        let right_x = self.sample(world, pos + Vec2::X * RANGE, allow_recursion);
+        let down_y = self.sample(world, pos - Vec2::Y * RANGE, allow_recursion);
+        let up_y = self.sample(world, pos + Vec2::Y * RANGE, allow_recursion);
+        Vec2::new(right_x - left_x, up_y - down_y) / (2.0 * RANGE)
+    }
 }
 
 impl VectorField {
@@ -257,7 +266,12 @@ impl VectorField {
         puffin::profile_function!();
         match self {
             VectorField::Uniform(v) => *v,
-            VectorField::Un(op, field) => op.operate(field.sample(world, pos, allow_recursion)),
+            VectorField::VectorUn(op, field) => {
+                op.operate(field.sample(world, pos, allow_recursion))
+            }
+            VectorField::ScalarUn(op, field) => match op {
+                ScalarUnVectorOp::Derivative => field.derivative_at(world, pos, allow_recursion),
+            },
             VectorField::BinSV(op, a, b) => op.operate(
                 a.sample(world, pos, allow_recursion),
                 b.sample(world, pos, allow_recursion),
@@ -287,11 +301,11 @@ impl VectorField {
     }
     pub fn reduce(self) -> Self {
         match self {
-            VectorField::Un(op, field) => {
+            VectorField::VectorUn(op, field) => {
                 if let Some(v) = field.uniform() {
                     VectorField::Uniform(op.operate(v))
                 } else {
-                    VectorField::Un(op, field)
+                    VectorField::VectorUn(op, field)
                 }
             }
             VectorField::BinSV(op, a, b) => {
@@ -320,7 +334,7 @@ impl VectorField {
     }
     pub fn controls(&self) -> Vec<ControlKind> {
         match self {
-            VectorField::Un(_, field) => field.controls(),
+            VectorField::VectorUn(_, field) => field.controls(),
             VectorField::BinSV(_, a, b) => {
                 [a.controls(), b.controls()].into_iter().flatten().collect()
             }

@@ -37,6 +37,7 @@ pub enum Word {
     Reso,
     Solo,
     Kuru,
+    Riva,
     // Controls
     Sila,
     Vila,
@@ -77,6 +78,7 @@ impl Word {
             Solo => ToScalarOp::Magnitude.into(),
             Reso => ScalarUnOp::Reciprocal.into(),
             Kuru => ScalarUnOp::Sqrt.into(),
+            Riva => ScalarUnVectorOp::Derivative.into(),
             No => Combinator1::Drop.into(),
             Mo => Combinator1::Duplicate.into(),
             Revi => Combinator2::Swap.into(),

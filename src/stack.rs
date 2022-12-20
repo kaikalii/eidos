@@ -159,7 +159,7 @@ impl Stack {
                         ),
                         Field::Vector(f) => self.push(
                             words,
-                            VectorField::Un(TypedUnOp::Math(op), f.into()).reduce(),
+                            VectorField::VectorUn(TypedUnOp::Math(op), f.into()).reduce(),
                         ),
                     },
                     UnOp::Scalar(op) => match a.field {
@@ -167,6 +167,12 @@ impl Stack {
                             words,
                             ScalarField::ScalarUn(TypedUnOp::Typed(op), f.into()).reduce(),
                         ),
+                        _ => unreachable!(),
+                    },
+                    UnOp::ScalarVector(op) => match a.field {
+                        Field::Scalar(f) => {
+                            self.push(words, VectorField::ScalarUn(op, f.into()).reduce())
+                        }
                         _ => unreachable!(),
                     },
                     UnOp::VectorScalar(op) => match a.field {
@@ -178,7 +184,7 @@ impl Stack {
                     UnOp::VectorVector(op) => match a.field {
                         Field::Vector(f) => self.push(
                             words,
-                            VectorField::Un(TypedUnOp::Typed(op), f.into()).reduce(),
+                            VectorField::VectorUn(TypedUnOp::Typed(op), f.into()).reduce(),
                         ),
                         _ => unreachable!(),
                     },

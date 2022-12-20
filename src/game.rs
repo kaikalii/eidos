@@ -485,7 +485,7 @@ impl Game {
                 &[Le,   Po,   Lusa, Selo, Mesi],
                 &[Pa,   Pi,   Sila, Vila, Veni],
                 &[Kova, Kovi, Ke,   Pe,   Seva, Sevi],
-                &[Ma,   Na,   Sa,   Reso, Solo, Kuru],
+                &[Ma,   Na,   Sa,   Reso, Solo, Kuru, Riva],
                 &[No,   Mo,   Revi, Rovo, Sevu, Kovu],
             ];
             let dialog_allows_casting = self
