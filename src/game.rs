@@ -266,7 +266,7 @@ impl Game {
                     Vec2::splat(size),
                 );
                 ui.allocate_ui_at_rect(plot_rect, |ui| {
-                    let plot_resp = self.plot_io_field(ui, size, 100, alpha, kind);
+                    let plot_resp = self.plot_io_field(ui, size, alpha, kind);
                     if plot_resp
                         .response
                         .double_clicked_by(PointerButton::Secondary)
@@ -303,7 +303,7 @@ impl Game {
                     );
                     ui.allocate_ui_at_rect(plot_rect, |ui| {
                         ui.horizontal_wrapped(|ui| {
-                            let plot_resp = self.plot_io_field(ui, size, 100, 1.0, kind);
+                            let plot_resp = self.plot_io_field(ui, size, 1.0, kind);
                             let player_person = &mut self.world.player.person;
                             let words = player_person.active_spells.spell_words(output_kind);
                             let mut to_dispel = None;
@@ -417,8 +417,7 @@ impl Game {
             ui.horizontal(|ui| {
                 ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
                 for item in self.world.player.person.stack.iter().collect_vec() {
-                    let plot_resp =
-                        self.plot_stack_field(ui, SMALL_PLOT_SIZE, 50, 1.0, &item.field);
+                    let plot_resp = self.plot_stack_field(ui, SMALL_PLOT_SIZE, 1.0, &item.field);
                     Self::handle_plot_response_impl(
                         ui,
                         &mut self.ui_state,
@@ -652,26 +651,23 @@ impl Game {
             controls.activation = ui.input().pointer.primary_down();
         }
     }
-    fn init_plot(&self, size: f32, resolution: usize, global_alpha: f32) -> FieldPlot {
+    fn init_plot(&self, size: f32, global_alpha: f32) -> FieldPlot {
         let rect = self.world.max_rect();
         let range = rect.size().max_elem() * 0.5;
-        FieldPlot::new(&self.world, rect.center(), range, global_alpha)
-            .size(size)
-            .resolution(resolution)
+        FieldPlot::new(&self.world, rect.center(), range, global_alpha).size(size)
     }
     #[must_use]
     pub fn plot_stack_field(
         &self,
         ui: &mut Ui,
         size: f32,
-        resolution: usize,
         global_alpha: f32,
         field: &Field,
     ) -> PlotResponse {
-        let plot = self.init_plot(size, resolution, global_alpha);
+        let plot = self.init_plot(size, global_alpha);
         match field {
             Field::Scalar(ScalarField::Uniform(n)) => {
-                FieldPlot::number_ui(&self.world, ui, size, resolution, global_alpha, *n)
+                FieldPlot::number_ui(&self.world, ui, size, global_alpha, *n)
             }
             Field::Scalar(field) => plot.ui(ui, field),
             Field::Vector(field) => plot.ui(ui, field),
@@ -682,11 +678,10 @@ impl Game {
         &self,
         ui: &mut Ui,
         size: f32,
-        resolution: usize,
         global_alpha: f32,
         kind: FieldKind,
     ) -> PlotResponse {
-        let plot = self.init_plot(size, resolution, global_alpha);
+        let plot = self.init_plot(size, global_alpha);
         match kind {
             FieldKind::Scalar(kind) => plot.ui(ui, &kind),
             FieldKind::Vector(kind) => plot.ui(ui, &kind),
@@ -694,11 +689,14 @@ impl Game {
     }
 }
 
+const DEFAULT_SCALAR_PRECISION: f32 = 0.6;
+const DEFAULT_VECTOR_PRECISION: f32 = 0.2;
+
 /// For rendering scalar stack fields
 impl FieldPlottable for ScalarField {
     type Value = f32;
     fn precision(&self) -> f32 {
-        1.0
+        DEFAULT_SCALAR_PRECISION
     }
     fn color_midpoint(&self) -> f32 {
         if let ScalarField::Input(kind) = self {
@@ -722,7 +720,7 @@ impl FieldPlottable for ScalarField {
 impl FieldPlottable for VectorField {
     type Value = Vec2;
     fn precision(&self) -> f32 {
-        0.35
+        DEFAULT_VECTOR_PRECISION
     }
     fn color_midpoint(&self) -> f32 {
         1.0
@@ -740,8 +738,10 @@ impl FieldPlottable for ScalarFieldKind {
     type Value = f32;
     fn precision(&self) -> f32 {
         match self {
-            ScalarFieldKind::Input(ScalarInputFieldKind::Elevation) => 0.7,
-            _ => 1.0,
+            ScalarFieldKind::Input(ScalarInputFieldKind::Elevation) => {
+                DEFAULT_SCALAR_PRECISION * 0.7
+            }
+            _ => DEFAULT_SCALAR_PRECISION,
         }
     }
     fn color_midpoint(&self) -> f32 {
@@ -784,7 +784,7 @@ impl FieldPlottable for ScalarFieldKind {
 impl FieldPlottable for VectorFieldKind {
     type Value = Vec2;
     fn precision(&self) -> f32 {
-        0.35
+        DEFAULT_VECTOR_PRECISION
     }
     fn color_midpoint(&self) -> f32 {
         1.0

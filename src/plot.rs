@@ -28,7 +28,7 @@ pub trait FieldPlottable: Sync {
 }
 
 fn wiggle_delta(point_radius: f32, precision: f32) -> f32 {
-    point_radius * 0.05 * precision
+    point_radius * 0.1 * precision
 }
 
 pub trait PartitionAndPlottable: Sized + Send {
@@ -69,7 +69,6 @@ pub struct FieldPlot<'w> {
     center: Pos2,
     range: f32,
     size: f32,
-    resolution: usize,
     global_alpha: f32,
 }
 
@@ -102,15 +101,11 @@ impl<'w> FieldPlot<'w> {
             center,
             range,
             size: 200.0,
-            resolution: 100,
             global_alpha,
         }
     }
     pub fn size(self, size: f32) -> Self {
         Self { size, ..self }
-    }
-    pub fn resolution(self, resolution: usize) -> Self {
-        Self { resolution, ..self }
     }
     fn init_plot(&self) -> Plot {
         Plot::new(random::<u64>())
@@ -133,19 +128,19 @@ impl<'w> FieldPlot<'w> {
         F: FieldPlottable,
     {
         let time = time();
-        let resolution = ((self.resolution as f32) * field_plot.precision()) as usize;
+        let resolution = (self.size * field_plot.precision()) as usize;
         let step = 2.0 * self.range / resolution as f32;
         let point_radius = self.size / resolution as f32 * 0.5;
         let wiggle_delta = field_plot.wiggle_delta(point_radius);
         let center = pos2(round_to(self.center.x, step), round_to(self.center.y, step));
-        let points = (0..self.resolution)
+        let points = (0..resolution)
             .par_bridge()
             .flat_map(|i| {
                 puffin::profile_scope!("point collection");
                 let x = (i as f32) * step + center.x - self.range;
                 let rounded_x = round_to(x, step * 0.5);
-                let mut points = Vec::with_capacity(self.resolution);
-                for j in 0..self.resolution {
+                let mut points = Vec::with_capacity(resolution);
+                for j in 0..resolution {
                     let y = (j as f32) * step + center.y - self.range;
                     if pos2(x, y).distance(self.center) > self.range {
                         continue;
@@ -249,21 +244,18 @@ impl<'w> FieldPlot<'w> {
         world: &'w World,
         ui: &mut Ui,
         size: f32,
-        resolution: usize,
         global_alpha: f32,
         n: f32,
     ) -> PlotResponse {
         let time = time();
-        let plot = Self::new(world, Pos2::ZERO, 2.1, global_alpha)
-            .size(size)
-            .resolution(resolution);
+        let plot = Self::new(world, Pos2::ZERO, 2.1, global_alpha).size(size);
         let rng = RefCell::new(SmallRng::seed_from_u64(0));
-        let point_radius = plot.range * plot.size / plot.resolution as f32 * 0.1;
+        let point_radius = plot.range * plot.size / plot.size * 0.1;
         let delta = move || {
             (time + rng.borrow_mut().gen::<f64>() * 2.0 * f64::consts::PI).sin()
                 * wiggle_delta(point_radius, 1.0) as f64
         };
-        let samples = (plot.resolution * 2).max(80);
+        let samples = (plot.size as usize * 2).max(80);
         let resp = plot.init_plot().show(ui, |plot_ui| {
             const FLOWER_MAX: f32 = 10.0;
             let frac = (n as f64) % 1.0;
