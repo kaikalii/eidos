@@ -110,6 +110,13 @@ impl Object {
     pub fn transform_point(&self, pos: Pos2) -> Pos2 {
         rotate(pos.to_vec2() - self.pr.pos.to_vec2(), -self.pr.rot).to_pos2()
     }
+    pub fn transform_point_as_ordered(&self, pos: Pos2) -> Pos2 {
+        rotate(
+            pos.to_vec2() - self.ordered_pr.pos.to_vec2(),
+            -self.ordered_pr.rot,
+        )
+        .to_pos2()
+    }
 }
 
 pub trait IntoShapes {

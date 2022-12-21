@@ -114,10 +114,11 @@ impl ShapeLayer {
 }
 
 impl World {
-    pub fn find_object_filtered_at(
+    fn find_obj_filtered_at_impl(
         &self,
         p: Pos2,
         filter: impl Fn(&Object, &RigidBody) -> bool,
+        transform_point: fn(&Object, Pos2) -> Pos2,
     ) -> Option<(&Object, &OffsetShape, ShapeLayer)> {
         puffin::profile_function!();
         let mut min_layer = ShapeLayer::Far;
@@ -126,7 +127,7 @@ impl World {
             if !filter(obj, &self.physics.bodies[obj.body_handle]) {
                 continue;
             }
-            let transformed_point = obj.transform_point(p);
+            let transformed_point = transform_point(obj, p);
             if let Some(shape) = obj
                 .def
                 .shapes
@@ -155,6 +156,13 @@ impl World {
             }
         }
         best.map(|(obj, shape)| (obj, shape, min_layer))
+    }
+    pub fn find_object_filtered_at(
+        &self,
+        p: Pos2,
+        filter: impl Fn(&Object, &RigidBody) -> bool,
+    ) -> Option<(&Object, &OffsetShape, ShapeLayer)> {
+        self.find_obj_filtered_at_impl(p, filter, Object::transform_point)
     }
     pub fn find_object_at(&self, p: Pos2) -> Option<(&Object, &OffsetShape, ShapeLayer)> {
         self.find_object_filtered_at(p, |_, _| true)
@@ -256,6 +264,13 @@ impl World {
                 if let Some((obj, _, _)) = self.find_object_at(pos) {
                     obj.pr.pos.distance(obj.ordered_pr.pos)
                         + angle_diff(obj.pr.rot, obj.ordered_pr.rot).abs() / PI
+                } else if let Some((obj, _, _)) = self.find_obj_filtered_at_impl(
+                    pos,
+                    |_, _| true,
+                    Object::transform_point_as_ordered,
+                ) {
+                    -(obj.pr.pos.distance(obj.ordered_pr.pos)
+                        + angle_diff(obj.pr.rot, obj.ordered_pr.rot).abs() / PI)
                 } else {
                     0.0
                 }
