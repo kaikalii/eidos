@@ -1,4 +1,5 @@
 - Resolve background shape issues
+- Fix stack words display
 - Add order
 - Add memory
 - Design characters

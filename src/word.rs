@@ -26,6 +26,8 @@ use crate::{field::*, function::*, utils::resources_path};
 )]
 pub enum Word {
     // Numbers
+    /// 0
+    To,
     /// 1
     Ti,
     /// 2
@@ -73,6 +75,10 @@ pub enum Word {
     Sa,
     /// Negate
     Na,
+    /// Min
+    Meki,
+    /// Max
+    Meka,
     /// Reciprocal
     Reso,
     /// Magnitude
@@ -109,6 +115,7 @@ impl Word {
     pub fn function(&self) -> Function {
         use Word::*;
         match self {
+            To => Nullary::Zero.into(),
             Ti => Nullary::One.into(),
             Tu => Nullary::Two.into(),
             Ta => Nullary::Five.into(),
@@ -130,6 +137,8 @@ impl Word {
             Ma => HomoBinOp::Add.into(),
             Sa => HeteroBinOp::Mul.into(),
             Na => MathUnOp::Neg.into(),
+            Meki => HomoBinOp::Min.into(),
+            Meka => HomoBinOp::Max.into(),
             Solo => ToScalarOp::Magnitude.into(),
             Reso => ScalarUnOp::Reciprocal.into(),
             Kuru => ScalarUnOp::Sqrt.into(),
@@ -152,6 +161,7 @@ impl Word {
     pub fn cost(&self) -> f32 {
         use Word::*;
         match self {
+            To => 0.0,
             Ti => 1.0,
             Tu => 2.0,
             Ta => 5.0,
@@ -265,9 +275,11 @@ static REFERENCE_SPELLS: &[&[Word]] = &[
     &[Seva, Kova],
     &[Sevi, Kovi],
     &[Sa, Sela],
+    &[To, Meki],
+    &[To, Meka],
 ];
 static GROUPS: &[&[Word]] = &[
-    &[Ti, Tu, Ta, Te],
+    &[To, Ti, Tu, Ta, Te],
     &[Seva, Sevi],
     &[Kova, Kovi],
     &[Pa, Pi],
@@ -275,6 +287,7 @@ static GROUPS: &[&[Word]] = &[
     &[Sila, Vila],
     &[Ke, Pe],
     &[Revi, Rovo],
+    &[Meki, Meka],
 ];
 
 impl Phenotype {
@@ -315,7 +328,7 @@ impl Phenotype {
             }
         }
         // Try to put numbers at the top
-        for &number_word in &[Ti, Tu, Ta, Te] {
+        for &number_word in &[To, Ti, Tu, Ta, Te] {
             let [i, _] = self.word_index(number_word);
             sum += i * 3;
         }
