@@ -239,7 +239,7 @@ impl World {
                 sum * mul
             }
             ScalarInputFieldKind::Light => self.get_light_at(pos),
-            ScalarInputFieldKind::Heat => {
+            ScalarInputFieldKind::Temperature => {
                 if let Some((obj, _, _)) = self.find_object_at(pos) {
                     return obj.heat;
                 }

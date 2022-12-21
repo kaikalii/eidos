@@ -36,6 +36,7 @@ pub enum Word {
     Ta,
     /// 10
     Te,
+
     // Scalars
     /// X
     Seva,
@@ -43,6 +44,7 @@ pub enum Word {
     Sevi,
     /// Scalar variable
     Sevu,
+
     // Vectors
     /// Unit vector X
     Kova,
@@ -50,6 +52,7 @@ pub enum Word {
     Kovi,
     /// Vector variable
     Kovu,
+
     // Inputs
     /// Elevation
     Le,
@@ -57,17 +60,21 @@ pub enum Word {
     Po,
     /// Light
     Lusa,
-    /// Heat
+    /// Temperature
     Selo,
     /// Magic
     Mesi,
+
     // Outputs
     /// Gravity
     Ke,
     /// Force
     Pe,
-    /// Heat pressure
+    /// Heat
     Sela,
+    /// Order
+    Nepe,
+
     // Operators
     /// Add
     Ma,
@@ -89,6 +96,7 @@ pub enum Word {
     Riva,
     /// Sine
     Wava,
+
     // Controls
     /// Horizontal slider
     Sila,
@@ -100,6 +108,7 @@ pub enum Word {
     Pi,
     /// Activation
     Veni,
+
     // Combinators
     /// Drop
     No,
@@ -129,11 +138,12 @@ impl Word {
             Le => ScalarInputFieldKind::Elevation.into(),
             Po => ScalarInputFieldKind::Density.into(),
             Lusa => ScalarInputFieldKind::Light.into(),
-            Selo => ScalarInputFieldKind::Heat.into(),
+            Selo => ScalarInputFieldKind::Temperature.into(),
             Mesi => ScalarInputFieldKind::Magic.into(),
             Ke => VectorOutputFieldKind::Gravity.into(),
             Pe => VectorOutputFieldKind::Force.into(),
             Sela => ScalarOutputFieldKind::Heat.into(),
+            Nepe => ScalarOutputFieldKind::Order.into(),
             Ma => HomoBinOp::Add.into(),
             Sa => HeteroBinOp::Mul.into(),
             Na => MathUnOp::Neg.into(),
@@ -275,6 +285,7 @@ static REFERENCE_SPELLS: &[&[Word]] = &[
     &[Seva, Kova],
     &[Sevi, Kovi],
     &[Sa, Sela],
+    &[Sa, Nepe],
     &[To, Meki],
     &[To, Meka],
 ];
@@ -359,7 +370,7 @@ pub static WORD_GRID: Lazy<Vec<Vec<Word>>> = Lazy::new(|| {
 
         let fittest = &population[0];
         let fittest_fitness = fittest.arrange().fitness();
-        println!("Fittest fitness: {}", fittest_fitness);
+        println!("Fittest: {}", fittest_fitness);
 
         let best_half = &population[..population.len() / 2];
         let mut new_population = Vec::new();

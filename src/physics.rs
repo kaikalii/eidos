@@ -1,13 +1,16 @@
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::{
+    f32::consts::{PI, TAU},
+    panic::{catch_unwind, AssertUnwindSafe},
+};
 
 use eframe::epaint::{Pos2, Vec2};
 use itertools::Itertools;
 use rapier2d::{na::Unit, prelude::*};
 
 use crate::{
-    field::VectorOutputFieldKind,
-    math::Convert,
-    object::{GraphicalShape, Object, ObjectDef, ObjectKind, PosRot},
+    field::*,
+    math::{modulus, Convert},
+    object::*,
     world::{World, DEFAULT_TEMP},
 };
 
@@ -90,11 +93,27 @@ impl World {
                 self.sample_output_vector_field(VectorOutputFieldKind::Gravity, pos, true);
             let field_force =
                 self.sample_output_vector_field(VectorOutputFieldKind::Force, pos, true);
+            let order = self.sample_output_scalar_field(ScalarOutputFieldKind::Order, pos, true);
+            let obj = &self.objects[&handle];
+            let diff = obj.initial_pr.pos - obj.pr.pos;
+            let order_force = order
+                * diff.length()
+                * diff.normalized()
+                * (-0.5 * diff.normalized().dot(obj.vel.normalized()) + 1.5);
             let body = &mut self.physics.bodies[handle];
             let gravity_force = gravity_acc * body.mass();
-            let total_force = field_force + gravity_force;
+            let total_force = field_force + gravity_force + order_force;
+            let sensor = order_force.length() > gravity_force.length() + field_force.length();
+            for &collider_handle in body.colliders() {
+                let collider = self.physics.colliders.get_mut(collider_handle).unwrap();
+                collider.set_sensor(sensor);
+            }
             body.reset_forces(true);
             body.add_force(total_force.convert(), true);
+            let angle = modulus(obj.initial_pr.rot - obj.pr.rot + PI, TAU) - PI;
+            let order_torque = order * angle;
+            body.reset_torques(true);
+            body.add_torque(order_torque, true);
         }
         // Step physics
         self.physics.step();
@@ -198,7 +217,7 @@ impl World {
             heat: def.props.constant_heat.unwrap_or(DEFAULT_TEMP),
             def,
             pr: transform,
-            initial_transform: transform,
+            initial_pr: transform,
             vel: Vec2::ZERO,
             body_handle,
             foreground_handles,

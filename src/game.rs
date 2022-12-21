@@ -750,8 +750,9 @@ impl FieldPlottable for ScalarFieldKind {
             ScalarFieldKind::Input(ScalarInputFieldKind::Elevation) => 3.0,
             ScalarFieldKind::Input(ScalarInputFieldKind::Magic) => 10.0,
             ScalarFieldKind::Input(ScalarInputFieldKind::Light) => 5.0,
-            ScalarFieldKind::Input(ScalarInputFieldKind::Heat)
+            ScalarFieldKind::Input(ScalarInputFieldKind::Temperature)
             | ScalarFieldKind::Output(ScalarOutputFieldKind::Heat) => BODY_TEMP,
+            ScalarFieldKind::Output(ScalarOutputFieldKind::Order) => 1.0,
         }
     }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
@@ -767,7 +768,7 @@ impl FieldPlottable for ScalarFieldKind {
                 let t = (t - 0.5) / 0.5;
                 Rgba::from_rgb(t.powf(0.5), t.powf(0.6), t)
             }
-            ScalarFieldKind::Input(ScalarInputFieldKind::Heat)
+            ScalarFieldKind::Input(ScalarInputFieldKind::Temperature)
             | ScalarFieldKind::Output(ScalarOutputFieldKind::Heat) => {
                 let t = (t - 0.5) / 0.5;
                 if t > 0.0 {

@@ -137,8 +137,8 @@ pub enum ScalarInputFieldKind {
     Magic,
     #[display(fmt = "🕯Light")]
     Light,
-    #[display(fmt = "🔥Heat")]
-    Heat,
+    #[display(fmt = "🌡Heat")]
+    Temperature,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
@@ -146,7 +146,10 @@ pub enum VectorInputFieldKind {}
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
 pub enum ScalarOutputFieldKind {
+    #[display(fmt = "🔥Heat")]
     Heat,
+    #[display(fmt = "🗄Order")]
+    Order,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
