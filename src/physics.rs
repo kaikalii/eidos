@@ -7,7 +7,7 @@ use rapier2d::{na::Unit, prelude::*};
 use crate::{
     field::VectorOutputFieldKind,
     math::Convert,
-    object::{GraphicalBinding, GraphicalShape, Object, ObjectDef, ObjectKind},
+    object::{GraphicalShape, Object, ObjectDef, ObjectKind, PosRot},
     world::{World, DEFAULT_TEMP},
 };
 
@@ -85,7 +85,7 @@ impl World {
             if !self.physics.bodies[handle].is_dynamic() {
                 continue;
             }
-            let pos = self.objects[&handle].pos;
+            let pos = self.objects[&handle].pr.pos;
             let gravity_acc =
                 self.sample_output_vector_field(VectorOutputFieldKind::Gravity, pos, true);
             let field_force =
@@ -101,11 +101,11 @@ impl World {
         // Set object positions from physics system
         for obj in self.objects.values_mut() {
             let body = self.physics.bodies.get(obj.body_handle).unwrap();
-            obj.pos = body.translation().convert();
+            obj.pr.pos = body.translation().convert();
             obj.vel = body
                 .velocity_at_point(&Point::from(*body.translation()))
                 .convert();
-            obj.rot = body.rotation().angle();
+            obj.pr.rot = body.rotation().angle();
         }
     }
 }
@@ -190,20 +190,17 @@ impl World {
                 &mut self.physics.bodies,
             ));
         }
+        let transform = PosRot { pos, rot };
         let object = Object {
             kind,
             heat: def.props.constant_heat.unwrap_or(DEFAULT_TEMP),
             def,
-            pos,
+            pr: transform,
+            initial_transform: transform,
             vel: Vec2::ZERO,
-            rot,
             body_handle,
             foreground_handles,
             background_handles,
-            binding: match kind {
-                ObjectKind::Npc => GraphicalBinding::Npc,
-                _ => GraphicalBinding::Linear,
-            },
         };
         self.objects.insert(body_handle, object);
         self.objects.sort_by(|_, a, _, b| a.kind.cmp(&b.kind));
@@ -215,8 +212,11 @@ impl World {
             if light_obj.def.props.light == 0.0 {
                 continue;
             }
-            let dist = light_obj.pos.distance(pos);
-            let ray = Ray::new(pos.convert(), (light_obj.pos - pos).normalized().convert());
+            let dist = light_obj.pr.pos.distance(pos);
+            let ray = Ray::new(
+                pos.convert(),
+                (light_obj.pr.pos - pos).normalized().convert(),
+            );
             let mut soft_count = 0;
             let mut hard = false;
             let _ = catch_unwind(AssertUnwindSafe(|| {

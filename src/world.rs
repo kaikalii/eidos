@@ -95,6 +95,7 @@ impl World {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ShapeLayer {
     Foreground,
     Background,
@@ -118,26 +119,41 @@ impl World {
         filter: impl Fn(&Object, &RigidBody) -> bool,
     ) -> Option<(&Object, &OffsetShape, ShapeLayer)> {
         puffin::profile_function!();
-        self.objects.values().find_map(|obj| {
-            puffin::profile_function!();
+        let mut min_layer = ShapeLayer::Far;
+        let mut best = None;
+        for obj in self.objects.values() {
             if !filter(obj, &self.physics.bodies[obj.body_handle]) {
-                return None;
+                continue;
             }
             let transformed_point = obj.transform_point(p);
-            for (shapes, layer) in [
-                (&obj.def.shapes, ShapeLayer::Foreground),
-                (&obj.def.background, ShapeLayer::Background),
-                (&obj.def.far, ShapeLayer::Far),
-            ] {
-                if let Some(shape) = shapes
-                    .iter()
-                    .find(|shape| shape.contains(transformed_point))
-                {
-                    return Some((obj, shape, layer));
+            if let Some(shape) = obj
+                .def
+                .shapes
+                .iter()
+                .find(|shape| shape.contains(transformed_point))
+            {
+                return Some((obj, shape, ShapeLayer::Foreground));
+            } else if let Some(shape) = obj
+                .def
+                .background
+                .iter()
+                .find(|shape| shape.contains(transformed_point))
+            {
+                if min_layer > ShapeLayer::Background {
+                    min_layer = ShapeLayer::Background;
+                    best = Some((obj, shape));
                 }
+            } else if let Some(shape) = obj
+                .def
+                .far
+                .iter()
+                .find(|shape| shape.contains(transformed_point))
+            {
+                min_layer = ShapeLayer::Far;
+                best = Some((obj, shape));
             }
-            None
-        })
+        }
+        best.map(|(obj, shape)| (obj, shape, min_layer))
     }
     pub fn find_object_at(&self, p: Pos2) -> Option<(&Object, &OffsetShape, ShapeLayer)> {
         self.find_object_filtered_at(p, |_, _| true)
@@ -298,8 +314,8 @@ impl World {
         }
         // Transer heat between objects and grid
         for obj in self.objects.values_mut() {
-            let i = ((obj.pos.x - self.min_bound.x) / HEAT_GRID_RESOLUTION + 0.5) as usize;
-            let j = ((obj.pos.y - self.min_bound.y) / HEAT_GRID_RESOLUTION + 0.5) as usize;
+            let i = ((obj.pr.pos.x - self.min_bound.x) / HEAT_GRID_RESOLUTION + 0.5) as usize;
+            let j = ((obj.pr.pos.y - self.min_bound.y) / HEAT_GRID_RESOLUTION + 0.5) as usize;
             if let Some(cell_heat) = self.heat_grid.get_mut(i).and_then(|col| col.get_mut(j)) {
                 let diff = (obj.heat - *cell_heat) * 0.01;
                 *cell_heat += diff;

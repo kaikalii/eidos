@@ -14,14 +14,19 @@ use crate::{
 pub struct Object {
     pub kind: ObjectKind,
     pub def: ObjectDef,
-    pub pos: Pos2,
+    pub pr: PosRot,
+    pub initial_transform: PosRot,
     pub vel: Vec2,
-    pub rot: f32,
     pub heat: f32,
     pub body_handle: RigidBodyHandle,
     pub foreground_handles: Vec<ColliderHandle>,
     pub background_handles: Vec<ColliderHandle>,
-    pub binding: GraphicalBinding,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PosRot {
+    pub pos: Pos2,
+    pub rot: f32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -102,27 +107,10 @@ impl GraphicalShape {
     }
 }
 
-/// How the graphics of an object are tied to the object's physics body
-pub enum GraphicalBinding {
-    /// Match the physics body exactly
-    Linear,
-    /// Simple walking animation
-    Npc,
-}
-
 impl Object {
     /// Transform a point so that it can be checked against this object's shapes
     pub fn transform_point(&self, pos: Pos2) -> Pos2 {
-        match self.binding {
-            GraphicalBinding::Linear => {
-                rotate(pos.to_vec2() - self.pos.to_vec2(), -self.rot).to_pos2()
-            }
-            GraphicalBinding::Npc => rotate(
-                pos.to_vec2() - self.pos.to_vec2(),
-                pos.x.sin() * 0.1 - self.rot,
-            )
-            .to_pos2(),
-        }
+        rotate(pos.to_vec2() - self.pr.pos.to_vec2(), -self.pr.rot).to_pos2()
     }
 }
 
