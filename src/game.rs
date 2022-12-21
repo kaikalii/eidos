@@ -478,16 +478,6 @@ impl Game {
     fn words_grid(&mut self, ui: &mut Ui) {
         Grid::new("words").min_col_width(10.0).show(ui, |ui| {
             // Words
-            use Word::*;
-            #[rustfmt::skip]
-            static WORD_GRID: &[&[Word]] = &[
-                &[Ti,   Tu,   Ta,   Te,   Kova, Kovi],
-                &[Ma,   Na,   Sa,   Seva, Sevi, Ke, ],
-                &[Le,   Po,   Lusa, Selo, Mesi, Pe, ],
-                &[Reso, Solo, Kuru, Wava, Riva,     ],
-                &[Pa,   Pi,   Sila, Vila, Veni,     ],
-                &[No,   Mo,   Revi, Rovo, Sevu, Kovu],
-            ];
             let dialog_allows_casting = self
                 .ui_state
                 .dialog
@@ -497,7 +487,7 @@ impl Game {
             // Rows
             for (i, row) in WORD_GRID.iter().enumerate() {
                 // Words in the row
-                for word in *row {
+                for word in row {
                     let player_person = &self.world.player.person;
                     let f = word.function();
                     let known = self.world.player.progression.known_words.contains(word);
