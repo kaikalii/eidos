@@ -381,32 +381,47 @@ impl Game {
             pos.y = (pos.y * 20.0).round() / 20.0;
         }
     }
-    fn spell_words_ui(ui: &mut Ui, words: &[Word], mut max_height: f32, can_dispel: bool) -> bool {
+    fn spell_words_ui(ui: &mut Ui, words: &[Word], max_height: f32, can_dispel: bool) -> bool {
         let font_id = &ui.style().text_styles[&TextStyle::Body];
         let row_height = ui.fonts().row_height(font_id);
         let vert_spacing = ui.spacing().item_spacing.y;
-        max_height -= row_height * 2.5;
-        let mut words_per_column = ((max_height / (row_height + vert_spacing)) as usize).max(1);
-        if words.len() % words_per_column == 1 {
-            words_per_column -= 1;
-        }
+        const MARGIN: f32 = 4.0;
         ui.vertical(|ui| {
-            ui.add_space(row_height);
-            let dispelled = can_dispel && ui.button("Dispel").clicked();
-            ui.horizontal(|ui| {
-                for chunk in words.chunks(words_per_column) {
-                    ui.vertical(|ui| {
-                        ui.add_space(
-                            (max_height
-                                - chunk.len() as f32 * row_height
-                                - words_per_column.saturating_sub(1) as f32 * vert_spacing)
-                                / 2.0,
-                        );
-                        for word in chunk {
-                            ui.label(word.to_string());
-                        }
-                    });
-                }
+            let (dispel_height, dispelled) = if can_dispel {
+                let resp = ui.button("Dispel");
+                (resp.rect.height(), resp.clicked())
+            } else {
+                (0.0, false)
+            };
+            let non_word_space = max_height - dispel_height - vert_spacing - MARGIN * 2.0;
+            let words_per_column =
+                ((non_word_space / (row_height + vert_spacing)).ceil() as usize).max(1);
+            if words.len() < words_per_column {
+                ui.add_space(
+                    (non_word_space
+                        - words.len() as f32 * row_height
+                        - words.len().saturating_sub(1) as f32 * vert_spacing)
+                        / 2.0,
+                );
+            }
+            let mut fill: Rgba = ui.visuals().panel_fill.into();
+            fill[3] = 0.8;
+            Frame {
+                fill: fill.into(),
+                inner_margin: Margin::same(MARGIN),
+                rounding: Rounding::same(MARGIN),
+                ..Default::default()
+            }
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    for chunk in words.chunks(words_per_column) {
+                        ui.vertical(|ui| {
+                            for word in chunk {
+                                ui.label(RichText::new(word.to_string()).color(Color32::WHITE));
+                            }
+                        });
+                    }
+                });
             });
             dispelled
         })

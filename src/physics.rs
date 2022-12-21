@@ -110,10 +110,12 @@ impl World {
             }
             body.reset_forces(true);
             body.add_force(total_force.convert(), true);
-            let angle = modulus(obj.initial_pr.rot - obj.pr.rot + PI, TAU) - PI;
-            let order_torque = order * angle;
             body.reset_torques(true);
-            body.add_torque(order_torque, true);
+            if order.abs() > 0.0 {
+                let angle = modulus(obj.initial_pr.rot - obj.pr.rot + PI, TAU) - PI;
+                let order_torque = order * angle;
+                body.add_torque(order_torque, true);
+            }
         }
         // Step physics
         self.physics.step();
