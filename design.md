@@ -14,6 +14,7 @@ Scalars
 - Magic
 - Elevation
 - Heat
+- Memory
 
 Vectors
 
@@ -21,6 +22,8 @@ Vectors
 
 Scalars
 - Heat
+- Order
+- Memory
 
 Vectors
 - Gravity
@@ -62,3 +65,6 @@ The player can either participate or just write spells for other students who do
 
 Types of competitions:
 - Pillars break
+  - Destroy the opponent's ice pillars while protecting your own
+- Bastion
+  - Destroy the opponent's core while protecting your own

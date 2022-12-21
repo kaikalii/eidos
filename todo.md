@@ -1,2 +1,7 @@
+- Make gravity 10
+- Resolve background shape issues
+- Add heat pressure
+- Add order
+- Add memory
 - Design characters
 - Write plot
