@@ -26,47 +26,82 @@ use crate::{field::*, function::*, utils::resources_path};
 )]
 pub enum Word {
     // Numbers
+    /// 1
     Ti,
+    /// 2
     Tu,
+    /// 5
     Ta,
+    /// 10
     Te,
     // Scalars
+    /// X
     Seva,
+    /// Y
     Sevi,
+    /// Scalar variable
     Sevu,
     // Vectors
+    /// Unit vector X
     Kova,
+    /// Unit vector Y
     Kovi,
+    /// Vector variable
     Kovu,
     // Inputs
+    /// Elevation
     Le,
+    /// Density
     Po,
+    /// Light
     Lusa,
+    /// Heat
     Selo,
+    /// Magic
     Mesi,
     // Outputs
+    /// Gravity
     Ke,
+    /// Force
     Pe,
+    /// Heat pressure
     Sela,
     // Operators
+    /// Add
     Ma,
+    /// Multiply
     Sa,
+    /// Negate
     Na,
+    /// Reciprocal
     Reso,
+    /// Magnitude
     Solo,
+    /// Sqrt
     Kuru,
+    /// Derivative
     Riva,
+    /// Sine
     Wava,
     // Controls
+    /// Horizontal slider
     Sila,
+    /// Vertical slider
     Vila,
+    /// X target
     Pa,
+    /// Y target
     Pi,
+    /// Activation
     Veni,
     // Combinators
+    /// Drop
     No,
+    /// Duplicate
     Mo,
+    /// Swap
     Revi,
+    /// Over
     Rovo,
 }
 
@@ -229,6 +264,7 @@ static REFERENCE_SPELLS: &[&[Word]] = &[
     &[Sevi, Mo, Sa],
     &[Seva, Kova],
     &[Sevi, Kovi],
+    &[Sa, Sela],
 ];
 static GROUPS: &[&[Word]] = &[
     &[Ti, Tu, Ta, Te],
