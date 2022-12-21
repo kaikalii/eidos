@@ -128,10 +128,9 @@ fn graphical_shape_to_shared(shape: &GraphicalShape) -> SharedShape {
     }
 }
 
-const PERSON: Group = Group::GROUP_1;
-const OBJECT: Group = Group::GROUP_2;
-const BACKGROUND: Group = Group::GROUP_3;
-const GROUND: Group = Group::GROUP_4;
+const OBJECT: Group = Group::GROUP_1;
+const BACKGROUND: Group = Group::GROUP_2;
+const GROUND: Group = Group::GROUP_3;
 
 impl World {
     pub fn add_object_def(&mut self, pos: Pos2, def: ObjectDef) {
@@ -149,6 +148,7 @@ impl World {
         body_builder: impl Fn(RigidBodyBuilder) -> RigidBodyBuilder,
         build_collider: impl Fn(ColliderBuilder) -> ColliderBuilder,
     ) -> RigidBodyHandle {
+        // Create body
         let body = body_builder(RigidBodyBuilder::new(def.ty))
             .linear_damping(0.5)
             .angular_damping(1.0)
@@ -156,20 +156,20 @@ impl World {
         let pos = body.translation().convert();
         let rot = body.rotation().angle();
         let body_handle = self.physics.bodies.insert(body);
-        let groups = match kind {
-            ObjectKind::Player => InteractionGroups::new(PERSON, OBJECT | GROUND),
-            ObjectKind::Npc => InteractionGroups::new(PERSON, OBJECT | GROUND),
-            ObjectKind::Object => InteractionGroups::new(OBJECT, PERSON | OBJECT | GROUND),
-            ObjectKind::Ground => InteractionGroups::new(GROUND, PERSON | OBJECT | BACKGROUND),
+        // Create colliders
+        let foreground_groups = match kind {
+            ObjectKind::Object => InteractionGroups::new(OBJECT, OBJECT | GROUND),
+            ObjectKind::Ground => InteractionGroups::new(GROUND, OBJECT | BACKGROUND),
         };
         let mut foreground_handles = Vec::new();
         let mut background_handles = Vec::new();
+        // Foreground colliders
         for offset_shape in &def.shapes {
             let shared_shape = graphical_shape_to_shared(&offset_shape.shape);
             let collider = build_collider(ColliderBuilder::new(shared_shape))
                 .translation(offset_shape.offset.convert())
                 .density(offset_shape.density)
-                .collision_groups(groups)
+                .collision_groups(foreground_groups)
                 .build();
             foreground_handles.push(self.physics.colliders.insert_with_parent(
                 collider,
@@ -177,6 +177,7 @@ impl World {
                 &mut self.physics.bodies,
             ));
         }
+        // Background colliders
         for offset_shape in &def.background {
             let shared_shape = graphical_shape_to_shared(&offset_shape.shape);
             let collider = build_collider(ColliderBuilder::new(shared_shape))
@@ -190,6 +191,7 @@ impl World {
                 &mut self.physics.bodies,
             ));
         }
+        // Create object
         let transform = PosRot { pos, rot };
         let object = Object {
             kind,
@@ -230,9 +232,7 @@ impl World {
                     |handle, _| {
                         let body_handle = self.physics.colliders[handle].parent().unwrap();
                         let obj = &self.objects[&body_handle];
-                        if matches!(obj.kind, ObjectKind::Player | ObjectKind::Npc)
-                            || obj.background_handles.contains(&handle)
-                        {
+                        if obj.background_handles.contains(&handle) {
                             soft_count += 1;
                             true
                         } else {

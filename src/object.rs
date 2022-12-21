@@ -31,8 +31,6 @@ pub struct PosRot {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ObjectKind {
-    Player,
-    Npc,
     Object,
     Ground,
 }

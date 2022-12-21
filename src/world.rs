@@ -379,14 +379,9 @@ impl World {
         self.min_bound.y = place.bounds.bottom;
         self.max_bound.y = place.bounds.top;
         // Remove old objects
-        self.objects.retain(|handle, obj| {
-            if obj.kind != ObjectKind::Player {
-                self.physics.remove_body(*handle);
-                false
-            } else {
-                true
-            }
-        });
+        for (handle, _) in self.objects.drain(..) {
+            self.physics.remove_body(handle);
+        }
         // Add objects
         // Ground
         self.add_object(
