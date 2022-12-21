@@ -15,7 +15,7 @@ pub struct Object {
     pub kind: ObjectKind,
     pub def: ObjectDef,
     pub pr: PosRot,
-    pub initial_pr: PosRot,
+    pub ordered_pr: PosRot,
     pub vel: Vec2,
     pub heat: f32,
     pub body_handle: RigidBodyHandle,

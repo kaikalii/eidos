@@ -31,7 +31,6 @@ where
 
 pub enum ImagePlotKind {
     Portrait(bool),
-    #[allow(dead_code)]
     Background,
 }
 

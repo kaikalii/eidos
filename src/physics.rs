@@ -95,15 +95,16 @@ impl World {
                 self.sample_output_vector_field(VectorOutputFieldKind::Force, pos, true);
             let order = self.sample_output_scalar_field(ScalarOutputFieldKind::Order, pos, true);
             let obj = &self.objects[&handle];
-            let diff = obj.initial_pr.pos - obj.pr.pos;
+            let diff = obj.ordered_pr.pos - obj.pr.pos;
             let order_force = order
-                * diff.length()
+                * diff.length_sq()
                 * diff.normalized()
                 * (-0.5 * diff.normalized().dot(obj.vel.normalized()) + 1.5);
             let body = &mut self.physics.bodies[handle];
             let gravity_force = gravity_acc * body.mass();
             let total_force = field_force + gravity_force + order_force;
-            let sensor = order_force.length() > gravity_force.length() + field_force.length();
+            let sensor =
+                order > 0.0 && order_force.length() > gravity_force.length() + field_force.length();
             for &collider_handle in body.colliders() {
                 let collider = self.physics.colliders.get_mut(collider_handle).unwrap();
                 collider.set_sensor(sensor);
@@ -112,7 +113,7 @@ impl World {
             body.add_force(total_force.convert(), true);
             body.reset_torques(true);
             if order.abs() > 0.0 {
-                let angle = modulus(obj.initial_pr.rot - obj.pr.rot + PI, TAU) - PI;
+                let angle = modulus(obj.ordered_pr.rot - obj.pr.rot + PI, TAU) - PI;
                 let order_torque = order * angle;
                 body.add_torque(order_torque, true);
             }
@@ -219,7 +220,7 @@ impl World {
             heat: def.props.constant_heat.unwrap_or(DEFAULT_TEMP),
             def,
             pr: transform,
-            initial_pr: transform,
+            ordered_pr: transform,
             vel: Vec2::ZERO,
             body_handle,
             foreground_handles,

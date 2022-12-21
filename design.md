@@ -13,7 +13,7 @@ Scalars
 - Light
 - Magic
 - Elevation
-- Heat
+- Temperature
 - Memory
 
 Vectors
