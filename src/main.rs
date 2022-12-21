@@ -50,8 +50,21 @@ fn main() {
             ..Default::default()
         },
         Box::new(|cc| {
-            cc.egui_ctx.set_pixels_per_point(1.5);
-            load_textures(&cc.egui_ctx);
+            let ctx = &cc.egui_ctx;
+            ctx.set_pixels_per_point(1.5);
+            load_textures(ctx);
+            let mut fonts = FontDefinitions::default();
+            fonts.font_data.insert(
+                "emoji".into(),
+                FontData::from_static(include_bytes!("../resources/NotoEmoji-Regular.ttf")),
+            );
+            fonts
+                .families
+                .get_mut(&FontFamily::Proportional)
+                .unwrap()
+                .push("emoji".into());
+            ctx.set_fonts(fonts);
+
             Box::new(if cfg!(feature = "title") {
                 GameState::MainMenu
             } else {

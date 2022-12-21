@@ -137,7 +137,7 @@ pub enum ScalarInputFieldKind {
     Magic,
     #[display(fmt = "🕯Light")]
     Light,
-    #[display(fmt = "♨Temperature")]
+    #[display(fmt = "🌡Temperature")]
     Temperature,
     #[display(fmt = "🍃Disorder")]
     Disorder,
