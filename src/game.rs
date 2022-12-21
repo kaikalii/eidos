@@ -17,7 +17,7 @@ use crate::{
     player::Player,
     plot::*,
     word::*,
-    world::{Controls, World, BODY_TEMP},
+    world::{Controls, World},
     GameState,
 };
 
@@ -767,7 +767,7 @@ impl FieldPlottable for ScalarFieldKind {
             ScalarFieldKind::Input(ScalarInputFieldKind::Light) => 5.0,
             ScalarFieldKind::Input(ScalarInputFieldKind::Disorder) => 2.0,
             ScalarFieldKind::Input(ScalarInputFieldKind::Temperature)
-            | ScalarFieldKind::Output(ScalarOutputFieldKind::Heat) => BODY_TEMP,
+            | ScalarFieldKind::Output(ScalarOutputFieldKind::Heat) => 20.0,
             ScalarFieldKind::Output(ScalarOutputFieldKind::Order) => 1.0,
         }
     }

@@ -27,8 +27,8 @@ pub struct World {
 }
 
 const HEAT_GRID_RESOLUTION: f32 = 0.25;
-pub const DEFAULT_TEMP: f32 = 0.0;
-pub const BODY_TEMP: f32 = 17.0;
+pub const GROUND_TEMP: f32 = -3.0;
+pub const TEMP_DROP_PER_METER: f32 = 6.5 / 1000.0;
 pub const GRAVITY: Vec2 = vec2(0.0, -10.0);
 
 #[derive(Default)]
@@ -250,7 +250,7 @@ impl World {
                     .get(i)
                     .and_then(|col| col.get(j))
                     .copied()
-                    .unwrap_or(DEFAULT_TEMP)
+                    .unwrap_or_else(|| ambient_temp_at(pos.y))
             }
             ScalarInputFieldKind::Disorder => {
                 if let Some((obj, _, _)) = self.find_object_at(pos) {
@@ -306,6 +306,14 @@ impl World {
     pub fn person_ids(&self) -> Vec<PersonId> {
         self.person_ids_iter().collect()
     }
+}
+
+fn ambient_temp_at(y: f32) -> f32 {
+    let y = y.max(0.0);
+    GROUND_TEMP - TEMP_DROP_PER_METER * y
+}
+
+impl World {
     pub fn update(&mut self) {
         // Run physics
         self.run_physics();
@@ -343,10 +351,9 @@ impl World {
                 let mut new_col = col.clone();
                 let pos_x = self.min_bound.x + (i as f32 + 0.5) * HEAT_GRID_RESOLUTION;
                 for j in 0..col.len() {
-                    let pos = pos2(
-                        pos_x,
-                        self.min_bound.y + (j as f32 + 0.5) * HEAT_GRID_RESOLUTION,
-                    );
+                    let pos_y = self.min_bound.y + (j as f32 + 0.5) * HEAT_GRID_RESOLUTION;
+                    let pos = pos2(pos_x, pos_y);
+                    let ambient_temp = ambient_temp_at(pos_y);
                     let (c, s) = if self.find_object_at(pos).is_some() {
                         (4.6, 0.1)
                     } else {
@@ -357,14 +364,14 @@ impl World {
                         .heat_grid
                         .get((i as isize - 1) as usize)
                         .map(|col| col[j])
-                        .unwrap_or(DEFAULT_TEMP);
+                        .unwrap_or(ambient_temp);
                     let right = self
                         .heat_grid
                         .get((i as isize + 1) as usize)
                         .map(|col| col[j])
-                        .unwrap_or(DEFAULT_TEMP);
-                    let up = *col.get((j as isize + 1) as usize).unwrap_or(&DEFAULT_TEMP);
-                    let down = *col.get((j as isize - 1) as usize).unwrap_or(&DEFAULT_TEMP);
+                        .unwrap_or(ambient_temp);
+                    let up = *col.get((j as isize + 1) as usize).unwrap_or(&ambient_temp);
+                    let down = *col.get((j as isize - 1) as usize).unwrap_or(&ambient_temp);
                     new_col[j] = (c * center + s * (left + right + up + down)) / 5.0;
                 }
                 new_col
@@ -419,6 +426,12 @@ impl World {
             }
         }
         // Init heat grid
-        self.heat_grid = vec![vec![DEFAULT_TEMP; self.hear_grid_height()]; self.hear_grid_width()];
+        self.heat_grid = vec![vec![GROUND_TEMP; self.hear_grid_height()]; self.hear_grid_width()];
+        for col in self.heat_grid.iter_mut() {
+            for (j, cell) in col.iter_mut().enumerate() {
+                let pos_y = self.min_bound.y + (j as f32 + 0.5) * HEAT_GRID_RESOLUTION;
+                *cell = ambient_temp_at(pos_y);
+            }
+        }
     }
 }

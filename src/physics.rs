@@ -8,7 +8,7 @@ use crate::{
     field::*,
     math::{angle_diff, Convert},
     object::*,
-    world::{World, DEFAULT_TEMP},
+    world::{World, GROUND_TEMP},
 };
 
 pub struct PhysicsContext {
@@ -214,7 +214,7 @@ impl World {
         let transform = PosRot { pos, rot };
         let object = Object {
             kind,
-            heat: def.props.constant_heat.unwrap_or(DEFAULT_TEMP),
+            heat: def.props.constant_heat.unwrap_or(GROUND_TEMP),
             def,
             pr: transform,
             ordered_pr: transform,
