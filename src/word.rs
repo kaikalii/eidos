@@ -215,7 +215,7 @@ static REFERENCE_SPELLS: &[&[Word]] = &[
     &[Sila, Kova, Sa, Pe],
     &[Te, Vila, Ma, Le, Na, Ma, Kovi, Sa, Ke],
     &[Veni, Sa],
-    &[Mo, Revi, Sa],
+    &[Mo, Riva, Sa],
     &[Te, Ta, Ma],
     &[Ta, Tu, Ma],
     &[Ta, Ti, Ma],
