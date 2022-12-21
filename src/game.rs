@@ -21,8 +21,6 @@ use crate::{
     GameState,
 };
 
-pub const TICK_RATE: f32 = 1.0 / 60.0;
-
 pub struct Game {
     pub world: World,
     pub ui_state: UiState,
@@ -195,9 +193,9 @@ impl Game {
             });
 
         // Update world
-        while self.ticker >= TICK_RATE {
+        while self.ticker >= self.world.physics.dt() {
             self.world.update();
-            self.ticker -= TICK_RATE;
+            self.ticker -= self.world.physics.dt();
         }
 
         res
@@ -769,6 +767,7 @@ impl FieldPlottable for ScalarFieldKind {
             ScalarFieldKind::Input(ScalarInputFieldKind::Temperature)
             | ScalarFieldKind::Output(ScalarOutputFieldKind::Heat) => 20.0,
             ScalarFieldKind::Output(ScalarOutputFieldKind::Order) => 1.0,
+            ScalarFieldKind::Output(ScalarOutputFieldKind::Anchor) => 1.0,
         }
     }
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {

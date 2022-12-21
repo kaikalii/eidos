@@ -64,6 +64,9 @@ impl PhysicsContext {
         self.queries
             .update(&self.islands, &self.bodies, &self.colliders);
     }
+    pub fn dt(&self) -> f32 {
+        self.integration_parameters.dt
+    }
     pub fn remove_body(&mut self, handle: RigidBodyHandle) {
         self.bodies.remove(
             handle,

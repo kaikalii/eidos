@@ -152,6 +152,8 @@ pub enum ScalarOutputFieldKind {
     Heat,
     #[display(fmt = "🗄Order")]
     Order,
+    #[display(fmt = "⚓Anchor")]
+    Anchor,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]

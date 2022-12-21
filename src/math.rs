@@ -2,11 +2,18 @@
 
 use std::{
     f32::consts::{PI, TAU},
-    ops::{Add, Rem},
+    ops::*,
 };
 
 use eframe::epaint::{pos2, vec2, Pos2, Vec2};
 use rapier2d::{na::Vector2, prelude::*};
+
+pub fn lerp<T>(a: T, b: T, t: f32) -> T
+where
+    T: Add<Output = T> + Mul<f32, Output = T>,
+{
+    a * (1.0 - t) + b * t
+}
 
 pub fn approach_one(x: f32, mid: f32) -> f32 {
     x.signum() * (1.0 - 2f32.powf(-x.abs() / mid))

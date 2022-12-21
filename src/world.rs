@@ -2,12 +2,13 @@ use std::{collections::HashMap, f32::consts::PI, iter::once};
 
 use eframe::egui::*;
 use indexmap::IndexMap;
+use itertools::Itertools;
 use rapier2d::prelude::*;
 use rayon::prelude::*;
 
 use crate::{
     field::*,
-    math::angle_diff,
+    math::{angle_diff, approach_one, lerp},
     npc::{Npc, NpcId},
     object::*,
     person::{Person, PersonId},
@@ -393,6 +394,19 @@ impl World {
             })
             .collect();
         self.heat_grid = new_grid;
+        // Apply anchoring
+        for handle in self.objects.keys().copied().collect_vec() {
+            let pos = self.objects[&handle].pr.pos;
+            let anchoring = self.physics.dt()
+                * approach_one(
+                    self.sample_output_scalar_field(ScalarOutputFieldKind::Anchor, pos, true),
+                    1.0,
+                );
+            let obj = self.objects.get_mut(&handle).unwrap();
+            obj.ordered_pr.pos.x = lerp(obj.ordered_pr.pos.x, obj.pr.pos.x, anchoring);
+            obj.ordered_pr.pos.y = lerp(obj.ordered_pr.pos.y, obj.pr.pos.y, anchoring);
+            obj.ordered_pr.rot = lerp(obj.ordered_pr.rot, obj.pr.rot, anchoring);
+        }
     }
     fn hear_grid_width(&self) -> usize {
         ((self.max_bound.x - self.min_bound.x) / HEAT_GRID_RESOLUTION).ceil() as usize

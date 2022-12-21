@@ -76,6 +76,8 @@ pub enum Word {
     Sela,
     /// Order
     Mepe,
+    /// Anchor
+    Sepe,
 
     // Operators
     /// Add
@@ -147,6 +149,7 @@ impl Word {
             Pe => VectorOutputFieldKind::Force.into(),
             Sela => ScalarOutputFieldKind::Heat.into(),
             Mepe => ScalarOutputFieldKind::Order.into(),
+            Sepe => ScalarOutputFieldKind::Anchor.into(),
             Ma => HomoBinOp::Add.into(),
             Sa => HeteroBinOp::Mul.into(),
             Na => MathUnOp::Neg.into(),
@@ -289,6 +292,7 @@ static REFERENCE_SPELLS: &[&[Word]] = &[
     &[Sevi, Kovi],
     &[Sa, Sela],
     &[Sa, Mepe],
+    &[Sa, Sepe],
     &[To, Meki],
     &[To, Meka],
     &[Nepe, Sa],
