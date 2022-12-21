@@ -1,4 +1,5 @@
-- Resolve background shape issues
+- Add buoyancy
 - Add memory
+- Resolve background shape issues
 - Design characters
 - Write plot

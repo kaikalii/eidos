@@ -62,6 +62,7 @@ List of classes:
 - Kinematics
 - Thermodynamics
 - Entropics
+- Mnemonics
 
 ## Competitions
 

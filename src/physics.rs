@@ -8,7 +8,7 @@ use crate::{
     field::*,
     math::{angle_diff, Convert},
     object::*,
-    world::{World, GROUND_TEMP},
+    world::{World, ABSOLUTE_ZERO, AIR_DENSITY_AT_GROUND_TEMP, GROUND_TEMP},
 };
 
 pub struct PhysicsContext {
@@ -77,6 +77,10 @@ impl PhysicsContext {
             true,
         );
     }
+}
+
+fn air_density_at_temp(temp: f32) -> f32 {
+    (temp - ABSOLUTE_ZERO) / (GROUND_TEMP - ABSOLUTE_ZERO) * AIR_DENSITY_AT_GROUND_TEMP
 }
 
 impl World {

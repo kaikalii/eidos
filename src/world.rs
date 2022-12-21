@@ -29,8 +29,10 @@ pub struct World {
 
 const HEAT_GRID_RESOLUTION: f32 = 0.25;
 pub const GROUND_TEMP: f32 = -3.0;
+pub const ABSOLUTE_ZERO: f32 = -(20.0 + GROUND_TEMP + 273.15);
 pub const TEMP_DROP_PER_METER: f32 = 6.5 / 1000.0;
 pub const GRAVITY: Vec2 = vec2(0.0, -10.0);
+pub const AIR_DENSITY_AT_GROUND_TEMP: f32 = 0.001279176;
 
 #[derive(Default)]
 pub struct Controls {
