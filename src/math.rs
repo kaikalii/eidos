@@ -8,6 +8,15 @@ use std::{
 use eframe::epaint::{pos2, vec2, Pos2, Vec2};
 use rapier2d::{na::Vector2, prelude::*};
 
+pub fn go_to(from: f32, to: f32, delta: f32) -> f32 {
+    let diff = to - from;
+    if diff.abs() < delta {
+        to
+    } else {
+        from + delta * diff.signum()
+    }
+}
+
 pub fn lerp<T>(a: T, b: T, t: f32) -> T
 where
     T: Add<Output = T> + Mul<f32, Output = T>,

@@ -8,7 +8,7 @@ use rayon::prelude::*;
 
 use crate::{
     field::*,
-    math::{angle_diff, approach_one, lerp},
+    math::{angle_diff, go_to},
     npc::{Npc, NpcId},
     object::*,
     person::{Person, PersonId},
@@ -398,14 +398,11 @@ impl World {
         for handle in self.objects.keys().copied().collect_vec() {
             let pos = self.objects[&handle].pr.pos;
             let anchoring = self.physics.dt()
-                * approach_one(
-                    self.sample_output_scalar_field(ScalarOutputFieldKind::Anchor, pos, true),
-                    1.0,
-                );
+                * self.sample_output_scalar_field(ScalarOutputFieldKind::Anchor, pos, true);
             let obj = self.objects.get_mut(&handle).unwrap();
-            obj.ordered_pr.pos.x = lerp(obj.ordered_pr.pos.x, obj.pr.pos.x, anchoring);
-            obj.ordered_pr.pos.y = lerp(obj.ordered_pr.pos.y, obj.pr.pos.y, anchoring);
-            obj.ordered_pr.rot = lerp(obj.ordered_pr.rot, obj.pr.rot, anchoring);
+            obj.ordered_pr.pos.x = go_to(obj.ordered_pr.pos.x, obj.pr.pos.x, anchoring);
+            obj.ordered_pr.pos.y = go_to(obj.ordered_pr.pos.y, obj.pr.pos.y, anchoring);
+            obj.ordered_pr.rot = go_to(obj.ordered_pr.rot, obj.pr.rot, anchoring);
         }
     }
     fn hear_grid_width(&self) -> usize {
