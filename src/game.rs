@@ -765,6 +765,7 @@ impl FieldPlottable for ScalarFieldKind {
             ScalarFieldKind::Input(ScalarInputFieldKind::Elevation) => 3.0,
             ScalarFieldKind::Input(ScalarInputFieldKind::Magic) => 10.0,
             ScalarFieldKind::Input(ScalarInputFieldKind::Light) => 5.0,
+            ScalarFieldKind::Input(ScalarInputFieldKind::Disorder) => 2.0,
             ScalarFieldKind::Input(ScalarInputFieldKind::Temperature)
             | ScalarFieldKind::Output(ScalarOutputFieldKind::Heat) => BODY_TEMP,
             ScalarFieldKind::Output(ScalarOutputFieldKind::Order) => 1.0,

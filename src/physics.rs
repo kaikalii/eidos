@@ -1,7 +1,4 @@
-use std::{
-    f32::consts::{PI, TAU},
-    panic::{catch_unwind, AssertUnwindSafe},
-};
+use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use eframe::epaint::{Pos2, Vec2};
 use itertools::Itertools;
@@ -9,7 +6,7 @@ use rapier2d::{na::Unit, prelude::*};
 
 use crate::{
     field::*,
-    math::{modulus, Convert},
+    math::{angle_diff, Convert},
     object::*,
     world::{World, DEFAULT_TEMP},
 };
@@ -97,7 +94,7 @@ impl World {
             let obj = &self.objects[&handle];
             let diff = obj.ordered_pr.pos - obj.pr.pos;
             let order_force = order
-                * diff.length_sq()
+                * diff.length()
                 * diff.normalized()
                 * (-0.5 * diff.normalized().dot(obj.vel.normalized()) + 1.5);
             let body = &mut self.physics.bodies[handle];
@@ -113,7 +110,7 @@ impl World {
             body.add_force(total_force.convert(), true);
             body.reset_torques(true);
             if order.abs() > 0.0 {
-                let angle = modulus(obj.ordered_pr.rot - obj.pr.rot + PI, TAU) - PI;
+                let angle = angle_diff(obj.pr.rot, obj.ordered_pr.rot);
                 let order_torque = order * angle;
                 body.add_torque(order_torque, true);
             }

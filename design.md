@@ -14,6 +14,7 @@ Scalars
 - Magic
 - Elevation
 - Temperature
+- Disorder
 - Memory
 
 Vectors
@@ -23,6 +24,7 @@ Vectors
 Scalars
 - Heat
 - Order
+- Set order
 - Memory
 
 Vectors
@@ -57,6 +59,9 @@ List of classes:
 - Basic casting
   - Verbal casting
   - Conduit etching
+- Kinematics
+- Thermodynamics
+- Entropics
 
 ## Competitions
 

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use std::{
-    f32::consts::PI,
+    f32::consts::{PI, TAU},
     ops::{Add, Rem},
 };
 
@@ -24,6 +24,10 @@ pub fn rotate(v: Vec2, theta: f32) -> Vec2 {
         v.x * theta.cos() - v.y * theta.sin(),
         v.y * theta.cos() + v.x * theta.sin(),
     )
+}
+
+pub fn angle_diff(from: f32, to: f32) -> f32 {
+    modulus(to - from + PI, TAU) - PI
 }
 
 pub trait Convert<U> {

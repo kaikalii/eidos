@@ -139,6 +139,8 @@ pub enum ScalarInputFieldKind {
     Light,
     #[display(fmt = "♨Temperature")]
     Temperature,
+    #[display(fmt = "🍃Disorder")]
+    Disorder,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]

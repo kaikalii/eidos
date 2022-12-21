@@ -1,4 +1,4 @@
-use std::{collections::HashMap, iter::once};
+use std::{collections::HashMap, f32::consts::PI, iter::once};
 
 use eframe::egui::*;
 use indexmap::IndexMap;
@@ -7,6 +7,7 @@ use rayon::prelude::*;
 
 use crate::{
     field::*,
+    math::angle_diff,
     npc::{Npc, NpcId},
     object::*,
     person::{Person, PersonId},
@@ -250,6 +251,14 @@ impl World {
                     .and_then(|col| col.get(j))
                     .copied()
                     .unwrap_or(DEFAULT_TEMP)
+            }
+            ScalarInputFieldKind::Disorder => {
+                if let Some((obj, _, _)) = self.find_object_at(pos) {
+                    obj.pr.pos.distance(obj.ordered_pr.pos)
+                        + angle_diff(obj.pr.rot, obj.ordered_pr.rot).abs() / PI
+                } else {
+                    0.0
+                }
             }
         }
     }

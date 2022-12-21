@@ -64,6 +64,8 @@ pub enum Word {
     Selo,
     /// Magic
     Mesi,
+    /// Disorder
+    Nepe,
 
     // Outputs
     /// Gravity
@@ -73,7 +75,7 @@ pub enum Word {
     /// Heat
     Sela,
     /// Order
-    Nepe,
+    Mepe,
 
     // Operators
     /// Add
@@ -140,10 +142,11 @@ impl Word {
             Lusa => ScalarInputFieldKind::Light.into(),
             Selo => ScalarInputFieldKind::Temperature.into(),
             Mesi => ScalarInputFieldKind::Magic.into(),
+            Nepe => ScalarInputFieldKind::Disorder.into(),
             Ke => VectorOutputFieldKind::Gravity.into(),
             Pe => VectorOutputFieldKind::Force.into(),
             Sela => ScalarOutputFieldKind::Heat.into(),
-            Nepe => ScalarOutputFieldKind::Order.into(),
+            Mepe => ScalarOutputFieldKind::Order.into(),
             Ma => HomoBinOp::Add.into(),
             Sa => HeteroBinOp::Mul.into(),
             Na => MathUnOp::Neg.into(),
@@ -285,9 +288,10 @@ static REFERENCE_SPELLS: &[&[Word]] = &[
     &[Seva, Kova],
     &[Sevi, Kovi],
     &[Sa, Sela],
-    &[Sa, Nepe],
+    &[Sa, Mepe],
     &[To, Meki],
     &[To, Meka],
+    &[Nepe, Sa],
 ];
 static GROUPS: &[&[Word]] = &[
     &[To, Ti, Tu, Ta, Te],
