@@ -28,6 +28,7 @@ pub struct World {
 const HEAT_GRID_RESOLUTION: f32 = 0.25;
 pub const DEFAULT_TEMP: f32 = 0.0;
 pub const BODY_TEMP: f32 = 17.0;
+pub const GRAVITY: Vec2 = vec2(0.0, -10.0);
 
 #[derive(Default)]
 pub struct Controls {
@@ -255,7 +256,7 @@ impl World {
                 acc + spell.field.sample(self, pos, allow_recursion)
             });
         match kind {
-            VectorOutputFieldKind::Gravity => from_spells + vec2(0.0, -9.81),
+            VectorOutputFieldKind::Gravity => from_spells + GRAVITY,
             VectorOutputFieldKind::Force => from_spells,
         }
     }

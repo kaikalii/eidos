@@ -30,7 +30,6 @@ impl Default for PhysicsContext {
     fn default() -> Self {
         PhysicsContext {
             pipline: PhysicsPipeline::default(),
-            // gravity: vector!(0.0, -9.81),
             gravity: vector!(0.0, 0.0),
             integration_parameters: IntegrationParameters::default(),
             islands: IslandManager::default(),
