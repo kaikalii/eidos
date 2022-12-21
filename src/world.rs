@@ -153,7 +153,9 @@ impl World {
             ScalarFieldKind::Input(kind) => {
                 self.sample_input_scalar_field(kind, pos, allow_recursion)
             }
-            ScalarFieldKind::Output(kind) => self.sample_output_scalar_field(kind, pos),
+            ScalarFieldKind::Output(kind) => {
+                self.sample_output_scalar_field(kind, pos, allow_recursion)
+            }
         }
     }
     pub fn sample_vector_field(
@@ -238,8 +240,18 @@ impl World {
     pub fn sample_input_vector_field(&self, kind: VectorInputFieldKind, _pos: Pos2) -> Vec2 {
         match kind {}
     }
-    pub fn sample_output_scalar_field(&self, kind: ScalarOutputFieldKind, _pos: Pos2) -> f32 {
-        match kind {}
+    pub fn sample_output_scalar_field(
+        &self,
+        kind: ScalarOutputFieldKind,
+        pos: Pos2,
+        allow_recursion: bool,
+    ) -> f32 {
+        puffin::profile_function!(kind.to_string());
+        self.people()
+            .filter_map(|person| person.active_spells.scalars.get(&kind))
+            .flatten()
+            .map(|spell| spell.field.sample(self, pos, allow_recursion))
+            .sum()
     }
     pub fn sample_output_vector_field(
         &self,
@@ -272,6 +284,18 @@ impl World {
     pub fn update(&mut self) {
         // Run physics
         self.run_physics();
+        // Apply heat pressure
+        for i in 0..self.heat_grid.len() {
+            for j in 0..self.heat_grid[i].len() {
+                let pos = Pos2::new(
+                    self.min_bound.x + i as f32 * HEAT_GRID_RESOLUTION,
+                    self.min_bound.y + j as f32 * HEAT_GRID_RESOLUTION,
+                );
+                let heat_pressure =
+                    self.sample_output_scalar_field(ScalarOutputFieldKind::Heat, pos, true);
+                self.heat_grid[i][j] += heat_pressure * 0.01;
+            }
+        }
         // Transer heat between objects and grid
         for obj in self.objects.values_mut() {
             let i = ((obj.pos.x - self.min_bound.x) / HEAT_GRID_RESOLUTION + 0.5) as usize;

@@ -104,9 +104,9 @@ impl Stack {
             },
             Function::WriteField(field_kind) => {
                 let item = self.pop();
-                match (field_kind, item.field) {
-                    (OutputFieldKind::Vector(kind), Field::Vector(field)) => {
-                        if let Some(active_spells) = active_spells {
+                if let Some(active_spells) = active_spells {
+                    match (field_kind, item.field) {
+                        (OutputFieldKind::Vector(kind), Field::Vector(field)) => {
                             active_spells
                                 .vectors
                                 .entry(kind)
@@ -116,8 +116,18 @@ impl Stack {
                                     words: item.words.into_iter().chain([word]).collect(),
                                 });
                         }
+                        (OutputFieldKind::Scalar(kind), Field::Scalar(field)) => {
+                            active_spells
+                                .scalars
+                                .entry(kind)
+                                .or_default()
+                                .push(ActiveSpell {
+                                    field,
+                                    words: item.words.into_iter().chain([word]).collect(),
+                                });
+                        }
+                        _ => unreachable!(),
                     }
-                    _ => unreachable!(),
                 }
                 self.clear();
             }

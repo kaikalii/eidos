@@ -145,7 +145,9 @@ pub enum ScalarInputFieldKind {
 pub enum VectorInputFieldKind {}
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
-pub enum ScalarOutputFieldKind {}
+pub enum ScalarOutputFieldKind {
+    Heat,
+}
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
 pub enum VectorOutputFieldKind {

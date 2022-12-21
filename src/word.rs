@@ -47,6 +47,7 @@ pub enum Word {
     // Outputs
     Ke,
     Pe,
+    Sela,
     // Operators
     Ma,
     Sa,
@@ -90,6 +91,7 @@ impl Word {
             Mesi => ScalarInputFieldKind::Magic.into(),
             Ke => VectorOutputFieldKind::Gravity.into(),
             Pe => VectorOutputFieldKind::Force.into(),
+            Sela => ScalarOutputFieldKind::Heat.into(),
             Ma => HomoBinOp::Add.into(),
             Sa => HeteroBinOp::Mul.into(),
             Na => MathUnOp::Neg.into(),

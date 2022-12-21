@@ -1,5 +1,4 @@
 - Resolve background shape issues
-- Add heat pressure
 - Add order
 - Add memory
 - Design characters
