@@ -128,7 +128,13 @@ impl<'w> FieldPlot<'w> {
         F: FieldPlottable,
     {
         let time = time();
-        let resolution = (self.size * field_plot.precision()) as usize;
+        const SIZE_THRESHOLD: f32 = 180.0;
+        let adjusted_size = if self.size > SIZE_THRESHOLD {
+            self.size.sqrt() * SIZE_THRESHOLD.sqrt()
+        } else {
+            self.size
+        };
+        let resolution = (adjusted_size * field_plot.precision()) as usize;
         let step = 2.0 * self.range / resolution as f32;
         let point_radius = self.size / resolution as f32 * 0.5;
         let wiggle_delta = field_plot.wiggle_delta(point_radius);
