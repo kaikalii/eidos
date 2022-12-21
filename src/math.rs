@@ -8,6 +8,10 @@ use std::{
 use eframe::epaint::{pos2, vec2, Pos2, Vec2};
 use rapier2d::{na::Vector2, prelude::*};
 
+pub fn approach_one(x: f32, mid: f32) -> f32 {
+    x.signum() * (1.0 - 2f32.powf(-x.abs() / mid))
+}
+
 pub fn round_to(x: f32, dx: f32) -> f32 {
     (x / dx).round() * dx
 }

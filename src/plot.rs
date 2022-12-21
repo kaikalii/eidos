@@ -14,7 +14,11 @@ use puffin::profile_scope;
 use rand::prelude::*;
 use rayon::prelude::*;
 
-use crate::{math::round_to, texture::textures, world::World};
+use crate::{
+    math::{approach_one, round_to},
+    texture::textures,
+    world::World,
+};
 
 pub trait FieldPlottable: Sync {
     type Value: PartitionAndPlottable;
@@ -38,10 +42,6 @@ pub trait PartitionAndPlottable: Sized + Send {
         data: PlotData<Self>,
     );
     fn format(&self, round: fn(f32) -> f32) -> String;
-}
-
-pub fn plot_log(x: f32, mid: f32) -> f32 {
-    x.signum() * (1.0 - 2f32.powf(-x.abs() / mid))
 }
 
 pub fn default_scalar_color(t: f32) -> Rgba {
@@ -359,7 +359,7 @@ impl PartitionAndPlottable for f32 {
         let mut grouped_points = vec![vec![Vec::new(); ALPHA_BUCKETS]; Z_BUCKETS];
         let midpoint = field_plot.color_midpoint();
         for (x, y, z) in data.points {
-            let t = plot_log(z, midpoint);
+            let t = approach_one(z, midpoint);
             let group = ((t * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
                 .max(0.0)
                 .round() as usize)
@@ -415,8 +415,8 @@ impl PartitionAndPlottable for Vec2 {
         let mut grouped_points = vec![vec![vec![Vec::new(); ALPHA_BUCKETS]; Z_BUCKETS]; Z_BUCKETS];
         let midpoint = field_plot.color_midpoint();
         for (x, y, z) in data.points {
-            let tx = plot_log(z.x, midpoint);
-            let ty = plot_log(z.y, midpoint);
+            let tx = approach_one(z.x, midpoint);
+            let ty = approach_one(z.y, midpoint);
             let x_group = ((tx * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
                 .max(0.0)
                 .round() as usize)
