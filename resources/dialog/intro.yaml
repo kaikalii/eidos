@@ -16,6 +16,11 @@ start:
         image: Merion.png
     - speaker: Merion
     - Nice to meet you
+    - left:
+        name: Sanuo
+        image: Sanuo.png
+    - speaker: Sanuo
+    - This'll be great!
 end:
   lines:
     - background: school1.png
