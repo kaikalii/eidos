@@ -1,6 +1,6 @@
 use std::ops::*;
 
-use eframe::epaint::Color32;
+use eframe::epaint::{Color32, Hsva};
 use image::Rgba;
 
 #[derive(Debug, Clone, Copy)]
@@ -64,5 +64,26 @@ impl From<Rgba<u8>> for Color {
             color[2] as f32 / 255.0,
             color[3] as f32 / 255.0,
         )
+    }
+}
+
+impl From<Hsva> for Color {
+    fn from(color: Hsva) -> Self {
+        let Hsva { h, s, v, a } = color;
+        let h = h * 6.0;
+        let i = h as i32;
+        let f = h - i as f32;
+        let p = v * (1.0 - s);
+        let q = v * (1.0 - s * f);
+        let t = v * (1.0 - s * (1.0 - f));
+        match i {
+            0 => Color::rgba(v, t, p, a),
+            1 => Color::rgba(q, v, p, a),
+            2 => Color::rgba(p, v, t, a),
+            3 => Color::rgba(p, q, v, a),
+            4 => Color::rgba(t, p, v, a),
+            5 => Color::rgba(v, p, q, a),
+            _ => Color::rgba(0.0, 0.0, 0.0, a),
+        }
     }
 }

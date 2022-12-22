@@ -15,6 +15,7 @@ use rand::prelude::*;
 use rayon::prelude::*;
 
 use crate::{
+    color::Color,
     math::{approach_one, round_to},
     texture::textures,
     world::World,
@@ -25,7 +26,7 @@ pub trait FieldPlottable: Sync {
     fn precision(&self) -> f32;
     fn color_midpoint(&self) -> f32;
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value;
-    fn get_color(&self, t: Self::Value) -> Rgba;
+    fn get_color(&self, t: Self::Value) -> Color;
     fn wiggle_delta(&self, point_radius: f32) -> f32 {
         wiggle_delta(point_radius, self.precision())
     }
@@ -44,14 +45,14 @@ pub trait PartitionAndPlottable: Sized + Send {
     fn format(&self, round: fn(f32) -> f32) -> String;
 }
 
-pub fn default_scalar_color(t: f32) -> Rgba {
+pub fn default_scalar_color(t: f32) -> Color {
     let h = 0.9 * (1.0 - t);
-    let v = (2.0 * t - 1.0).abs();
-    let s = v.powf(0.5);
+    let v = (2.0 * t - 1.0).abs().sqrt();
+    let s = v.powi(2);
     Hsva::new(h, s, v, 1.0).into()
 }
 
-pub fn simple_vector_color(t: Vec2, offset: f32) -> Rgba {
+pub fn simple_vector_color(t: Vec2, offset: f32) -> Color {
     let t = (t - Vec2::splat(0.5)) * 2.0;
     let s = t.length();
     let v = 0.9 * t.length() + 0.1;
@@ -60,7 +61,7 @@ pub fn simple_vector_color(t: Vec2, offset: f32) -> Rgba {
     Hsva::new(h, s, v, 1.0).into()
 }
 
-pub fn default_vector_color(t: Vec2) -> Rgba {
+pub fn default_vector_color(t: Vec2) -> Color {
     simple_vector_color(t, 0.75)
 }
 
@@ -378,22 +379,16 @@ impl PartitionAndPlottable for f32 {
             }
             let t = i as f32 / (Z_BUCKETS + 1) as f32;
             let color = field_plot.get_color(t);
-            if color.a() < 1.0 / 255.0 {
+            if color.a < 1.0 / 255.0 {
                 continue;
             }
             profile_scope!("point drawing", "f32");
             for (a, points) in points.into_iter().enumerate() {
-                let color = Rgba::from_rgba_unmultiplied(
-                    color.r(),
-                    color.g(),
-                    color.b(),
-                    color.a() * (a as f32 + 0.1) / ALPHA_BUCKETS as f32,
-                );
                 plot_ui.points(
                     Points::new(PlotPoints::Owned(points))
                         .shape(MarkerShape::Circle)
                         .radius(data.point_radius)
-                        .color(color),
+                        .color(color.mul_a((a as f32 + 0.1) / ALPHA_BUCKETS as f32)),
                 );
             }
         }
@@ -446,7 +441,7 @@ impl PartitionAndPlottable for Vec2 {
                     j as f32 / (Z_BUCKETS + 1) as f32,
                 );
                 let color = field_plot.get_color(t);
-                if color.a() < 1.0 / 255.0 {
+                if color.a < 1.0 / 255.0 {
                     continue;
                 }
                 profile_scope!("point drawing", "Vec2");
@@ -462,15 +457,9 @@ impl PartitionAndPlottable for Vec2 {
                             )
                         })
                         .collect_vec();
-                    let color = Rgba::from_rgba_unmultiplied(
-                        color.r(),
-                        color.g(),
-                        color.b(),
-                        color.a() * (a as f32 + 0.1) / ALPHA_BUCKETS as f32,
-                    );
                     plot_ui.arrows(
                         Arrows::new(PlotPoints::Owned(points), PlotPoints::Owned(tips))
-                            .color(color),
+                            .color(color.mul_a((a as f32 + 0.1) / ALPHA_BUCKETS as f32)),
                     );
                 }
             }

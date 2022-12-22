@@ -8,6 +8,7 @@ use enum_iterator::all;
 use itertools::Itertools;
 
 use crate::{
+    color::Color,
     controls::{apply_color_fading, FadeButton},
     dialog::DialogState,
     field::*,
@@ -721,7 +722,7 @@ impl FieldPlottable for ScalarField {
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
         self.sample(world, pos, true)
     }
-    fn get_color(&self, t: Self::Value) -> Rgba {
+    fn get_color(&self, t: Self::Value) -> Color {
         match self {
             ScalarField::Input(kind) => ScalarFieldKind::Input(*kind).get_color(t),
             _ => default_scalar_color(t),
@@ -741,7 +742,7 @@ impl FieldPlottable for VectorField {
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
         self.sample(world, pos, true)
     }
-    fn get_color(&self, t: Self::Value) -> Rgba {
+    fn get_color(&self, t: Self::Value) -> Color {
         default_vector_color(t)
     }
 }
@@ -773,23 +774,23 @@ impl FieldPlottable for ScalarFieldKind {
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
         world.sample_scalar_field(*self, pos, true)
     }
-    fn get_color(&self, t: Self::Value) -> Rgba {
+    fn get_color(&self, t: Self::Value) -> Color {
         match self {
             ScalarFieldKind::Input(ScalarInputFieldKind::Magic) => {
                 let t = (t - 0.5) / 0.5;
-                Rgba::from_rgb(0.0, t * 0.5, t)
+                Color::rgb(0.0, t * 0.5, t)
             }
             ScalarFieldKind::Input(ScalarInputFieldKind::Light) => {
                 let t = (t - 0.5) / 0.5;
-                Rgba::from_rgb(t.powf(0.5), t.powf(0.6), t)
+                Color::rgb(t.powf(0.5), t.powf(0.6), t)
             }
             ScalarFieldKind::Input(ScalarInputFieldKind::Temperature)
             | ScalarFieldKind::Output(ScalarOutputFieldKind::Heat) => {
                 let t = (t - 0.5) / 0.5;
                 if t > 0.0 {
-                    Rgba::from_rgb(t, 0.125 - 0.5 * (t - 0.25).abs(), 0.0)
+                    Color::rgb(t, 0.125 - 0.5 * (t - 0.25).abs(), 0.0)
                 } else {
-                    Rgba::from_rgb(t.abs() * 0.5, t.abs() * 0.5, t.abs())
+                    Color::rgb(t.abs() * 0.5, t.abs() * 0.5, t.abs())
                 }
             }
             _ => default_scalar_color(t),
@@ -809,7 +810,7 @@ impl FieldPlottable for VectorFieldKind {
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value {
         world.sample_vector_field(*self, pos, true)
     }
-    fn get_color(&self, t: Self::Value) -> Rgba {
+    fn get_color(&self, t: Self::Value) -> Color {
         match self {
             VectorFieldKind::Input(_) => default_vector_color(t),
             VectorFieldKind::Output(kind) => match kind {
