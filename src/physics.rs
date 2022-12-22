@@ -80,7 +80,7 @@ impl PhysicsContext {
 }
 
 fn air_density_at_temp(temp: f32) -> f32 {
-    (temp - ABSOLUTE_ZERO) / (GROUND_TEMP - ABSOLUTE_ZERO) * AIR_DENSITY_AT_GROUND_TEMP
+    (GROUND_TEMP - ABSOLUTE_ZERO) / (temp - ABSOLUTE_ZERO) * AIR_DENSITY_AT_GROUND_TEMP
 }
 
 impl World {
@@ -104,9 +104,16 @@ impl World {
                 * diff.length()
                 * diff.normalized()
                 * (-0.5 * diff.normalized().dot(obj.vel.normalized()) + 1.5);
+            let temp = self.temperature_at(pos);
             let body = &mut self.physics.bodies[handle];
             let gravity_force = gravity_acc * body.mass();
-            let total_force = field_force + gravity_force + order_force;
+            let volume: f32 = body
+                .colliders()
+                .iter()
+                .map(|&handle| self.physics.colliders[handle].volume())
+                .sum();
+            let buoyant_force = -air_density_at_temp(temp) * volume * gravity_acc;
+            let total_force = field_force + gravity_force + buoyant_force + order_force;
             let sensor =
                 order > 0.0 && order_force.length() > gravity_force.length() + field_force.length();
             for &collider_handle in body.colliders() {

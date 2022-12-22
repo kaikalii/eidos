@@ -407,6 +407,15 @@ impl World {
             obj.ordered_pr.rot = go_to(obj.ordered_pr.rot, obj.pr.rot, anchoring);
         }
     }
+    pub fn temperature_at(&self, pos: Pos2) -> f32 {
+        let i = ((pos.x - self.min_bound.x) / HEAT_GRID_RESOLUTION + 0.5) as usize;
+        let j = ((pos.y - self.min_bound.y) / HEAT_GRID_RESOLUTION + 0.5) as usize;
+        self.heat_grid
+            .get(i)
+            .and_then(|col| col.get(j))
+            .copied()
+            .unwrap_or_else(|| ambient_temp_at(pos.y))
+    }
     fn hear_grid_width(&self) -> usize {
         ((self.max_bound.x - self.min_bound.x) / HEAT_GRID_RESOLUTION).ceil() as usize
     }
