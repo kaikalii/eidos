@@ -128,6 +128,7 @@ impl<'w> FieldPlot<'w> {
     where
         F: FieldPlottable,
     {
+        puffin::profile_function!();
         let time = time();
         const SIZE_THRESHOLD: f32 = 180.0;
         let adjusted_size = if self.size > SIZE_THRESHOLD {
@@ -140,10 +141,11 @@ impl<'w> FieldPlot<'w> {
         let point_radius = self.size / resolution as f32 * 0.5;
         let wiggle_delta = field_plot.wiggle_delta(point_radius);
         let center = pos2(round_to(self.center.x, step), round_to(self.center.y, step));
+        puffin::profile_scope!("point collection outer");
         let points = (0..resolution)
             .par_bridge()
             .flat_map(|i| {
-                puffin::profile_scope!("point collection");
+                puffin::profile_scope!("point collection inner");
                 let x = (i as f32) * step + center.x - self.range;
                 let rounded_x = round_to(x, step * 0.5);
                 let mut points = Vec::with_capacity(resolution);
@@ -198,6 +200,7 @@ impl<'w> FieldPlot<'w> {
     {
         puffin::profile_function!();
         let resp = self.init_plot().show(ui, |plot_ui| {
+            puffin::profile_scope!("FieldPlot::ui_impl - show");
             let data = self.get_data(field_plot);
             let center = data.center;
             F::Value::partition_and_plot(plot_ui, field_plot, data);

@@ -1,7 +1,6 @@
-use std::{collections::HashMap, f32::consts::PI, iter::once};
+use std::{f32::consts::PI, iter::once};
 
-use eframe::egui::*;
-use indexmap::IndexMap;
+use eframe::{egui::*, epaint::ahash::HashMap};
 use itertools::Itertools;
 use rapier2d::prelude::*;
 use rayon::prelude::*;
@@ -19,7 +18,7 @@ use crate::{
 pub struct World {
     pub player: Player,
     pub npcs: HashMap<NpcId, Npc>,
-    pub objects: IndexMap<RigidBodyHandle, Object>,
+    pub objects: HashMap<RigidBodyHandle, Object>,
     pub min_bound: Pos2,
     pub max_bound: Pos2,
     pub heat_grid: Vec<Vec<f32>>,
@@ -56,12 +55,12 @@ impl World {
         // Init world
         let mut world = World {
             player,
-            npcs: HashMap::new(),
+            npcs: HashMap::default(),
             physics: PhysicsContext::default(),
             min_bound: Pos2::ZERO,
             max_bound: Pos2::ZERO,
             heat_grid: Vec::new(),
-            objects: IndexMap::new(),
+            objects: HashMap::default(),
             controls: Controls::default(),
         };
         // Place
@@ -386,7 +385,7 @@ impl World {
                     let pos_y = self.min_bound.y + (j as f32 + 0.5) * HEAT_GRID_RESOLUTION;
                     let pos = pos2(pos_x, pos_y);
                     let ambient_temp = ambient_temp_at(pos_y);
-                    let (c, s) = if self.find_object_at(pos).is_some() {
+                    let (center_mul, side_mul) = if self.find_object_at(pos).is_some() {
                         (4.6, 0.1)
                     } else {
                         (1.0, 1.0)
@@ -404,7 +403,8 @@ impl World {
                         .unwrap_or(ambient_temp);
                     let up = *col.get((j as isize + 1) as usize).unwrap_or(&ambient_temp);
                     let down = *col.get((j as isize - 1) as usize).unwrap_or(&ambient_temp);
-                    new_col[j] = (c * center + s * (left + right + up + down)) / 5.0;
+                    new_col[j] =
+                        (center_mul * center + side_mul * (left + right + up + down)) / 5.0;
                 }
                 new_col
             })
@@ -446,7 +446,7 @@ impl World {
         self.min_bound.y = place.bounds.bottom;
         self.max_bound.y = place.bounds.top;
         // Remove old objects
-        for (handle, _) in self.objects.drain(..) {
+        for (handle, _) in self.objects.drain() {
             self.physics.remove_body(handle);
         }
         // Add objects

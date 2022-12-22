@@ -240,7 +240,6 @@ impl World {
             background_handles,
         };
         self.objects.insert(body_handle, object);
-        self.objects.sort_by(|_, a, _, b| a.kind.cmp(&b.kind));
         body_handle
     }
     pub fn get_light_at(&self, pos: Pos2) -> f32 {

@@ -214,6 +214,7 @@ impl Game {
         res
     }
     fn top_ui(&mut self, ui: &mut Ui) {
+        puffin::profile_function!();
         ui.horizontal(|ui| {
             // Mana bar
             ui.scope(|ui| {
@@ -250,6 +251,7 @@ impl Game {
         });
     }
     fn fields_ui(&mut self, ui: &mut Ui) {
+        puffin::profile_function!();
         // Draw the fields themselves
         let full_rect = ui.available_rect_before_wrap();
         let mut dragged = Vec::new();
@@ -376,6 +378,7 @@ impl Game {
         }
     }
     fn spell_words_ui(ui: &mut Ui, words: &[Word], max_height: f32, can_dispel: bool) -> bool {
+        puffin::profile_function!();
         let font_id = &ui.style().text_styles[&TextStyle::Body];
         let row_height = ui.fonts().row_height(font_id);
         let vert_spacing = ui.spacing().item_spacing.y;
@@ -422,6 +425,7 @@ impl Game {
         .inner
     }
     fn stack_ui(&mut self, ui: &mut Ui) {
+        puffin::profile_function!();
         ScrollArea::horizontal().show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.allocate_exact_size(vec2(0.0, SMALL_PLOT_SIZE), Sense::hover());
@@ -444,6 +448,7 @@ impl Game {
         });
     }
     fn words_ui(&mut self, ui: &mut Ui) {
+        puffin::profile_function!();
         ui.horizontal_top(|ui| {
             self.words_grid(ui);
             self.conduit_ui(ui);
