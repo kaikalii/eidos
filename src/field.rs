@@ -123,8 +123,8 @@ pub enum ScalarFieldKind {
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
 #[serde(untagged)]
 pub enum VectorFieldKind {
-    Input(VectorInputFieldKind),
     Output(VectorOutputFieldKind),
+    Input(VectorInputFieldKind),
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]
@@ -133,14 +133,14 @@ pub enum ScalarInputFieldKind {
     Density,
     #[display(fmt = "🗻Elevation")]
     Elevation,
-    #[display(fmt = "🌌Magic")]
-    Magic,
-    #[display(fmt = "🕯Light")]
-    Light,
     #[display(fmt = "🌡Temperature")]
     Temperature,
     #[display(fmt = "🍃Disorder")]
     Disorder,
+    #[display(fmt = "🌌Magic")]
+    Magic,
+    #[display(fmt = "🕯Light")]
+    Light,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, Sequence, Deserialize)]

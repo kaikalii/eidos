@@ -103,19 +103,21 @@ impl World {
             let order_force = order
                 * diff.length()
                 * diff.normalized()
-                * (-0.5 * diff.normalized().dot(obj.vel.normalized()) + 1.5);
+                * (5.0 - 4.0 * diff.normalized().dot(obj.vel.normalized()));
             let temp = self.temperature_at(pos);
             let body = &mut self.physics.bodies[handle];
-            let gravity_force = gravity_acc * body.mass();
-            let volume: f32 = body
-                .colliders()
-                .iter()
-                .map(|&handle| self.physics.colliders[handle].volume())
-                .sum();
-            let buoyant_force = -air_density_at_temp(temp) * volume * gravity_acc;
-            let total_force = field_force + gravity_force + buoyant_force + order_force;
-            let sensor =
-                order > 0.0 && order_force.length() > gravity_force.length() + field_force.length();
+            let (total_force, sensor) = if order_force.length() > 0.0 {
+                (order_force, order >= 1.0)
+            } else {
+                let gravity_force = gravity_acc * body.mass();
+                let volume: f32 = body
+                    .colliders()
+                    .iter()
+                    .map(|&handle| self.physics.colliders[handle].volume())
+                    .sum();
+                let buoyant_force = -air_density_at_temp(temp) * volume * gravity_acc;
+                (field_force + gravity_force + buoyant_force, false)
+            };
             for &collider_handle in body.colliders() {
                 let collider = self.physics.colliders.get_mut(collider_handle).unwrap();
                 collider.set_sensor(sensor);
