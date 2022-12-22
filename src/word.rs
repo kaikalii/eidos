@@ -321,20 +321,21 @@ impl Phenotype {
         unreachable!()
     }
     fn fitness(&self) -> usize {
-        let mut sum = 0;
+        let mut sum = 0.0;
         // Optimize for groups
         for group in GROUPS {
             for (&a, &b) in group.iter().tuple_windows() {
                 let [ai, aj] = self.word_index(a);
                 let [bi, bj] = self.word_index(b);
-                let mut dist = ai.abs_diff(bi) + aj.abs_diff(bj);
+                let mut dist =
+                    ((ai as f32 - bi as f32).powi(2) + (aj as f32 - bj as f32).powi(2)).sqrt();
                 if ai > bi {
-                    dist += 1;
+                    dist += 1.0;
                 }
                 if aj > bj {
-                    dist += 1;
+                    dist += 1.0;
                 }
-                sum += dist * 2;
+                sum += dist * 2.0;
             }
         }
         // Optimize for common spells
@@ -342,16 +343,17 @@ impl Phenotype {
             for (&a, &b) in spell.iter().tuple_windows() {
                 let [ai, aj] = self.word_index(a);
                 let [bi, bj] = self.word_index(b);
-                let dist = ai.abs_diff(bi) + aj.abs_diff(bj);
+                let dist =
+                    ((ai as f32 - bi as f32).powi(2) + (aj as f32 - bj as f32).powi(2)).sqrt();
                 sum += dist;
             }
         }
         // Try to put numbers at the top
         for &number_word in &[To, Ti, Tu, Ta, Te] {
             let [i, _] = self.word_index(number_word);
-            sum += i * 3;
+            sum += (i * 3) as f32;
         }
-        sum
+        (sum * 1e6) as usize
     }
 }
 
