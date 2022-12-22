@@ -112,8 +112,10 @@ pub enum Word {
     Pe,
     /// Y target
     Pi,
-    /// Activation
+    /// Activation 1
     Ve,
+    /// Activation 2
+    Vi,
 
     // Combinators
     /// Drop
@@ -171,7 +173,8 @@ impl Word {
             Li => ControlKind::YSlider.into(),
             Pe => Nullary::TargetX.into(),
             Pi => Nullary::TargetY.into(),
-            Ve => ControlKind::Activation.into(),
+            Ve => ControlKind::Activation1.into(),
+            Vi => ControlKind::Activation2.into(),
         }
     }
     pub fn etchable(&self) -> bool {
@@ -300,6 +303,7 @@ static REFERENCE_SPELLS: &[&[Word]] = &[
     &[Le, Ke, Sa, Wu],
     &[Te, Li, Ma, Wi, Na, Ma, Ki, Sa, Vu],
     &[Ve, Sa],
+    &[Vi, Sa],
     &[Mo, We, Sa],
     &[Te, Ta, Ma],
     &[Ta, Tu, Ma],
@@ -320,6 +324,7 @@ static REFERENCE_SPELLS: &[&[Word]] = &[
     &[Ko, Sa],
     &[Ma, Ka],
     &[Ve, Mu],
+    &[Vi, Mu],
     &[Re, Ka],
 ];
 static GROUPS: &[&[Word]] = &[
@@ -333,6 +338,7 @@ static GROUPS: &[&[Word]] = &[
     &[Ru, Vo],
     &[Mi, Me],
     &[Re, Ri],
+    &[Ve, Vi],
 ];
 
 impl Phenotype {
@@ -355,13 +361,10 @@ impl Phenotype {
                 let [bi, bj] = self.word_index(b);
                 let mut dist =
                     ((ai as f32 - bi as f32).powi(2) + (aj as f32 - bj as f32).powi(2)).sqrt();
-                if ai > bi {
+                if ai > bi || aj > bj {
                     dist += 1.0;
                 }
-                if aj > bj {
-                    dist += 1.0;
-                }
-                sum += dist * 2.0;
+                sum += dist * 3.0;
             }
         }
         // Optimize for common spells

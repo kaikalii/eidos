@@ -39,7 +39,8 @@ pub const AIR_DENSITY_AT_GROUND_TEMP: f32 = 0.001279176;
 pub struct Controls {
     pub x_slider: Option<f32>,
     pub y_slider: Option<f32>,
-    pub activation: bool,
+    pub activation1: bool,
+    pub activation2: bool,
 }
 
 impl Controls {
@@ -47,7 +48,8 @@ impl Controls {
         match kind {
             ControlKind::XSlider => self.x_slider.unwrap_or(0.0),
             ControlKind::YSlider => self.y_slider.unwrap_or(0.0),
-            ControlKind::Activation => self.activation as u8 as f32,
+            ControlKind::Activation1 => self.activation1 as u8 as f32,
+            ControlKind::Activation2 => self.activation2 as u8 as f32,
         }
     }
 }

@@ -186,7 +186,8 @@ pub enum VectorOutputFieldKind {
 pub enum ControlKind {
     XSlider,
     YSlider,
-    Activation,
+    Activation1,
+    Activation2,
 }
 
 impl ScalarField {

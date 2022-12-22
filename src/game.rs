@@ -276,12 +276,9 @@ impl Game {
                 );
                 ui.allocate_ui_at_rect(plot_rect, |ui| {
                     let plot_resp = self.plot_io_field(ui, size, alpha, kind);
-                    if plot_resp
-                        .response
-                        .double_clicked_by(PointerButton::Secondary)
-                    {
+                    if plot_resp.response.double_clicked_by(PointerButton::Middle) {
                         double_clicked.push(kind);
-                    } else if plot_resp.response.dragged_by(PointerButton::Secondary) {
+                    } else if plot_resp.response.dragged_by(PointerButton::Middle) {
                         dragged.push((kind, plot_resp.response.drag_delta()));
                     } else if plot_resp.response.drag_released() {
                         drag_released = Some(kind);
@@ -320,12 +317,9 @@ impl Game {
                             if let Some(i) = to_dispel {
                                 player_person.active_spells.remove(output_kind, i);
                             }
-                            if plot_resp
-                                .response
-                                .double_clicked_by(PointerButton::Secondary)
-                            {
+                            if plot_resp.response.double_clicked_by(PointerButton::Middle) {
                                 double_clicked.push(kind);
-                            } else if plot_resp.response.dragged_by(PointerButton::Secondary) {
+                            } else if plot_resp.response.dragged_by(PointerButton::Middle) {
                                 dragged.push((kind, plot_resp.response.drag_delta()));
                             } else if plot_resp.response.drag_released() {
                                 drag_released = Some(kind);
@@ -638,22 +632,35 @@ impl Game {
             } else {
                 self.world.controls.x_slider = None;
             }
-            // Activator
-            if used_controls.contains(&ControlKind::Activation) {
-                let value = &mut self.world.controls.activation;
-                let something_focused = ui.memory().focus().is_some();
-                ui.toggle_value(value, Word::Ve.to_string());
-                let input = ui.input();
-                if input.key_pressed(Key::Space) {
-                    if !something_focused {
-                        *value = true;
+            // Activators
+            let something_focused = ui.memory().focus().is_some();
+            for (word, kind, value, require_shift) in [
+                (
+                    Word::Ve,
+                    ControlKind::Activation1,
+                    &mut self.world.controls.activation1,
+                    false,
+                ),
+                (
+                    Word::Vi,
+                    ControlKind::Activation2,
+                    &mut self.world.controls.activation2,
+                    true,
+                ),
+            ] {
+                if used_controls.contains(&kind) {
+                    ui.toggle_value(value, word.to_string());
+                    let input = ui.input();
+                    if input.key_down(Key::Space) && require_shift != input.modifiers.shift {
+                        if !something_focused {
+                            *value = true;
+                        }
+                    } else if input.key_released(Key::Space) {
+                        *value = false;
                     }
-                } else if input.key_released(Key::Space) {
+                } else {
                     *value = false;
                 }
-                drop(input);
-            } else {
-                self.world.controls.activation = false;
             }
         });
     }
@@ -670,7 +677,8 @@ impl Game {
             ui_state.next_player_target = plot_resp.hovered_pos;
         }
         if plot_resp.response.hovered() {
-            controls.activation = ui.input().pointer.primary_down();
+            controls.activation1 = ui.input().pointer.primary_down();
+            controls.activation2 = ui.input().pointer.secondary_down();
         }
     }
     fn init_plot(&self, size: f32, global_alpha: f32) -> FieldPlot {
