@@ -116,13 +116,19 @@ impl ShapeLayer {
     }
 }
 
+struct FoundObject<'a> {
+    obj: &'a Object,
+    shape: &'a OffsetShape,
+    layer: ShapeLayer,
+}
+
 impl World {
     fn find_obj_filtered_at_impl(
         &self,
         p: Pos2,
         filter: impl Fn(&Object, &RigidBody) -> bool,
         transform_point: fn(&Object, Pos2) -> Pos2,
-    ) -> Option<(&Object, &OffsetShape, ShapeLayer)> {
+    ) -> Option<FoundObject> {
         puffin::profile_function!();
         let mut min_layer = ShapeLayer::Far;
         let mut best = None;
@@ -137,7 +143,11 @@ impl World {
                 .iter()
                 .find(|shape| shape.contains(transformed_point))
             {
-                return Some((obj, shape, ShapeLayer::Foreground));
+                return Some(FoundObject {
+                    obj,
+                    shape,
+                    layer: ShapeLayer::Foreground,
+                });
             } else if let Some(shape) = obj
                 .def
                 .background
@@ -158,16 +168,20 @@ impl World {
                 best = Some((obj, shape));
             }
         }
-        best.map(|(obj, shape)| (obj, shape, min_layer))
+        best.map(|(obj, shape)| FoundObject {
+            obj,
+            shape,
+            layer: min_layer,
+        })
     }
-    pub fn find_object_filtered_at(
+    fn find_object_filtered_at(
         &self,
         p: Pos2,
         filter: impl Fn(&Object, &RigidBody) -> bool,
-    ) -> Option<(&Object, &OffsetShape, ShapeLayer)> {
+    ) -> Option<FoundObject> {
         self.find_obj_filtered_at_impl(p, filter, Object::transform_point)
     }
-    pub fn find_object_at(&self, p: Pos2) -> Option<(&Object, &OffsetShape, ShapeLayer)> {
+    fn find_object_at(&self, p: Pos2) -> Option<FoundObject> {
         self.find_object_filtered_at(p, |_, _| true)
     }
     pub fn sample_scalar_field(
@@ -210,7 +224,7 @@ impl World {
         match kind {
             ScalarInputFieldKind::Density => self
                 .find_object_at(pos)
-                .map(|(_, shape, layer)| shape.density * layer.multiplier())
+                .map(|found| found.shape.density * found.layer.multiplier())
                 .unwrap_or(0.0),
             ScalarInputFieldKind::Elevation => {
                 let mut test = pos;
@@ -227,11 +241,11 @@ impl World {
                 pos.y
             }
             ScalarInputFieldKind::Magic => {
-                let mul = if let Some((obj, _, layer)) = self.find_object_at(pos) {
-                    if let ShapeLayer::Foreground = layer {
-                        return obj.def.props.magic;
+                let mul = if let Some(found) = self.find_object_at(pos) {
+                    if let ShapeLayer::Foreground = found.layer {
+                        return found.obj.def.props.magic;
                     } else {
-                        layer.multiplier()
+                        found.layer.multiplier()
                     }
                 } else {
                     1.0
@@ -252,8 +266,8 @@ impl World {
             }
             ScalarInputFieldKind::Light => self.get_light_at(pos),
             ScalarInputFieldKind::Temperature => {
-                if let Some((obj, _, _)) = self.find_object_at(pos) {
-                    return obj.heat;
+                if let Some(found) = self.find_object_at(pos) {
+                    return found.obj.heat;
                 }
                 let i = ((pos.x - self.min_bound.x) / HEAT_GRID_RESOLUTION + 0.5) as usize;
                 let j = ((pos.y - self.min_bound.y) / HEAT_GRID_RESOLUTION + 0.5) as usize;
@@ -264,16 +278,16 @@ impl World {
                     .unwrap_or_else(|| ambient_temp_at(pos.y))
             }
             ScalarInputFieldKind::Disorder => {
-                if let Some((obj, _, _)) = self.find_object_at(pos) {
-                    obj.pr.pos.distance(obj.ordered_pr.pos)
-                        + angle_diff(obj.pr.rot, obj.ordered_pr.rot).abs() / PI
-                } else if let Some((obj, _, _)) = self.find_obj_filtered_at_impl(
+                if let Some(found) = self.find_object_at(pos) {
+                    found.obj.pr.pos.distance(found.obj.ordered_pr.pos)
+                        + angle_diff(found.obj.pr.rot, found.obj.ordered_pr.rot).abs() / PI
+                } else if let Some(found) = self.find_obj_filtered_at_impl(
                     pos,
                     |_, _| true,
                     Object::transform_point_as_ordered,
                 ) {
-                    -(obj.pr.pos.distance(obj.ordered_pr.pos)
-                        + angle_diff(obj.pr.rot, obj.ordered_pr.rot).abs() / PI)
+                    -(found.obj.pr.pos.distance(found.obj.ordered_pr.pos)
+                        + angle_diff(found.obj.pr.rot, found.obj.ordered_pr.rot).abs() / PI)
                 } else {
                     0.0
                 }
