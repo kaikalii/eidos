@@ -1,11 +1,19 @@
 use std::{collections::HashMap, f64};
 
-use eframe::{egui::*, epaint::mutex::Mutex};
+use eframe::{
+    egui::*,
+    epaint::{mutex::Mutex, util::hash},
+};
 use image::RgbaImage;
 use once_cell::sync::Lazy;
 use rand::prelude::*;
+use rayon::prelude::*;
 
-use crate::{color::Color, plot::time, utils::resources_path};
+use crate::{
+    color::Color,
+    plot::{time, Plottable},
+    utils::resources_path,
+};
 
 static IMAGES: Lazy<Mutex<HashMap<String, RgbaImage>>> = Lazy::new(Default::default);
 
@@ -75,15 +83,15 @@ pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2, kind: ImagePlotKind) 
         ui.allocate_ui_at_rect(rect, |ui| {
             let max_i = (size.x / step) as usize;
             let max_j = (size.y / step) as usize;
-            let mut rng = SmallRng::seed_from_u64(0);
             let mut points = Vec::with_capacity(max_i * max_j);
-            for i in 0..max_i {
-                for j in 0..max_j {
-                    let x = i as f32 * step;
+            points.par_extend((0..max_i).par_bridge().flat_map(|i| {
+                let x = i as f32 * step;
+                (0..max_j).par_bridge().filter_map(move |j| {
                     let y = j as f32 * step;
+                    let mut rng = SmallRng::seed_from_u64(hash((i, j)));
                     let mut color = Color::from(*image.get_pixel(
                         (x / size.x * image.width() as f32) as u32,
-                        ((0.9999 - y / size.y) * image.height() as f32) as u32,
+                        (y / size.y * image.height() as f32) as u32,
                     ));
                     let dx =
                         wiggle_range * (time + rng.gen_range(0.0..=f64::consts::TAU)).sin() as f32;
@@ -99,15 +107,19 @@ pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2, kind: ImagePlotKind) 
                     };
                     color.a *= alpha * dropoff;
                     if color.a < 1.0 / 255.0 {
-                        continue;
+                        return None;
                     }
                     let color_mul = color_mul * dropoff;
-                    points.push((pos2(x + dx, y + dy), color * color_mul));
-                }
-            }
+                    Some((pos2(x, y), vec2(dx, dy), color * color_mul))
+                })
+            }));
+            points.par_sort_by(|(a, ..), (b, ..)| {
+                <f32 as Plottable>::cmp(&a.x, &b.x)
+                    .then_with(|| <f32 as Plottable>::cmp(&a.y, &b.y))
+            });
             let painter = ui.painter();
-            for (point, color) in points {
-                painter.circle_filled(point, step * 0.5, color);
+            for (point, offset, color) in points {
+                painter.circle_filled(point + offset, step * 0.5, color);
             }
         });
     });
