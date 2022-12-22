@@ -80,47 +80,46 @@ pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2, kind: ImagePlotKind) 
         };
         let time = time();
         let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
-        ui.allocate_ui_at_rect(rect, |ui| {
-            let max_i = (size.x / step) as usize;
-            let max_j = (size.y / step) as usize;
-            let mut points = Vec::with_capacity(max_i * max_j);
-            points.par_extend((0..max_i).par_bridge().flat_map(|i| {
-                let x = i as f32 * step;
-                (0..max_j).par_bridge().filter_map(move |j| {
-                    let y = j as f32 * step;
-                    let mut rng = SmallRng::seed_from_u64(hash((i, j)));
-                    let mut color = Color::from(*image.get_pixel(
-                        (x / size.x * image.width() as f32) as u32,
-                        (y / size.y * image.height() as f32) as u32,
-                    ));
-                    let dx =
-                        wiggle_range * (time + rng.gen_range(0.0..=f64::consts::TAU)).sin() as f32;
-                    let dy =
-                        wiggle_range * (time + rng.gen_range(0.0..=f64::consts::TAU)).sin() as f32;
-                    let dropoff = match kind {
-                        ImagePlotKind::Portrait(_) => 1.0,
-                        ImagePlotKind::Background => {
-                            let dist_from_center =
-                                (Vec2::new(x + dx, y + dy) - max_size * 0.5).length();
-                            1.0 - dist_from_center / ((size.x + size.y) * 0.25)
-                        }
-                    };
-                    color.a *= alpha * dropoff;
-                    if color.a < 1.0 / 255.0 {
-                        return None;
+        let max_i = (size.x / step) as usize;
+        let max_j = (size.y / step) as usize;
+        let mut points = Vec::with_capacity(max_i * max_j);
+        points.par_extend((0..max_i).par_bridge().flat_map(|i| {
+            let x = i as f32 * step;
+            (0..max_j).par_bridge().filter_map(move |j| {
+                let y = j as f32 * step;
+                let mut rng = SmallRng::seed_from_u64(hash((i, j)));
+                let mut color = Color::from(*image.get_pixel(
+                    (x / size.x * image.width() as f32) as u32,
+                    (y / size.y * image.height() as f32) as u32,
+                ));
+                let dx = wiggle_range * (time + rng.gen_range(0.0..=f64::consts::TAU)).sin() as f32;
+                let dy = wiggle_range * (time + rng.gen_range(0.0..=f64::consts::TAU)).sin() as f32;
+                let dropoff = match kind {
+                    ImagePlotKind::Portrait(_) => 1.0,
+                    ImagePlotKind::Background => {
+                        let dist_from_center =
+                            (Vec2::new(x + dx, y + dy) - max_size * 0.5).length();
+                        1.0 - dist_from_center / ((size.x + size.y) * 0.25)
                     }
-                    let color_mul = color_mul * dropoff;
-                    Some((pos2(x, y), vec2(dx, dy), color * color_mul))
-                })
-            }));
-            points.par_sort_by(|(a, ..), (b, ..)| {
-                <f32 as Plottable>::cmp(&a.x, &b.x)
-                    .then_with(|| <f32 as Plottable>::cmp(&a.y, &b.y))
-            });
-            let painter = ui.painter();
-            for (point, offset, color) in points {
-                painter.circle_filled(point + offset, step * 0.5, color);
-            }
+                };
+                color.a *= alpha * dropoff;
+                if color.a < 1.0 / 255.0 {
+                    return None;
+                }
+                let color_mul = color_mul * dropoff;
+                Some((
+                    pos2(x, y) + rect.left_top().to_vec2(),
+                    vec2(dx, dy),
+                    color * color_mul,
+                ))
+            })
+        }));
+        points.par_sort_by(|(a, ..), (b, ..)| {
+            <f32 as Plottable>::cmp(&a.x, &b.x).then_with(|| <f32 as Plottable>::cmp(&a.y, &b.y))
         });
+        let painter = ui.painter();
+        for (point, offset, color) in points {
+            painter.circle_filled(point + offset, step * 0.5, color);
+        }
     });
 }
