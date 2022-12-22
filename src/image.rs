@@ -1,13 +1,9 @@
 use std::{collections::HashMap, f64};
 
-use eframe::{
-    egui::{plot::*, *},
-    epaint::{mutex::Mutex, util::hash},
-};
+use eframe::{egui::*, epaint::mutex::Mutex};
 use image::RgbaImage;
 use once_cell::sync::Lazy;
 use rand::prelude::*;
-use rayon::prelude::*;
 
 use crate::{color::Color, plot::time, utils::resources_path};
 
@@ -75,65 +71,44 @@ pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2, kind: ImagePlotKind) 
             ImagePlotKind::Background => 0.6,
         };
         let time = time();
-        Plot::new(random::<u64>())
-            .width(size.x)
-            .height(size.y)
-            .show_axes([false; 2])
-            .show_background(false)
-            .show_x(false)
-            .show_y(false)
-            .include_x(-wiggle_range)
-            .include_x(size.x + wiggle_range)
-            .include_y(-wiggle_range)
-            .include_y(size.y + wiggle_range)
-            .data_aspect(1.0)
-            .view_aspect(image_aspect)
-            .allow_scroll(false)
-            .allow_drag(false)
-            .allow_zoom(false)
-            .show(ui, |plot_ui| {
-                let points: Vec<(PlotPoint, Color)> = (0..(size.x / step) as usize)
-                    .par_bridge()
-                    .flat_map(|i| {
-                        let max_j = (size.y / step) as usize;
-                        let mut points = Vec::with_capacity(max_j);
-                        for j in 0..max_j {
-                            let mut rng = SmallRng::seed_from_u64(hash((i, j)));
-                            let x = i as f32 * step;
-                            let y = j as f32 * step;
-                            let mut color = Color::from(*image.get_pixel(
-                                (x / size.x * image.width() as f32) as u32,
-                                ((0.9999 - y / size.y) * image.height() as f32) as u32,
-                            ));
-                            let dx = wiggle_range
-                                * (time + rng.gen_range(0.0..=f64::consts::TAU)).sin() as f32;
-                            let dy = wiggle_range
-                                * (time + rng.gen_range(0.0..=f64::consts::TAU)).sin() as f32;
-                            let dropoff = match kind {
-                                ImagePlotKind::Portrait(_) => 1.0,
-                                ImagePlotKind::Background => {
-                                    let dist_from_center =
-                                        (Vec2::new(x + dx, y + dy) - max_size * 0.5).length();
-                                    1.0 - dist_from_center / ((size.x + size.y) * 0.25)
-                                }
-                            };
-                            color.a *= alpha * dropoff;
-                            if color.a < 1.0 / 255.0 {
-                                continue;
-                            }
-                            let color_mul = color_mul * dropoff;
-                            points.push((PlotPoint::new(x + dx, y + dy), color * color_mul));
+        let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
+        ui.allocate_ui_at_rect(rect, |ui| {
+            let max_i = (size.x / step) as usize;
+            let max_j = (size.y / step) as usize;
+            let mut rng = SmallRng::seed_from_u64(0);
+            let mut points = Vec::with_capacity(max_i * max_j);
+            for i in 0..max_i {
+                for j in 0..max_j {
+                    let x = i as f32 * step;
+                    let y = j as f32 * step;
+                    let mut color = Color::from(*image.get_pixel(
+                        (x / size.x * image.width() as f32) as u32,
+                        ((0.9999 - y / size.y) * image.height() as f32) as u32,
+                    ));
+                    let dx =
+                        wiggle_range * (time + rng.gen_range(0.0..=f64::consts::TAU)).sin() as f32;
+                    let dy =
+                        wiggle_range * (time + rng.gen_range(0.0..=f64::consts::TAU)).sin() as f32;
+                    let dropoff = match kind {
+                        ImagePlotKind::Portrait(_) => 1.0,
+                        ImagePlotKind::Background => {
+                            let dist_from_center =
+                                (Vec2::new(x + dx, y + dy) - max_size * 0.5).length();
+                            1.0 - dist_from_center / ((size.x + size.y) * 0.25)
                         }
-                        points
-                    })
-                    .collect();
-                for (point, color) in points {
-                    plot_ui.points(
-                        Points::new(PlotPoints::Owned(vec![point]))
-                            .color(color)
-                            .radius(step * 0.5),
-                    );
+                    };
+                    color.a *= alpha * dropoff;
+                    if color.a < 1.0 / 255.0 {
+                        continue;
+                    }
+                    let color_mul = color_mul * dropoff;
+                    points.push((pos2(x + dx, y + dy), color * color_mul));
                 }
-            });
+            }
+            let painter = ui.painter();
+            for (point, color) in points {
+                painter.circle_filled(point, step * 0.5, color);
+            }
+        });
     });
 }
