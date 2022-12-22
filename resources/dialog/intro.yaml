@@ -11,6 +11,11 @@ start:
     - Hello...
     - speaker: Kalisa
     - Good morning!
+    - right:
+        name: Merion
+        image: Merion.png
+    - speaker: Merion
+    - Nice to meet you
 end:
   lines:
     - background: school1.png
