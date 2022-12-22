@@ -11,7 +11,7 @@ use serde::Deserialize;
 
 use crate::{
     field::InputFieldKind,
-    game::{FieldDisplay, Game},
+    game::Game,
     image::{image_plot, ImagePlotKind},
     player::Gender,
     utils::{fatal_error, resources_path},
@@ -506,9 +506,10 @@ impl Game {
                     DialogCommand::RevealManaBar => progression.mana_bar = true,
                     DialogCommand::RevealField(kind) => {
                         progression.known_fields.insert(*kind);
-                        self.ui_state
-                            .fields_display
-                            .insert((*kind).into(), FieldDisplay::default_for((*kind).into()));
+                        self.ui_state.fields_display.insert(
+                            (*kind).into(),
+                            self.ui_state.default_field_display((*kind).into()),
+                        );
                     }
                     DialogCommand::RevealFree => progression.free = true,
                     DialogCommand::RevealConduit => progression.conduit = true,

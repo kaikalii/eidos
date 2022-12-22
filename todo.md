@@ -1,3 +1,4 @@
 - Add memory
+- Figure out the best way to layout fields
 - Resolve background shape issues
 - Write plot

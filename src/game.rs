@@ -1,10 +1,8 @@
-use std::{
-    collections::{BTreeSet, HashMap},
-    time::Instant,
-};
+use std::{collections::BTreeSet, time::Instant};
 
 use eframe::egui::{style::Margin, *};
 use enum_iterator::all;
+use indexmap::IndexMap;
 use itertools::Itertools;
 
 use crate::{
@@ -43,7 +41,7 @@ impl Game {
 }
 
 pub struct UiState {
-    pub fields_display: HashMap<FieldKind, FieldDisplay>,
+    pub fields_display: IndexMap<FieldKind, FieldDisplay>,
     pub dialog: Option<DialogState>,
     last_stack_len: usize,
     paused: bool,
@@ -57,30 +55,45 @@ pub struct FieldDisplay {
     pub size: f32,
 }
 
-impl FieldDisplay {
-    pub fn default_for(kind: FieldKind) -> Self {
-        let index = kind.index();
-        let x = (index % 5) as f32 * 0.2 + 0.1;
-        let y = (index / 5) as f32 * 0.35 + 0.2;
-        FieldDisplay {
-            visible: true,
-            pos: vec2(x, y),
-            size: 0.35,
-        }
-    }
-}
-
 #[allow(clippy::derivable_impls)]
 impl Default for UiState {
     fn default() -> Self {
         UiState {
-            fields_display: HashMap::new(),
+            fields_display: IndexMap::new(),
             dialog: None,
             last_stack_len: 0,
             paused: false,
             next_player_target: None,
             background: None,
         }
+    }
+}
+
+impl UiState {
+    pub fn default_field_display(&self, kind: FieldKind) -> FieldDisplay {
+        let index = if let Some(i) = self.fields_display.get_index_of(&kind) {
+            i
+        } else {
+            self.fields_display.len()
+        };
+        let m = match IoFieldKind::from(kind) {
+            IoFieldKind::Input(_) => 5,
+            IoFieldKind::Output(_) => 4,
+        };
+        let x = (index % m) as f32 * 0.2 + 0.1;
+        let y = (index / m) as f32 * 0.35 + 0.2;
+        FieldDisplay {
+            visible: true,
+            pos: vec2(x, y),
+            size: 0.35,
+        }
+    }
+    pub fn field_display(&mut self, kind: FieldKind) -> &mut FieldDisplay {
+        if !self.fields_display.contains_key(&kind) {
+            self.fields_display
+                .insert(kind, self.default_field_display(kind));
+        }
+        self.fields_display.get_mut(&kind).unwrap()
     }
 }
 
@@ -252,11 +265,7 @@ impl Game {
             if !known {
                 continue;
             }
-            let display = self
-                .ui_state
-                .fields_display
-                .entry(kind)
-                .or_insert_with(|| FieldDisplay::default_for(kind));
+            let display = self.ui_state.field_display(kind);
             if display.visible {
                 let size = full_rect.size().min_elem() * display.size;
                 let plot_rect = Rect::from_center_size(
@@ -286,11 +295,7 @@ impl Game {
             let player_person = &self.world.player.person;
             if player_person.active_spells.contains(output_kind) {
                 let kind = FieldKind::from(output_kind);
-                let display = self
-                    .ui_state
-                    .fields_display
-                    .entry(kind)
-                    .or_insert_with(|| FieldDisplay::default_for(kind));
+                let display = self.ui_state.field_display(kind);
                 if display.visible && player_person.active_spells.spell_words(output_kind).len() > 0
                 {
                     let size = full_rect.size().min_elem() * display.size;
@@ -340,23 +345,13 @@ impl Game {
                         continue;
                     }
                     let kind = FieldKind::from(kind);
-                    let enabled = &mut self
-                        .ui_state
-                        .fields_display
-                        .entry(kind)
-                        .or_insert_with(|| FieldDisplay::default_for(kind))
-                        .visible;
+                    let enabled = &mut self.ui_state.field_display(kind).visible;
                     ui.toggle_value(enabled, kind.to_string());
                 }
                 for output_kind in all::<OutputFieldKind>() {
                     if self.world.player.person.active_spells.contains(output_kind) {
                         let kind = FieldKind::from(output_kind);
-                        let enabled = &mut self
-                            .ui_state
-                            .fields_display
-                            .entry(kind)
-                            .or_insert_with(|| FieldDisplay::default_for(kind))
-                            .visible;
+                        let enabled = &mut self.ui_state.field_display(kind).visible;
                         ui.toggle_value(enabled, kind.to_string());
                     }
                 }
@@ -364,7 +359,8 @@ impl Game {
         });
         // Handle field display dragging
         if let Some(kind) = double_clicked.pop() {
-            *self.ui_state.fields_display.get_mut(&kind).unwrap() = FieldDisplay::default_for(kind);
+            *self.ui_state.fields_display.get_mut(&kind).unwrap() =
+                self.ui_state.default_field_display(kind);
         }
         if let Some((kind, delta)) = dragged.pop() {
             self.ui_state.fields_display.get_mut(&kind).unwrap().pos += delta / full_rect.size();
@@ -524,9 +520,10 @@ impl Game {
                         let _err = if let Function::ReadField(kind) = f {
                             if self.world.player.progression.known_fields.insert(kind) {
                                 // Reveal the relevant field if this is the first time its word is said
-                                self.ui_state
-                                    .fields_display
-                                    .insert(kind.into(), FieldDisplay::default_for(kind.into()));
+                                self.ui_state.fields_display.insert(
+                                    kind.into(),
+                                    self.ui_state.default_field_display(kind.into()),
+                                );
                                 None
                             } else {
                                 say()

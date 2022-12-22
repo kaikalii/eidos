@@ -1,6 +1,6 @@
 use derive_more::{Display, From};
 use eframe::epaint::{Pos2, Vec2};
-use enum_iterator::{all, Sequence};
+use enum_iterator::Sequence;
 use serde::Deserialize;
 
 use crate::{function::*, person::PersonId, world::World};
@@ -75,10 +75,13 @@ pub enum FieldKind {
     Vector(VectorFieldKind),
 }
 
-impl FieldKind {
-    pub fn index(&self) -> usize {
-        all::<Self>().position(|kind| &kind == self).unwrap()
-    }
+#[derive(Debug, Display, Clone, Copy, PartialEq, Eq, Hash, From, Sequence, Deserialize)]
+#[serde(untagged)]
+pub enum IoFieldKind {
+    #[from(types(ScalarInputFieldKind, VectorInputFieldKind))]
+    Input(InputFieldKind),
+    #[from(types(ScalarOutputFieldKind, VectorOutputFieldKind))]
+    Output(OutputFieldKind),
 }
 
 impl From<InputFieldKind> for FieldKind {
@@ -95,6 +98,17 @@ impl From<OutputFieldKind> for FieldKind {
         match kind {
             OutputFieldKind::Scalar(kind) => kind.into(),
             OutputFieldKind::Vector(kind) => kind.into(),
+        }
+    }
+}
+
+impl From<FieldKind> for IoFieldKind {
+    fn from(kind: FieldKind) -> Self {
+        match kind {
+            FieldKind::Scalar(ScalarFieldKind::Input(kind)) => kind.into(),
+            FieldKind::Scalar(ScalarFieldKind::Output(kind)) => kind.into(),
+            FieldKind::Vector(VectorFieldKind::Input(kind)) => kind.into(),
+            FieldKind::Vector(VectorFieldKind::Output(kind)) => kind.into(),
         }
     }
 }
