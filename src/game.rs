@@ -766,6 +766,7 @@ impl FieldPlottable for ScalarFieldKind {
             ScalarFieldKind::Input(ScalarInputFieldKind::Magic) => 10.0,
             ScalarFieldKind::Input(ScalarInputFieldKind::Light) => 5.0,
             ScalarFieldKind::Input(ScalarInputFieldKind::Disorder) => 2.0,
+            ScalarFieldKind::Input(ScalarInputFieldKind::Memory) => 1.0,
             ScalarFieldKind::Input(ScalarInputFieldKind::Temperature)
             | ScalarFieldKind::Output(ScalarOutputFieldKind::Heat) => 20.0,
             ScalarFieldKind::Output(ScalarOutputFieldKind::Order) => 1.0,
@@ -817,6 +818,7 @@ impl FieldPlottable for VectorFieldKind {
             VectorFieldKind::Output(kind) => match kind {
                 VectorOutputFieldKind::Gravity => simple_vector_color(t, 0.5),
                 VectorOutputFieldKind::Force => simple_vector_color(t, 0.5),
+                VectorOutputFieldKind::Write => simple_vector_color(t, 0.5),
             },
         }
     }

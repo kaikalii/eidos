@@ -32,3 +32,4 @@ end:
     - reveal_field: Elevation
     - reveal_field: Temperature
     - reveal_field: Disorder
+    - reveal_field: Memory

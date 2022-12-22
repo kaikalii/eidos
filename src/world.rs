@@ -22,11 +22,13 @@ pub struct World {
     pub min_bound: Pos2,
     pub max_bound: Pos2,
     pub heat_grid: Vec<Vec<f32>>,
+    pub memory_grid: Vec<Vec<f32>>,
     pub physics: PhysicsContext,
     pub controls: Controls,
 }
 
 const HEAT_GRID_RESOLUTION: f32 = 0.25;
+const MEMORY_GRID_RESOLUTION: f32 = 0.25;
 pub const GROUND_TEMP: f32 = -3.0;
 pub const ABSOLUTE_ZERO: f32 = -(20.0 + GROUND_TEMP + 273.15);
 pub const TEMP_DROP_PER_METER: f32 = 6.5 / 1000.0;
@@ -60,6 +62,7 @@ impl World {
             min_bound: Pos2::ZERO,
             max_bound: Pos2::ZERO,
             heat_grid: Vec::new(),
+            memory_grid: Vec::new(),
             objects: HashMap::default(),
             controls: Controls::default(),
         };
@@ -291,6 +294,15 @@ impl World {
                     0.0
                 }
             }
+            ScalarInputFieldKind::Memory => {
+                let i = ((pos.x - self.min_bound.x) / MEMORY_GRID_RESOLUTION + 0.5) as usize;
+                let j = ((pos.y - self.min_bound.y) / MEMORY_GRID_RESOLUTION + 0.5) as usize;
+                self.memory_grid
+                    .get(i)
+                    .and_then(|col| col.get(j))
+                    .copied()
+                    .unwrap_or(0.0)
+            }
         }
     }
     pub fn sample_input_vector_field(&self, kind: VectorInputFieldKind, _pos: Pos2) -> Vec2 {
@@ -326,6 +338,7 @@ impl World {
         match kind {
             VectorOutputFieldKind::Gravity => from_spells + GRAVITY,
             VectorOutputFieldKind::Force => from_spells,
+            VectorOutputFieldKind::Write => vec2(from_spells.x.abs(), from_spells.y),
         }
     }
     pub fn people(&self) -> impl Iterator<Item = &Person> {
@@ -348,6 +361,20 @@ impl World {
     pub fn update(&mut self) {
         // Run physics
         self.run_physics();
+        // Update memory
+        for i in 0..self.memory_grid.len() {
+            for j in 0..self.memory_grid[i].len() {
+                let pos = Pos2::new(
+                    self.min_bound.x + i as f32 * MEMORY_GRID_RESOLUTION,
+                    self.min_bound.y + j as f32 * MEMORY_GRID_RESOLUTION,
+                );
+                let memory_head =
+                    self.sample_output_vector_field(VectorOutputFieldKind::Write, pos, true);
+                if memory_head.x.abs() >= 0.5 {
+                    self.memory_grid[i][j] = memory_head.y;
+                }
+            }
+        }
         // Apply heat pressure
         for i in 0..self.heat_grid.len() {
             for j in 0..self.heat_grid[i].len() {
@@ -429,11 +456,17 @@ impl World {
             .copied()
             .unwrap_or_else(|| ambient_temp_at(pos.y))
     }
-    fn hear_grid_width(&self) -> usize {
+    fn heat_grid_width(&self) -> usize {
         ((self.max_bound.x - self.min_bound.x) / HEAT_GRID_RESOLUTION).ceil() as usize
     }
-    fn hear_grid_height(&self) -> usize {
+    fn heat_grid_height(&self) -> usize {
         ((self.max_bound.y - self.min_bound.y) / HEAT_GRID_RESOLUTION).ceil() as usize
+    }
+    fn memory_grid_width(&self) -> usize {
+        ((self.max_bound.x - self.min_bound.x) / MEMORY_GRID_RESOLUTION).ceil() as usize
+    }
+    fn memory_grid_height(&self) -> usize {
+        ((self.max_bound.y - self.min_bound.y) / MEMORY_GRID_RESOLUTION).ceil() as usize
     }
     pub fn load_place(&mut self, place_name: &str) {
         let Some(place) = PLACES.get(place_name) else {
@@ -476,12 +509,14 @@ impl World {
             }
         }
         // Init heat grid
-        self.heat_grid = vec![vec![GROUND_TEMP; self.hear_grid_height()]; self.hear_grid_width()];
+        self.heat_grid = vec![vec![GROUND_TEMP; self.heat_grid_height()]; self.heat_grid_width()];
         for col in self.heat_grid.iter_mut() {
             for (j, cell) in col.iter_mut().enumerate() {
                 let pos_y = self.min_bound.y + (j as f32 + 0.5) * HEAT_GRID_RESOLUTION;
                 *cell = ambient_temp_at(pos_y);
             }
         }
+        // Init memory grid
+        self.memory_grid = vec![vec![0.0; self.memory_grid_height()]; self.memory_grid_width()];
     }
 }

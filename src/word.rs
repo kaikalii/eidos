@@ -66,6 +66,8 @@ pub enum Word {
     Mesi,
     /// Disorder
     Nepe,
+    /// Read
+    Meni,
 
     // Outputs
     /// Gravity
@@ -78,6 +80,8 @@ pub enum Word {
     Mepe,
     /// Anchor
     Sepe,
+    /// Write
+    Menu,
 
     // Operators
     /// Add
@@ -100,6 +104,8 @@ pub enum Word {
     Riva,
     /// Sine
     Wava,
+    /// Index
+    Rine,
 
     // Controls
     /// Horizontal slider
@@ -145,11 +151,13 @@ impl Word {
             Selo => ScalarInputFieldKind::Temperature.into(),
             Mesi => ScalarInputFieldKind::Magic.into(),
             Nepe => ScalarInputFieldKind::Disorder.into(),
+            Meni => ScalarInputFieldKind::Memory.into(),
             Ke => VectorOutputFieldKind::Gravity.into(),
             Pe => VectorOutputFieldKind::Force.into(),
             Sela => ScalarOutputFieldKind::Heat.into(),
             Mepe => ScalarOutputFieldKind::Order.into(),
             Sepe => ScalarOutputFieldKind::Anchor.into(),
+            Menu => VectorOutputFieldKind::Write.into(),
             Ma => HomoBinOp::Add.into(),
             Sa => HeteroBinOp::Mul.into(),
             Na => MathUnOp::Neg.into(),
@@ -160,6 +168,7 @@ impl Word {
             Kuru => ScalarUnOp::Sqrt.into(),
             Riva => ScalarUnVectorOp::Derivative.into(),
             Wava => ScalarUnOp::Sin.into(),
+            Rine => BinOp::Index.into(),
             No => Combinator1::Drop.into(),
             Mo => Combinator1::Duplicate.into(),
             Revi => Combinator2::Swap.into(),
@@ -296,6 +305,9 @@ static REFERENCE_SPELLS: &[&[Word]] = &[
     &[To, Meki],
     &[To, Meka],
     &[Nepe, Sa],
+    &[Ma, Rine],
+    &[Veni, Mepe],
+    &[Meni, Rine],
 ];
 static GROUPS: &[&[Word]] = &[
     &[To, Ti, Tu, Ta, Te],
@@ -307,6 +319,7 @@ static GROUPS: &[&[Word]] = &[
     &[Ke, Pe],
     &[Revi, Rovo],
     &[Meki, Meka],
+    &[Meni, Menu],
 ];
 
 impl Phenotype {

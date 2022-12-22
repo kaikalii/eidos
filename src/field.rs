@@ -151,6 +151,8 @@ pub enum ScalarInputFieldKind {
     Temperature,
     #[display(fmt = "🍃Disorder")]
     Disorder,
+    #[display(fmt = "📖Memory")]
+    Memory,
     #[display(fmt = "🌌Magic")]
     Magic,
     #[display(fmt = "🕯Light")]
@@ -176,6 +178,8 @@ pub enum VectorOutputFieldKind {
     Gravity,
     #[display(fmt = "↗ Force")]
     Force,
+    #[display(fmt = "📝Write")]
+    Write,
 }
 
 #[derive(Debug, Display, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
