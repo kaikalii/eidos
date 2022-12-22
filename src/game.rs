@@ -788,9 +788,9 @@ impl FieldPlottable for ScalarFieldKind {
             | ScalarFieldKind::Output(ScalarOutputFieldKind::Heat) => {
                 let t = (t - 0.5) / 0.5;
                 if t > 0.0 {
-                    Color::rgb(t, 0.125 - 0.5 * (t - 0.25).abs(), 0.0)
+                    Color::rgb(t, 0.25 - 0.5 * (t - 0.5).abs(), t * 0.2)
                 } else {
-                    Color::rgb(t.abs() * 0.5, t.abs() * 0.5, t.abs())
+                    Color::rgb(t.abs() * 0.5, t.abs() * 0.8, t.abs())
                 }
             }
             _ => default_scalar_color(t),
