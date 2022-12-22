@@ -267,33 +267,29 @@ impl<'w> FieldPlot<'w> {
             round_to(self.world_center.y, step),
         );
         puffin::profile_scope!("point collection outer");
-        let mut points: Vec<_> = (0..resolution)
-            .par_bridge()
-            .flat_map(|i| {
-                puffin::profile_scope!("point collection inner");
-                let x = world_center.x - self.world_range + (i as f32) * step;
-                let rounded_x = round_to(x, step * 0.5);
-                let mut points = Vec::with_capacity(resolution);
-                for j in 0..resolution {
-                    let y = world_center.y - self.world_range + (j as f32) * step;
-                    if pos2(x, y).distance(self.world_center) > self.world_range {
-                        continue;
-                    }
-                    let rounded_y = round_to(y, step * 0.5);
-                    let mut rng = SmallRng::seed_from_u64(hash((
-                        (rounded_x * 1e6) as i64,
-                        (rounded_y * 1e6) as i64,
-                    )));
-                    let dxt = rng.gen::<f32>() + rounded_x - x;
-                    let dyt = rng.gen::<f32>() + rounded_x - x;
-                    let z = field_plot.get_z(self.world, pos2(rounded_x, rounded_y));
-                    let dx = (time + dxt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
-                    let dy = (time + dyt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
-                    points.push((x + dx, y + dy, z));
+        let mut points = Vec::with_capacity(resolution * resolution);
+        points.par_extend((0..resolution).par_bridge().flat_map(|i| {
+            puffin::profile_scope!("point collection inner");
+            let x = world_center.x - self.world_range + (i as f32) * step;
+            let rounded_x = round_to(x, step * 0.5);
+            (0..resolution).par_bridge().filter_map(move |j| {
+                let y = world_center.y - self.world_range + (j as f32) * step;
+                if pos2(x, y).distance(self.world_center) > self.world_range {
+                    return None;
                 }
-                points
+                let rounded_y = round_to(y, step * 0.5);
+                let mut rng = SmallRng::seed_from_u64(hash((
+                    (rounded_x * 1e6) as i64,
+                    (rounded_y * 1e6) as i64,
+                )));
+                let dxt = rng.gen::<f32>() + rounded_x - x;
+                let dyt = rng.gen::<f32>() + rounded_x - x;
+                let z = field_plot.get_z(self.world, pos2(rounded_x, rounded_y));
+                let dx = (time + dxt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
+                let dy = (time + dyt as f64 * f64::consts::TAU).sin() as f32 * wiggle_delta;
+                Some((x + dx, y + dy, z))
             })
-            .collect();
+        }));
         points.par_sort_by(|(_, _, a), (_, _, b)| a.cmp(b));
         PlotData {
             points,
