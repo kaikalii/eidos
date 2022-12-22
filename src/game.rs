@@ -642,7 +642,7 @@ impl Game {
             if used_controls.contains(&ControlKind::Activation) {
                 let value = &mut self.world.controls.activation;
                 let something_focused = ui.memory().focus().is_some();
-                ui.toggle_value(value, Word::Veni.to_string());
+                ui.toggle_value(value, Word::Ve.to_string());
                 let input = ui.input();
                 if input.key_pressed(Key::Space) {
                     if !something_focused {

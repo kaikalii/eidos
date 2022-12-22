@@ -39,49 +39,45 @@ pub enum Word {
 
     // Scalars
     /// X
-    Seva,
+    Se,
     /// Y
-    Sevi,
+    Si,
     /// Scalar variable
-    Sevu,
+    Su,
 
     // Vectors
     /// Unit vector X
-    Kova,
+    Ke,
     /// Unit vector Y
-    Kovi,
+    Ki,
     /// Vector variable
-    Kovu,
+    Ku,
 
     // Inputs
     /// Elevation
-    Le,
+    Wi,
     /// Density
-    Po,
-    /// Light
-    Lusa,
+    Ro,
     /// Temperature
-    Selo,
-    /// Magic
-    Mesi,
+    Lu,
     /// Disorder
-    Nepe,
+    Ko,
     /// Read
-    Meni,
+    Re,
 
     // Outputs
     /// Gravity
-    Ke,
+    Vu,
     /// Force
-    Pe,
+    Wu,
     /// Heat
-    Sela,
+    Lo,
     /// Order
-    Mepe,
+    Mu,
     /// Anchor
-    Sepe,
+    Nu,
     /// Write
-    Menu,
+    Ri,
 
     // Operators
     /// Add
@@ -91,33 +87,33 @@ pub enum Word {
     /// Negate
     Na,
     /// Min
-    Meki,
+    Mi,
     /// Max
-    Meka,
+    Me,
     /// Reciprocal
-    Reso,
+    Ra,
     /// Magnitude
-    Solo,
+    Va,
     /// Sqrt
-    Kuru,
+    La,
     /// Derivative
-    Riva,
+    We,
     /// Sine
-    Wava,
+    Wa,
     /// Index
-    Rine,
+    Ka,
 
     // Controls
     /// Horizontal slider
-    Sila,
+    Le,
     /// Vertical slider
-    Vila,
+    Li,
     /// X target
-    Pa,
+    Pe,
     /// Y target
     Pi,
     /// Activation
-    Veni,
+    Ve,
 
     // Combinators
     /// Drop
@@ -125,9 +121,9 @@ pub enum Word {
     /// Duplicate
     Mo,
     /// Swap
-    Revi,
+    Ru,
     /// Over
-    Rovo,
+    Vo,
 }
 
 impl Word {
@@ -139,45 +135,43 @@ impl Word {
             Tu => Nullary::Two.into(),
             Ta => Nullary::Five.into(),
             Te => Nullary::Ten.into(),
-            Kova => Nullary::OneX.into(),
-            Kovi => Nullary::OneY.into(),
-            Kovu => Variable::Vector.into(),
-            Seva => Nullary::X.into(),
-            Sevi => Nullary::Y.into(),
-            Sevu => Variable::Scalar.into(),
-            Le => ScalarInputFieldKind::Elevation.into(),
-            Po => ScalarInputFieldKind::Density.into(),
-            Lusa => ScalarInputFieldKind::Light.into(),
-            Selo => ScalarInputFieldKind::Temperature.into(),
-            Mesi => ScalarInputFieldKind::Magic.into(),
-            Nepe => ScalarInputFieldKind::Disorder.into(),
-            Meni => ScalarInputFieldKind::Memory.into(),
-            Ke => VectorOutputFieldKind::Gravity.into(),
-            Pe => VectorOutputFieldKind::Force.into(),
-            Sela => ScalarOutputFieldKind::Heat.into(),
-            Mepe => ScalarOutputFieldKind::Order.into(),
-            Sepe => ScalarOutputFieldKind::Anchor.into(),
-            Menu => VectorOutputFieldKind::Write.into(),
+            Ke => Nullary::OneX.into(),
+            Ki => Nullary::OneY.into(),
+            Ku => Variable::Vector.into(),
+            Se => Nullary::X.into(),
+            Si => Nullary::Y.into(),
+            Su => Variable::Scalar.into(),
+            Wi => ScalarInputFieldKind::Elevation.into(),
+            Ro => ScalarInputFieldKind::Density.into(),
+            Lu => ScalarInputFieldKind::Temperature.into(),
+            Ko => ScalarInputFieldKind::Disorder.into(),
+            Re => ScalarInputFieldKind::Memory.into(),
+            Vu => VectorOutputFieldKind::Gravity.into(),
+            Wu => VectorOutputFieldKind::Force.into(),
+            Lo => ScalarOutputFieldKind::Heat.into(),
+            Mu => ScalarOutputFieldKind::Order.into(),
+            Nu => ScalarOutputFieldKind::Anchor.into(),
+            Ri => VectorOutputFieldKind::Write.into(),
             Ma => HomoBinOp::Add.into(),
             Sa => HeteroBinOp::Mul.into(),
             Na => MathUnOp::Neg.into(),
-            Meki => HomoBinOp::Min.into(),
-            Meka => HomoBinOp::Max.into(),
-            Solo => ToScalarOp::Magnitude.into(),
-            Reso => ScalarUnOp::Reciprocal.into(),
-            Kuru => ScalarUnOp::Sqrt.into(),
-            Riva => ScalarUnVectorOp::Derivative.into(),
-            Wava => ScalarUnOp::Sin.into(),
-            Rine => BinOp::Index.into(),
+            Mi => HomoBinOp::Min.into(),
+            Me => HomoBinOp::Max.into(),
+            Va => ToScalarOp::Magnitude.into(),
+            Ra => ScalarUnOp::Reciprocal.into(),
+            La => ScalarUnOp::Sqrt.into(),
+            We => ScalarUnVectorOp::Derivative.into(),
+            Wa => ScalarUnOp::Sin.into(),
+            Ka => BinOp::Index.into(),
             No => Combinator1::Drop.into(),
             Mo => Combinator1::Duplicate.into(),
-            Revi => Combinator2::Swap.into(),
-            Rovo => Combinator2::Over.into(),
-            Sila => ControlKind::XSlider.into(),
-            Vila => ControlKind::YSlider.into(),
-            Pa => Nullary::TargetX.into(),
+            Ru => Combinator2::Swap.into(),
+            Vo => Combinator2::Over.into(),
+            Le => ControlKind::XSlider.into(),
+            Li => ControlKind::YSlider.into(),
+            Pe => Nullary::TargetX.into(),
             Pi => Nullary::TargetY.into(),
-            Veni => ControlKind::Activation.into(),
+            Ve => ControlKind::Activation.into(),
         }
     }
     pub fn etchable(&self) -> bool {
@@ -191,11 +185,11 @@ impl Word {
             Tu => 2.0,
             Ta => 5.0,
             Te => 10.0,
-            Sila => 2.0,
-            Vila => 2.0,
-            Pa => 3.0,
+            Le => 2.0,
+            Li => 2.0,
+            Pe => 3.0,
             Pi => 3.0,
-            No | Revi | Rovo => 0.0,
+            No | Ru | Vo => 0.0,
             _ => 1.0,
         }
     }
@@ -299,46 +293,46 @@ impl Genotype {
 
 use Word::*;
 static REFERENCE_SPELLS: &[&[Word]] = &[
-    &[Le, Na, Ma, Kovi, Sa, Ke],
-    &[Te, Kovi, Sa, Ke],
-    &[Ti, Pa, Mo, Sa, Pi, Mo, Sa, Ma, Ma, Reso],
-    &[Sila, Kova, Sa, Ke],
-    &[Sila, Kova, Sa, Pe],
-    &[Te, Vila, Ma, Le, Na, Ma, Kovi, Sa, Ke],
-    &[Veni, Sa],
-    &[Mo, Riva, Sa],
+    &[Wi, Na, Ma, Ki, Sa, Vu],
+    &[Te, Ki, Sa, Vu],
+    &[Ti, Pe, Mo, Sa, Pi, Mo, Sa, Ma, Ma, Ra],
+    &[Le, Ke, Sa, Vu],
+    &[Le, Ke, Sa, Wu],
+    &[Te, Li, Ma, Wi, Na, Ma, Ki, Sa, Vu],
+    &[Ve, Sa],
+    &[Mo, We, Sa],
     &[Te, Ta, Ma],
     &[Ta, Tu, Ma],
     &[Ta, Ti, Ma],
     &[Tu, Tu, Ma],
     &[Tu, Ti, Ma],
-    &[Seva, Pa, Na, Ma],
-    &[Sevi, Pi, Na, Ma],
-    &[Seva, Mo, Sa],
-    &[Sevi, Mo, Sa],
-    &[Seva, Kova],
-    &[Sevi, Kovi],
-    &[Sa, Sela],
-    &[Sa, Mepe],
-    &[Sa, Sepe],
-    &[To, Meki],
-    &[To, Meka],
-    &[Nepe, Sa],
-    &[Ma, Rine],
-    &[Veni, Mepe],
-    &[Meni, Rine],
+    &[Se, Pe, Na, Ma],
+    &[Si, Pi, Na, Ma],
+    &[Se, Mo, Sa],
+    &[Si, Mo, Sa],
+    &[Se, Ke],
+    &[Si, Ki],
+    &[Sa, Lo],
+    &[Sa, Mu],
+    &[Sa, Nu],
+    &[To, Mi],
+    &[To, Me],
+    &[Ko, Sa],
+    &[Ma, Ka],
+    &[Ve, Mu],
+    &[Re, Ka],
 ];
 static GROUPS: &[&[Word]] = &[
     &[To, Ti, Tu, Ta, Te],
-    &[Seva, Sevi],
-    &[Kova, Kovi],
-    &[Pa, Pi],
-    &[Sevu, Kovu],
-    &[Sila, Vila],
-    &[Ke, Pe],
-    &[Revi, Rovo],
-    &[Meki, Meka],
-    &[Meni, Menu],
+    &[Se, Si],
+    &[Ke, Ki],
+    &[Pe, Pi],
+    &[Su, Ku],
+    &[Le, Li],
+    &[Vu, Wu],
+    &[Ru, Vo],
+    &[Mi, Me],
+    &[Re, Ri],
 ];
 
 impl Phenotype {
