@@ -221,8 +221,6 @@ struct Genotype {
     words: Vec<Word>,
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
 struct Phenotype {
     grid: Vec<Vec<Word>>,
 }
