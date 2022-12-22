@@ -1,5 +1,6 @@
 #![allow(unstable_name_collisions)]
 
+mod color;
 mod conduit;
 mod controls;
 mod dialog;

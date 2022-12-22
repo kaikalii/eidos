@@ -8,7 +8,7 @@ use image::RgbaImage;
 use once_cell::sync::Lazy;
 use rand::prelude::*;
 
-use crate::{plot::time, utils::resources_path};
+use crate::{color::Color, plot::time, utils::resources_path};
 
 static IMAGES: Lazy<Mutex<HashMap<String, RgbaImage>>> = Lazy::new(Default::default);
 
@@ -60,7 +60,7 @@ pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2, kind: ImagePlotKind) 
             _ => 1.0,
         };
         let step = match kind {
-            ImagePlotKind::Portrait(_) => 5.0,
+            ImagePlotKind::Portrait(_) => 3.0,
             ImagePlotKind::Background => 5.0,
         };
         let wiggle_range = match kind {
@@ -94,15 +94,15 @@ pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2, kind: ImagePlotKind) 
                     for j in 0..(size.y / step) as usize {
                         let x = i as f32 * step;
                         let y = j as f32 * step;
-                        let color = image.get_pixel(
+                        let color = Color::from(*image.get_pixel(
                             (x / size.x * image.width() as f32) as u32,
                             ((0.9999 - y / size.y) * image.height() as f32) as u32,
-                        );
+                        ));
                         let dx = wiggle_range
                             * (time + rng.gen_range(0.0..=f64::consts::TAU)).sin() as f32;
                         let dy = wiggle_range
                             * (time + rng.gen_range(0.0..=f64::consts::TAU)).sin() as f32;
-                        if color[3] == 0 {
+                        if color.a == 0.0 {
                             continue;
                         }
                         let dropoff = match kind {
@@ -115,16 +115,10 @@ pub fn image_plot(ui: &mut Ui, name: &str, max_size: Vec2, kind: ImagePlotKind) 
                         };
                         let alpha = alpha * dropoff;
                         let color_mul = color_mul * dropoff;
-                        let color = Rgba::from_rgba_unmultiplied(
-                            color[0] as f32 / 255.0 * color_mul,
-                            color[1] as f32 / 255.0 * color_mul,
-                            color[2] as f32 / 255.0 * color_mul,
-                            color[3] as f32 / 255.0 * alpha,
-                        );
                         let point = PlotPoint::new(x + dx, y + dy);
                         plot_ui.points(
                             Points::new(PlotPoints::Owned(vec![point]))
-                                .color(color)
+                                .color(color.mul_a(alpha) * color_mul)
                                 .radius(step * 0.5),
                         );
                     }

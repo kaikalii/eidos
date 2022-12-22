@@ -38,6 +38,15 @@ The player is new student who is blind but can still sense things through magic.
 
 ## Characters
 
+Kalisa ♀
+- Enthusiastic kinetics student
+Sanuo ♂
+- Unpredictable entropics student
+Merion ♀
+- Kind thermics student
+Etkar ♂
+- Quiet, reserved mnemonics student
+
 # Gameplay
 
 ## Casting
@@ -59,8 +68,8 @@ List of classes:
 - Basic casting
   - Verbal casting
   - Conduit etching
-- Kinematics
-- Thermodynamics
+- Kinetics
+- Thermics
 - Entropics
 - Mnemonics
 
