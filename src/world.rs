@@ -381,7 +381,7 @@ impl World {
             .map(|(i, col)| {
                 let mut new_col = col.clone();
                 let pos_x = self.min_bound.x + (i as f32 + 0.5) * HEAT_GRID_RESOLUTION;
-                for j in 0..col.len() {
+                new_col.par_iter_mut().enumerate().for_each(|(j, cell)| {
                     let pos_y = self.min_bound.y + (j as f32 + 0.5) * HEAT_GRID_RESOLUTION;
                     let pos = pos2(pos_x, pos_y);
                     let ambient_temp = ambient_temp_at(pos_y);
@@ -403,9 +403,8 @@ impl World {
                         .unwrap_or(ambient_temp);
                     let up = *col.get((j as isize + 1) as usize).unwrap_or(&ambient_temp);
                     let down = *col.get((j as isize - 1) as usize).unwrap_or(&ambient_temp);
-                    new_col[j] =
-                        (center_mul * center + side_mul * (left + right + up + down)) / 5.0;
-                }
+                    *cell = (center_mul * center + side_mul * (left + right + up + down)) / 5.0;
+                });
                 new_col
             })
             .collect();
