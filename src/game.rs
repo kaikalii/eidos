@@ -669,7 +669,7 @@ impl Game {
     fn init_plot(&self, size: f32, global_alpha: f32) -> FieldPlot {
         let rect = self.world.max_rect();
         let range = rect.size().max_elem() * 0.5;
-        FieldPlot::new(&self.world, rect.center(), range, global_alpha).size(size)
+        FieldPlot::new(&self.world, rect.center(), range, size, global_alpha)
     }
     #[must_use]
     pub fn plot_stack_field(
@@ -682,10 +682,10 @@ impl Game {
         let plot = self.init_plot(size, global_alpha);
         match field {
             Field::Scalar(ScalarField::Uniform(n)) => {
-                FieldPlot::number_ui(&self.world, ui, size, global_alpha, *n)
+                FieldPlot::show_number(ui, size, global_alpha, *n)
             }
-            Field::Scalar(field) => plot.ui(ui, field),
-            Field::Vector(field) => plot.ui(ui, field),
+            Field::Scalar(field) => plot.show(ui, field),
+            Field::Vector(field) => plot.show(ui, field),
         }
     }
     #[must_use]
@@ -698,8 +698,8 @@ impl Game {
     ) -> PlotResponse {
         let plot = self.init_plot(size, global_alpha);
         match kind {
-            FieldKind::Scalar(kind) => plot.ui(ui, &kind),
-            FieldKind::Vector(kind) => plot.ui(ui, &kind),
+            FieldKind::Scalar(kind) => plot.show(ui, &kind),
+            FieldKind::Vector(kind) => plot.show(ui, &kind),
         }
     }
 }

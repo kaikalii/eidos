@@ -1,16 +1,15 @@
 use std::{
     cell::RefCell,
+    cmp::Ordering,
     f32::consts::PI,
     f64,
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use eframe::{
-    egui::{plot::*, *},
+    egui::*,
     epaint::{util::hash, Hsva},
 };
-use itertools::Itertools;
-use puffin::profile_scope;
 use rand::prelude::*;
 use rayon::prelude::*;
 
@@ -21,8 +20,24 @@ use crate::{
     world::World,
 };
 
+pub struct FieldPlot<'w> {
+    world: &'w World,
+    world_center: Pos2,
+    world_range: f32,
+    size: f32,
+    global_alpha: f32,
+}
+
+pub struct PlotData<V> {
+    points: Vec<(f32, f32, V)>,
+    center: Pos2,
+    range: f32,
+    point_radius: f32,
+    global_alpha: f32,
+}
+
 pub trait FieldPlottable: Sync {
-    type Value: PartitionAndPlottable;
+    type Value: Plottable;
     fn precision(&self) -> f32;
     fn color_midpoint(&self) -> f32;
     fn get_z(&self, world: &World, pos: Pos2) -> Self::Value;
@@ -32,17 +47,26 @@ pub trait FieldPlottable: Sync {
     }
 }
 
-fn wiggle_delta(point_radius: f32, precision: f32) -> f32 {
-    point_radius * 0.1 * precision
-}
-
-pub trait PartitionAndPlottable: Sized + Send {
-    fn partition_and_plot(
-        plot_ui: &mut PlotUi,
+pub trait Plottable: Sized + Send {
+    fn cmp(&self, other: &Self) -> Ordering;
+    fn plot(
+        ui: &mut Ui,
+        rect: Rect,
         field_plot: &impl FieldPlottable<Value = Self>,
         data: PlotData<Self>,
     );
     fn format(&self, round: fn(f32) -> f32) -> String;
+}
+
+fn wiggle_delta(point_radius: f32, precision: f32) -> f32 {
+    point_radius * 0.1 * precision
+}
+
+pub fn time() -> f64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs_f64()
 }
 
 pub fn default_scalar_color(t: f32) -> Color {
@@ -65,64 +89,162 @@ pub fn default_vector_color(t: Vec2) -> Color {
     simple_vector_color(t, 0.75)
 }
 
-pub struct FieldPlot<'w> {
-    world: &'w World,
-    center: Pos2,
-    range: f32,
-    size: f32,
-    global_alpha: f32,
-}
-
-const Z_BUCKETS: usize = if cfg!(debug_assertions) { 31 } else { 51 };
-const ALPHA_BUCKETS: usize = if cfg!(debug_assertions) { 10 } else { 20 };
-
-pub fn time() -> f64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs_f64()
-}
-
-pub struct PlotData<V> {
-    points: Vec<(f32, f32, V)>,
-    center: Pos2,
-    point_radius: f32,
-    global_alpha: f32,
-}
-
 pub struct PlotResponse {
     pub response: Response,
     pub hovered_pos: Option<Pos2>,
 }
 
 impl<'w> FieldPlot<'w> {
-    pub fn new(world: &'w World, center: Pos2, range: f32, global_alpha: f32) -> Self {
-        Self {
+    pub fn new(world: &'w World, center: Pos2, range: f32, size: f32, global_alpha: f32) -> Self {
+        FieldPlot {
             world,
-            center,
-            range,
-            size: 200.0,
+            world_center: center,
+            world_range: range,
+            size,
             global_alpha,
         }
     }
-    pub fn size(self, size: f32) -> Self {
-        Self { size, ..self }
+    pub fn show<F>(&self, ui: &mut Ui, field_plot: &F) -> PlotResponse
+    where
+        F: FieldPlottable,
+    {
+        puffin::profile_function!();
+        // Allocate rect and get response
+        let rect = Rect::from_min_size(ui.cursor().left_top(), Vec2::splat(self.size));
+        let response = ui.allocate_rect(rect, Sense::drag());
+        // Draw background shadow
+        let mut panel_color = ui.visuals().panel_fill;
+        panel_color =
+            Color32::from_rgba_unmultiplied(panel_color.r(), panel_color.g(), panel_color.b(), 210);
+        let texture_id = textures(|t| t.circle_gradient.id());
+        ui.painter().image(
+            texture_id,
+            rect,
+            Rect::from_min_max(Pos2::ZERO, pos2(1.0, 1.0)),
+            panel_color,
+        );
+        // Plot data
+        let data = self.get_data(field_plot);
+        F::Value::plot(ui, rect, field_plot, data);
+        // Handle hovering
+        let mut hovered_pos = None;
+        if let Some(hpos) = response.hover_pos() {
+            let normalized_rect_pos = (hpos - rect.left_top()) / (rect.width() / 2.0);
+            let world_tl = self.world_center + vec2(-self.world_range, self.world_range);
+            let pos =
+                world_tl + vec2(normalized_rect_pos.x, -normalized_rect_pos.y) * self.world_range;
+            let relative_pos = pos - self.world_center;
+            if relative_pos.length() < self.world_range {
+                let z = field_plot.get_z(self.world, pos);
+                let anchor = if relative_pos.y > self.world_range * 0.9 {
+                    Align2::RIGHT_TOP
+                } else if relative_pos.x < -self.world_range * 0.5 {
+                    Align2::LEFT_BOTTOM
+                } else if relative_pos.x > self.world_range * 0.5 {
+                    Align2::RIGHT_BOTTOM
+                } else {
+                    Align2::CENTER_BOTTOM
+                };
+                let text = format!(
+                    " ({}, {}): {} ",
+                    (pos.x * 10.0).round() / 10.0,
+                    (pos.y * 10.0).round() / 10.0,
+                    z.format(|z| (z * 10.0).round() / 10.0),
+                );
+                let text = text.as_str();
+                let painter = ui.painter();
+                let font_id = &ui.style().text_styles[&TextStyle::Body];
+                for i in 0..2 {
+                    let x = hpos.x + i as f32 - 0.5;
+                    for j in 0..2 {
+                        let y = hpos.y + j as f32 - 0.5;
+                        painter.text(pos2(x, y), anchor, text, font_id.clone(), Color32::BLACK);
+                    }
+                }
+                painter.text(hpos, anchor, text, font_id.clone(), Color32::WHITE);
+                hovered_pos = Some(pos);
+            }
+        }
+        PlotResponse {
+            response,
+            hovered_pos,
+        }
     }
-    fn init_plot(&self) -> Plot {
-        Plot::new(random::<u64>())
-            .width(self.size)
-            .view_aspect(1.0)
-            .include_x(self.center.x - self.range)
-            .include_x(self.center.x + self.range)
-            .include_y(self.center.y - self.range)
-            .include_y(self.center.y + self.range)
-            .allow_scroll(false)
-            .allow_drag(false)
-            .allow_zoom(false)
-            .show_axes([false; 2])
-            .show_x(false)
-            .show_y(false)
-            .show_background(false)
+    pub fn show_number(ui: &mut Ui, size: f32, global_alpha: f32, n: f32) -> PlotResponse {
+        let rect = Rect::from_min_size(ui.cursor().left_top(), Vec2::splat(size));
+        let response = ui.allocate_rect(rect, Sense::drag());
+        let time = time();
+        const RANGE: f32 = 2.1;
+        let rng = RefCell::new(SmallRng::seed_from_u64(0));
+        let point_radius = size * 0.005;
+        let ratio = size / RANGE / 2.0;
+        let delta = move || {
+            (time + rng.borrow_mut().gen::<f64>() * 2.0 * f64::consts::PI).sin() as f32
+                * wiggle_delta(point_radius, 1.0)
+        };
+        let samples = (size as usize * 2).max(80);
+        const FLOWER_MAX: f32 = 10.0;
+        let frac = n % 1.0;
+        let ones_part = (n % FLOWER_MAX).abs().floor() * n.signum();
+        let tens_part = (n / FLOWER_MAX % FLOWER_MAX).abs().floor() * n.signum();
+        let hundreds_part = (n / (FLOWER_MAX * FLOWER_MAX)).abs().floor() * n.signum();
+        let painter = ui.painter();
+        // Fractional circle
+        let frac_samples = (samples as f32 * frac) as usize;
+        if frac_samples > 0 {
+            let fill_color = Color::rgba(0.0, 1.0, 0.0, global_alpha);
+            for i in 0..frac_samples {
+                let t = i as f32 / frac_samples as f32;
+                let theta = t * 2.0 * PI * frac;
+                let x = theta.cos() * 0.8 + delta();
+                let y = theta.sin() * 0.8 + delta();
+                let pos = rect.center() + vec2(x, -y) * ratio;
+                painter.circle_filled(pos, point_radius, fill_color);
+            }
+        }
+        // Hundreds flower
+        if hundreds_part.abs() >= 1.0 {
+            let fill_color = Color::rgba(1.0, 1.0, 0.0, global_alpha);
+            for i in 0..samples {
+                let t = i as f32 / samples as f32;
+                let theta = t * 2.0 * PI;
+                let r = 1.0 + (theta * hundreds_part / 2.0).cos().powf(16.0);
+                let x = r * theta.cos() + delta();
+                let y = r * theta.sin() + delta();
+                let pos = rect.center() + vec2(x, -y) * ratio;
+                painter.circle_filled(pos, point_radius, fill_color);
+            }
+        }
+        // Tens flower
+        if tens_part.abs() >= 1.0 {
+            let fill_color = Color::rgba(0.0, 0.4, 1.0, global_alpha);
+            for i in 0..samples {
+                let t = i as f32 / samples as f32;
+                let theta = t * 2.0 * PI;
+                let r = (1.0 + (theta * tens_part * 0.5).cos().powf(2.0)) * 0.9;
+                let x = r * theta.cos() + delta();
+                let y = r * theta.sin() + delta();
+                let pos = rect.center() + vec2(x, -y) * ratio;
+                painter.circle_filled(pos, point_radius, fill_color);
+            }
+        }
+        // Ones flower
+        if n == 0.0 || ones_part.abs() >= 1.0 {
+            let fill_color = Color::rgba(1.0, 0.0, 0.0, global_alpha);
+            for i in 0..samples {
+                let t = i as f32 / samples as f32;
+                let theta = t * 2.0 * PI;
+                let r = (1.0 + (theta * ones_part).cos()) * 0.8;
+                let x = r * theta.cos() + delta();
+                let y = r * theta.sin() + delta();
+                let pos = rect.center() + vec2(x, -y) * ratio;
+                painter.circle_filled(pos, point_radius, fill_color);
+            }
+        }
+        PlotResponse {
+            response,
+            hovered_pos: None,
+        }
     }
     fn get_data<F>(&self, field_plot: &F) -> PlotData<F::Value>
     where
@@ -137,21 +259,24 @@ impl<'w> FieldPlot<'w> {
             self.size
         };
         let resolution = (adjusted_size * field_plot.precision()) as usize;
-        let step = 2.0 * self.range / resolution as f32;
+        let step = 2.0 * self.world_range / resolution as f32;
         let point_radius = self.size / resolution as f32 * 0.5;
         let wiggle_delta = field_plot.wiggle_delta(point_radius);
-        let center = pos2(round_to(self.center.x, step), round_to(self.center.y, step));
+        let world_center = pos2(
+            round_to(self.world_center.x, step),
+            round_to(self.world_center.y, step),
+        );
         puffin::profile_scope!("point collection outer");
-        let points = (0..resolution)
+        let mut points: Vec<_> = (0..resolution)
             .par_bridge()
             .flat_map(|i| {
                 puffin::profile_scope!("point collection inner");
-                let x = (i as f32) * step + center.x - self.range;
+                let x = world_center.x - self.world_range + (i as f32) * step;
                 let rounded_x = round_to(x, step * 0.5);
                 let mut points = Vec::with_capacity(resolution);
                 for j in 0..resolution {
-                    let y = (j as f32) * step + center.y - self.range;
-                    if pos2(x, y).distance(self.center) > self.range {
+                    let y = world_center.y - self.world_range + (j as f32) * step;
+                    if pos2(x, y).distance(self.world_center) > self.world_range {
                         continue;
                     }
                     let rounded_y = round_to(y, step * 0.5);
@@ -169,303 +294,106 @@ impl<'w> FieldPlot<'w> {
                 points
             })
             .collect();
+        points.par_sort_by(|(_, _, a), (_, _, b)| a.cmp(b));
         PlotData {
             points,
-            center,
+            center: world_center,
             point_radius,
+            range: self.world_range,
             global_alpha: self.global_alpha,
-        }
-    }
-    pub fn ui<F>(&self, ui: &mut Ui, field_plot: &F) -> PlotResponse
-    where
-        F: FieldPlottable,
-    {
-        let (rect, _) = ui.allocate_exact_size(Vec2::splat(self.size), Sense::hover());
-        let mut panel_color = ui.visuals().panel_fill;
-        panel_color =
-            Color32::from_rgba_unmultiplied(panel_color.r(), panel_color.g(), panel_color.b(), 210);
-        let texture_id = textures(|t| t.circle_gradient.id());
-        ui.painter().image(
-            texture_id,
-            rect,
-            Rect::from_min_max(Pos2::ZERO, pos2(1.0, 1.0)),
-            panel_color,
-        );
-        ui.allocate_ui_at_rect(rect, |ui| self.ui_impl(ui, field_plot))
-            .inner
-    }
-    fn ui_impl<F>(&self, ui: &mut Ui, field_plot: &F) -> PlotResponse
-    where
-        F: FieldPlottable,
-    {
-        puffin::profile_function!();
-        let resp = self.init_plot().show(ui, |plot_ui| {
-            puffin::profile_scope!("FieldPlot::ui_impl - show");
-            let data = self.get_data(field_plot);
-            let center = data.center;
-            F::Value::partition_and_plot(plot_ui, field_plot, data);
-            // Show coordinate tooltip
-            if let Some(p) = plot_ui.pointer_coordinate() {
-                let ppos = pos2(p.x as f32, p.y as f32);
-                let relative_pos = ppos - center;
-                if relative_pos.length() < self.range {
-                    let z = field_plot.get_z(self.world, ppos);
-                    let anchor = if relative_pos.y > self.range * 0.9 {
-                        Align2::RIGHT_TOP
-                    } else if relative_pos.x < -self.range * 0.5 {
-                        Align2::LEFT_BOTTOM
-                    } else if relative_pos.x > self.range * 0.5 {
-                        Align2::RIGHT_BOTTOM
-                    } else {
-                        Align2::CENTER_BOTTOM
-                    };
-                    let text = format!(
-                        " ({}, {}): {} ",
-                        (ppos.x * 10.0).round() / 10.0,
-                        (ppos.y * 10.0).round() / 10.0,
-                        z.format(|z| (z * 10.0).round() / 10.0),
-                    );
-                    for i in 0..2 {
-                        let x = p.x + (((i as f64) * 1.0 - 0.5) * 0.04);
-                        for j in 0..2 {
-                            let y = p.y + (((j as f64) * 1.0 - 0.5) * 0.04);
-                            plot_ui.text(
-                                Text::new(PlotPoint::new(x, y), text.clone())
-                                    .anchor(anchor)
-                                    .color(Color32::BLACK),
-                            );
-                        }
-                    }
-                    plot_ui.text(Text::new(p, text).anchor(anchor).color(Color32::WHITE));
-                    Some(ppos)
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        });
-        PlotResponse {
-            response: resp.response,
-            hovered_pos: resp.inner,
-        }
-    }
-    pub fn number_ui(
-        world: &'w World,
-        ui: &mut Ui,
-        size: f32,
-        global_alpha: f32,
-        n: f32,
-    ) -> PlotResponse {
-        let time = time();
-        let plot = Self::new(world, Pos2::ZERO, 2.1, global_alpha).size(size);
-        let rng = RefCell::new(SmallRng::seed_from_u64(0));
-        let point_radius = plot.range * plot.size / plot.size * 0.1;
-        let delta = move || {
-            (time + rng.borrow_mut().gen::<f64>() * 2.0 * f64::consts::PI).sin()
-                * wiggle_delta(point_radius, 1.0) as f64
-        };
-        let samples = (plot.size as usize * 2).max(80);
-        let resp = plot.init_plot().show(ui, |plot_ui| {
-            const FLOWER_MAX: f32 = 10.0;
-            let frac = (n as f64) % 1.0;
-            let ones_part = ((n % FLOWER_MAX).abs().floor() * n.signum()) as f64;
-            let tens_part = ((n / FLOWER_MAX % FLOWER_MAX).abs().floor() * n.signum()) as f64;
-            let hundreds_part = ((n / (FLOWER_MAX * FLOWER_MAX)).abs().floor() * n.signum()) as f64;
-            // Fractional circle
-            let frac_samples = (samples as f64 * frac) as usize;
-            if frac_samples > 0 {
-                plot_ui.points(
-                    Points::new(PlotPoints::from_parametric_callback(
-                        |t| {
-                            let theta = t * 2.0 * f64::consts::PI;
-                            let x = theta.cos() * 0.8 + delta();
-                            let y = theta.sin() * 0.8 + delta();
-                            (x, y)
-                        },
-                        0.0..=frac,
-                        frac_samples,
-                    ))
-                    .color(Color32::GREEN),
-                );
-            }
-            // Hundreds flower
-            if hundreds_part.abs() >= 1.0 {
-                plot_ui.points(
-                    Points::new(PlotPoints::from_parametric_callback(
-                        |t| {
-                            let theta = t * 2.0 * f64::consts::PI;
-                            let r = 1.0 + (theta * hundreds_part / 2.0).cos().powf(16.0);
-                            let x = r * theta.cos() + delta();
-                            let y = r * theta.sin() + delta();
-                            (x, y)
-                        },
-                        0.0..=1.0,
-                        samples,
-                    ))
-                    .color(Color32::YELLOW),
-                );
-            }
-            // Tens flower
-            if tens_part.abs() >= 1.0 {
-                plot_ui.points(
-                    Points::new(PlotPoints::from_parametric_callback(
-                        |t| {
-                            let theta = t * 2.0 * f64::consts::PI;
-                            let r = (1.0 + (theta * tens_part * 0.5).cos().powf(2.0)) * 0.9;
-                            let x = r * theta.cos() + delta();
-                            let y = r * theta.sin() + delta();
-                            (x, y)
-                        },
-                        0.0..=1.0,
-                        samples,
-                    ))
-                    .color(Color32::from_rgb(0, 100, 255)),
-                );
-            }
-            // Ones flower
-            if n == 0.0 || ones_part.abs() >= 1.0 {
-                plot_ui.points(
-                    Points::new(PlotPoints::from_parametric_callback(
-                        |t| {
-                            let theta = t * 2.0 * f64::consts::PI;
-                            let r = (1.0 + (theta * ones_part).cos()) * 0.8;
-                            let x = r * theta.cos() + delta();
-                            let y = r * theta.sin() + delta();
-                            (x, y)
-                        },
-                        0.0..=1.0,
-                        samples,
-                    ))
-                    .color(Color32::RED),
-                );
-            }
-        });
-        PlotResponse {
-            response: resp.response,
-            hovered_pos: None,
         }
     }
 }
 
-impl PartitionAndPlottable for f32 {
+impl Plottable for f32 {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self.is_nan(), other.is_nan()) {
+            (false, false) => self.abs().partial_cmp(&other.abs()).unwrap(),
+            (true, true) => Ordering::Equal,
+            (true, false) => Ordering::Greater,
+            (false, true) => Ordering::Less,
+        }
+    }
     fn format(&self, round: fn(f32) -> f32) -> String {
         round(*self).to_string()
     }
-    fn partition_and_plot(
-        plot_ui: &mut PlotUi,
+    fn plot(
+        ui: &mut Ui,
+        rect: Rect,
         field_plot: &impl FieldPlottable<Value = Self>,
         data: PlotData<Self>,
     ) {
         puffin::profile_function!("f32");
-        let center = plot_ui.plot_bounds().center().to_pos2();
-        let radius = plot_ui.plot_bounds().width() as f32 * 0.5;
-        let mut grouped_points = vec![vec![Vec::new(); ALPHA_BUCKETS]; Z_BUCKETS];
         let midpoint = field_plot.color_midpoint();
+        let painter = ui.painter();
+        let world_tl = data.center + vec2(-data.range, data.range);
+        let ratio = rect.width() / (data.range * 2.0);
         for (x, y, z) in data.points {
-            let t = approach_one(z, midpoint);
-            let group = ((t * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
-                .max(0.0)
-                .round() as usize)
-                .min(Z_BUCKETS - 1);
+            let t = approach_one(z, midpoint) * 0.5 + 0.5;
+            let pos = pos2(x, y);
             let alpha = data.global_alpha
                 * (1.0
-                    - (pos2(x, y).distance(center) / radius)
+                    - (pos.distance(data.center) / data.range)
                         .powf(2.0)
                         .clamp(0.0, 1.0));
-            let alpha = ((alpha * ALPHA_BUCKETS as f32) as usize).min(ALPHA_BUCKETS - 1);
-            grouped_points[group][alpha].push(PlotPoint::new(x, y));
-        }
-        for (i, points) in grouped_points.into_iter().enumerate() {
-            if points.is_empty() {
-                continue;
-            }
-            let t = i as f32 / (Z_BUCKETS + 1) as f32;
-            let color = field_plot.get_color(t);
+            let color = field_plot.get_color(t).mul_a(alpha);
             if color.a < 1.0 / 255.0 {
                 continue;
             }
-            profile_scope!("point drawing", "f32");
-            for (a, points) in points.into_iter().enumerate() {
-                plot_ui.points(
-                    Points::new(PlotPoints::Owned(points))
-                        .shape(MarkerShape::Circle)
-                        .radius(data.point_radius)
-                        .color(color.mul_a((a as f32 + 0.1) / ALPHA_BUCKETS as f32)),
-                );
-            }
+            let rel_pos = pos - world_tl;
+            let point = rect.left_top() + vec2(rel_pos.x, -rel_pos.y) * ratio;
+            painter.circle_filled(point, data.point_radius, color);
         }
     }
 }
 
-impl PartitionAndPlottable for Vec2 {
+impl Plottable for Vec2 {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let a = self.length();
+        let b = other.length();
+        match (a.is_nan(), b.is_nan()) {
+            (false, false) => a.partial_cmp(&b).unwrap(),
+            (true, true) => Ordering::Equal,
+            (true, false) => Ordering::Greater,
+            (false, true) => Ordering::Less,
+        }
+    }
     fn format(&self, round: fn(f32) -> f32) -> String {
         format!("({}, {})", round(self.x), round(self.y))
     }
-    fn partition_and_plot(
-        plot_ui: &mut PlotUi,
+    fn plot(
+        ui: &mut Ui,
+        rect: Rect,
         field_plot: &impl FieldPlottable<Value = Self>,
         data: PlotData<Self>,
     ) {
         puffin::profile_function!("Vec2");
-        let center = plot_ui.plot_bounds().center().to_pos2();
-        let radius = plot_ui.plot_bounds().width() as f32 * 0.5;
-        let mut grouped_points = vec![vec![vec![Vec::new(); ALPHA_BUCKETS]; Z_BUCKETS]; Z_BUCKETS];
         let midpoint = field_plot.color_midpoint();
+        let painter = ui.painter();
+        let world_tl = data.center + vec2(-data.range, data.range);
+        let ratio = rect.width() / (data.range * 2.0);
         for (x, y, z) in data.points {
-            let tx = approach_one(z.x, midpoint);
-            let ty = approach_one(z.y, midpoint);
-            let x_group = ((tx * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
-                .max(0.0)
-                .round() as usize)
-                .min(Z_BUCKETS - 1);
-            let y_group = ((ty * Z_BUCKETS as f32 * 0.5 + Z_BUCKETS as f32 * 0.5)
-                .max(0.0)
-                .round() as usize)
-                .min(Z_BUCKETS - 1);
+            let t = vec2(approach_one(z.x, midpoint), approach_one(z.y, midpoint));
+            let pos = pos2(x, y);
             let alpha = data.global_alpha
                 * (1.0
-                    - (pos2(x, y).distance(center) / radius)
+                    - (pos.distance(data.center) / data.range)
                         .powf(2.0)
                         .clamp(0.0, 1.0));
-            let alpha = ((alpha * ALPHA_BUCKETS as f32) as usize).min(ALPHA_BUCKETS - 1);
-            grouped_points[x_group][y_group][alpha].push(PlotPoint::new(x, y));
-        }
-        for (i, points) in grouped_points.into_iter().enumerate() {
-            if points.is_empty() {
+            let color = field_plot
+                .get_color(t * 0.5 + Vec2::splat(0.5))
+                .mul_a(alpha);
+            if color.a < 1.0 / 255.0 {
                 continue;
             }
-            for (j, points) in points.into_iter().enumerate() {
-                if points.is_empty() {
-                    continue;
-                }
-                let t = vec2(
-                    i as f32 / (Z_BUCKETS + 1) as f32,
-                    j as f32 / (Z_BUCKETS + 1) as f32,
-                );
-                let color = field_plot.get_color(t);
-                if color.a < 1.0 / 255.0 {
-                    continue;
-                }
-                profile_scope!("point drawing", "Vec2");
-                let t = (t - Vec2::splat(0.5)) * 2.0;
-                for (a, points) in points.into_iter().enumerate() {
-                    let arrow_length = data.point_radius * 0.1;
-                    let tips = points
-                        .iter()
-                        .map(|p| {
-                            PlotPoint::new(
-                                p.x as f32 + t.x * arrow_length,
-                                p.y as f32 + t.y * arrow_length,
-                            )
-                        })
-                        .collect_vec();
-                    plot_ui.arrows(
-                        Arrows::new(PlotPoints::Owned(points), PlotPoints::Owned(tips))
-                            .color(color.mul_a((a as f32 + 0.1) / ALPHA_BUCKETS as f32)),
-                    );
-                }
-            }
+            let rel_pos = pos - world_tl;
+            let point = rect.left_top() + vec2(rel_pos.x, -rel_pos.y) * ratio;
+            let arrow_length = data.point_radius * 2.0;
+            painter.arrow(
+                point,
+                vec2(t.x, -t.y) * arrow_length,
+                Stroke::new(data.point_radius * 0.4, color),
+            );
         }
     }
 }
