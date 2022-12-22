@@ -274,7 +274,6 @@ impl Stack {
                 Variable::Scalar => self.push(word, ScalarField::Variable),
                 Variable::Vector => self.push(word, VectorField::Variable),
             },
-            Function::Record => todo!(),
         }
         Ok(())
     }

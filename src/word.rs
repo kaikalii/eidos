@@ -8,7 +8,7 @@ use rand::prelude::*;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::{field::*, function::*, utils::resources_path};
+use crate::{color::Color, field::*, function::*, utils::resources_path};
 
 #[derive(
     Debug,
@@ -198,6 +198,25 @@ impl Word {
             No | Revi | Rovo => 0.0,
             _ => 1.0,
         }
+    }
+    pub fn text_color(&self) -> Option<Color> {
+        Some(match self.function() {
+            Function::ReadField(_) => Color::rgb(0.7, 0.7, 1.0),
+            Function::Nullary(
+                Nullary::Zero | Nullary::One | Nullary::Two | Nullary::Five | Nullary::Ten,
+            ) => Color::rgb(1.0, 0.7, 0.3),
+            Function::Nullary(Nullary::ZeroVector | Nullary::OneX | Nullary::OneY) => {
+                Color::rgb(0.5, 1.0, 1.0)
+            }
+            Function::Nullary(Nullary::X | Nullary::Y) => Color::rgb(1.0, 0.2, 0.5),
+            Function::Nullary(Nullary::TargetX | Nullary::TargetY) | Function::Control(_) => {
+                Color::rgb(1.0, 1.0, 0.3)
+            }
+            Function::Un(_) => Color::rgb(0.4, 1.0, 0.5),
+            Function::Bin(_) => Color::rgb(1.0, 0.5, 1.0),
+            Function::Variable(_) => Color::rgb(1.0, 0.7, 0.7),
+            _ => return None,
+        })
     }
 }
 

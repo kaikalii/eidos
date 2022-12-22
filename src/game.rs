@@ -508,35 +508,42 @@ impl Game {
                         && known
                         && player_person.stack.validate_function_use(f).is_ok()
                         && available_mana >= word.cost();
-                    let hilight = matches!(f, Function::WriteField(_));
-                    let button = FadeButton::new(word, known, word.to_string()).hilight(hilight);
-                    if ui.add_enabled(enabled, button).clicked() {
-                        let player_person = &mut self.world.player.person;
-                        let mut say = || {
-                            player_person
-                                .stack
-                                .say(
-                                    PersonId::Player,
-                                    *word,
-                                    Some(&mut player_person.active_spells),
-                                )
-                                .err()
-                        };
-                        let _err = if let Function::ReadField(kind) = f {
-                            if self.world.player.progression.known_fields.insert(kind) {
-                                // Reveal the relevant field if this is the first time its word is said
-                                self.ui_state.fields_display.insert(
-                                    kind.into(),
-                                    self.ui_state.default_field_display(kind.into()),
-                                );
-                                None
+                    ui.scope(|ui| {
+                        let hilight = matches!(f, Function::WriteField(_));
+                        if enabled {
+                            ui.visuals_mut().override_text_color =
+                                word.text_color().map(Into::into);
+                        }
+                        let button =
+                            FadeButton::new(word, known, word.to_string()).hilight(hilight);
+                        if ui.add_enabled(enabled, button).clicked() {
+                            let player_person = &mut self.world.player.person;
+                            let mut say = || {
+                                player_person
+                                    .stack
+                                    .say(
+                                        PersonId::Player,
+                                        *word,
+                                        Some(&mut player_person.active_spells),
+                                    )
+                                    .err()
+                            };
+                            let _err = if let Function::ReadField(kind) = f {
+                                if self.world.player.progression.known_fields.insert(kind) {
+                                    // Reveal the relevant field if this is the first time its word is said
+                                    self.ui_state.fields_display.insert(
+                                        kind.into(),
+                                        self.ui_state.default_field_display(kind.into()),
+                                    );
+                                    None
+                                } else {
+                                    say()
+                                }
                             } else {
                                 say()
-                            }
-                        } else {
-                            say()
-                        };
-                    }
+                            };
+                        }
+                    });
                 }
                 if i == 0 {
                     // Free
