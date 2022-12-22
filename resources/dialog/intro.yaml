@@ -1,34 +1,34 @@
-start:
-  lines:
-    - background: school1.png
-    - left:
-        name: Kalisa
-        image: Kalisa.png
-    - right:
-        name: Etkar
-        image: Etkar.png
-    - speaker: Etkar
-    - Hello...
-    - speaker: Kalisa
-    - Good morning!
-    - right:
-        name: Merion
-        image: Merion.png
-    - speaker: Merion
-    - Nice to meet you
-    - left:
-        name: Sanuo
-        image: Sanuo.png
-    - speaker: Sanuo
-    - This'll be great!
+# start:
+#   lines:
+#     - background: school1.png
+#     - left:
+#         name: Kalisa
+#         image: Kalisa.png
+#     - right:
+#         name: Etkar
+#         image: Etkar.png
+#     - speaker: Etkar
+#     - Hello...
+#     - speaker: Kalisa
+#     - Good morning!
+#     - right:
+#         name: Merion
+#         image: Merion.png
+#     - speaker: Merion
+#     - Nice to meet you
+#     - left:
+#         name: Sanuo
+#         image: Sanuo.png
+#     - speaker: Sanuo
+#     - This'll be great!
 end:
-  lines:
-    - background: school1.png
-    - reveal_all_words
-    - reveal_mana_bar
-    - reveal_free
-    - reveal_conduit
-    - reveal_field: Density
-    - reveal_field: Elevation
-    - reveal_field: Temperature
-    - reveal_field: Disorder
+    lines:
+        - background: school1.png
+        - reveal_all_words
+        - reveal_mana_bar
+        - reveal_free
+        - reveal_conduit
+        - reveal_field: Density
+        - reveal_field: Elevation
+        - reveal_field: Temperature
+        - reveal_field: Disorder

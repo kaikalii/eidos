@@ -65,7 +65,7 @@ impl FieldDisplay {
         FieldDisplay {
             visible: true,
             pos: vec2(x, y),
-            size: BIG_PLOT_SIZE,
+            size: 0.35,
         }
     }
 }
@@ -84,7 +84,6 @@ impl Default for UiState {
     }
 }
 
-const BIG_PLOT_SIZE: f32 = 180.0;
 const SMALL_PLOT_SIZE: f32 = 100.0;
 
 impl Game {
@@ -259,7 +258,7 @@ impl Game {
                 .entry(kind)
                 .or_insert_with(|| FieldDisplay::default_for(kind));
             if display.visible {
-                let size = display.size;
+                let size = full_rect.size().min_elem() * display.size;
                 let plot_rect = Rect::from_center_size(
                     full_rect.min + display.pos * full_rect.size(),
                     Vec2::splat(size),
@@ -294,7 +293,7 @@ impl Game {
                     .or_insert_with(|| FieldDisplay::default_for(kind));
                 if display.visible && player_person.active_spells.spell_words(output_kind).len() > 0
                 {
-                    let size = display.size;
+                    let size = full_rect.size().min_elem() * display.size;
                     let center = full_rect.min + display.pos * full_rect.size();
                     let plot_rect = Rect::from_min_max(
                         center - vec2(size, size) / 2.0,
@@ -372,7 +371,7 @@ impl Game {
         }
         if let Some(kind) = hovered.pop() {
             let size = &mut self.ui_state.fields_display.get_mut(&kind).unwrap().size;
-            *size = (*size + ui.input().scroll_delta.y / 5.0).clamp(70.0, 400.0);
+            *size = (*size + ui.input().scroll_delta.y / 1000.0).clamp(0.1, 1.0);
         }
         if let Some(kind) = drag_released {
             let pos = &mut self.ui_state.fields_display.get_mut(&kind).unwrap().pos;
