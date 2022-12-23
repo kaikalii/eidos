@@ -386,7 +386,11 @@ impl World {
                 );
                 let heat_pressure =
                     self.sample_output_scalar_field(ScalarOutputFieldKind::Heat, pos, true);
-                self.heat_grid[i][j] += heat_pressure * 0.01;
+                let curr_abs_temp = (self.heat_grid[i][j] - ABSOLUTE_ZERO) as f64;
+                let diff = heat_pressure as f64 * 0.01;
+                const K: f64 = 1.1;
+                self.heat_grid[i][j] =
+                    (1.0 + K.powf(curr_abs_temp + diff)).log(K) as f32 + ABSOLUTE_ZERO;
             }
         }
         // Transer heat between objects and grid
