@@ -251,7 +251,7 @@ pub enum GenderedWord {
     SubWas,
     Subs,
     Has,
-    Nibling,
+    Adult,
 }
 
 type DeserializedLine = Vec<DialogFragment>;
@@ -725,7 +725,7 @@ impl World {
                         (GenderedWord::SubWas, Gender::Male) => "he was",
                         (GenderedWord::Subs, Gender::Male) => "he's",
                         (GenderedWord::Has, Gender::Male) => "has",
-                        (GenderedWord::Nibling, Gender::Male) => "nephew",
+                        (GenderedWord::Adult, Gender::Male) => "man",
                         (GenderedWord::Sub, Gender::Female) => "she",
                         (GenderedWord::Obj, Gender::Female) => "her",
                         (GenderedWord::Pos, Gender::Female) => "her",
@@ -734,7 +734,7 @@ impl World {
                         (GenderedWord::SubWas, Gender::Female) => "she was",
                         (GenderedWord::Subs, Gender::Female) => "she's",
                         (GenderedWord::Has, Gender::Female) => "has",
-                        (GenderedWord::Nibling, Gender::Female) => "niece",
+                        (GenderedWord::Adult, Gender::Female) => "woman",
                         (GenderedWord::Sub, Gender::Enby) => "they",
                         (GenderedWord::Obj, Gender::Enby) => "them",
                         (GenderedWord::Pos, Gender::Enby) => "their",
@@ -743,7 +743,7 @@ impl World {
                         (GenderedWord::SubWas, Gender::Enby) => "they were",
                         (GenderedWord::Subs, Gender::Enby) => "they're",
                         (GenderedWord::Has, Gender::Enby) => "have",
-                        (GenderedWord::Nibling, Gender::Enby) => "nieph",
+                        (GenderedWord::Adult, Gender::Enby) => "person",
                     },
                 },
             };
