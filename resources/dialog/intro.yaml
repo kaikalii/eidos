@@ -1,26 +1,46 @@
 start:
   lines:
-    - background: school1.png
-    - left:
-        name: Kalisa
-        image: Kalisa.png
-    - right:
-        name: Etkar
-        image: Etkar.png
-    - speaker: Etkar
-    - Hello...
+    - background: school2.png
+    - left: Kalisa
+    - speaker:
+        stranger: Kalisa
+    - Oh, hello!
+    - Are you a first year too?
+    - I'm Kalisa.
+  children: [I'm (name)]
+said_name:
+  lines:
     - speaker: Kalisa
-    - Good morning!
-    - right:
-        name: Merion
-        image: Merion.png
-    - speaker: Merion
-    - Nice to meet you
-    - left:
-        name: Sanuo
-        image: Sanuo.png
-    - speaker: Sanuo
-    - This'll be great!
+    - I can't believe the day is finally here! I've been waiting the whole summer for this!
+    - I've wanted to go to Resa Academy for as long as I can remember.
+    - Do you see that building over there? The main complex? I have a poster of it in my room.
+  children: [I don't see much]
+dont_see_much:
+  lines:
+    - Wait, what do you mean?
+  children: [I'm blind]
+im_blind:
+  lines:
+    - Oh, I'm sorry! I didn't notice. You don't have a cane or glasses or anything.
+    - Wait, how are you finding your way around the campus then?
+    - ...
+    - Oh! I know! You use magic, don't you?
+  children:
+    [
+      "Yes, I can sense people and objects around me. I can't really see fine details like faces though.",
+    ]
+i_sense:
+  lines:
+    - That's so cool! I wish I could do that. You must be really naturally talented.
+    - right: Sanuo
+    - speaker:
+        stranger: Sanuo
+    - Hey, do you guys know where the auditorium is? I'm trying to get there before the assembly starts.
+    - speaker: Kalisa
+    - Another fellow classmate! I'm Kalisa! I can show you the way. You two just follow me.
+    - speaker:
+        stranger: Sanuo
+    - Cool, thanks. I'm Sanuo.
 end:
   lines:
     - background: school1.png

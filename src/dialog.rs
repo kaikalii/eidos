@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs};
+use std::{borrow::Cow, collections::HashMap, fs};
 
 use anyhow::{anyhow, bail};
 use chumsky::{prelude::*, text::whitespace};
@@ -62,7 +62,7 @@ fn validate_children(
 ) -> anyhow::Result<()> {
     let child_nodes = match children {
         NodeChildren::Choices(choices) => choices.keys().collect_vec(),
-        NodeChildren::Next(node) => vec![node],
+        NodeChildren::Jump { jump } => vec![jump],
         NodeChildren::Condition { then, els, .. } => {
             validate_children(scene_name, scene, node_name, then)?;
             validate_children(scene_name, scene, node_name, els)?;
@@ -75,6 +75,7 @@ fn validate_children(
             }
             Vec::new()
         }
+        NodeChildren::Next(_) => Vec::new(),
     };
     for child_name in child_nodes {
         if !scene.nodes.contains_key(child_name) {
@@ -114,7 +115,10 @@ pub enum NodeChildren<T> {
         then: String,
     },
     Choices(IndexMap<String, Vec<T>>),
-    Next(String),
+    Jump {
+        jump: String,
+    },
+    Next(Vec<T>),
     List(Vec<Self>),
 }
 
@@ -162,7 +166,7 @@ pub enum DialogCommand {
     Left(Option<Speaker>),
     Right(Option<Speaker>),
     Background(Option<String>),
-    Speaker(Option<String>),
+    Speaker(Option<CurrentSpeaker>),
     RevealWord(Word),
     RevealAllWords,
     RevealManaBar,
@@ -174,9 +178,47 @@ pub enum DialogCommand {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct Speaker {
-    pub name: String,
-    pub image: String,
+#[serde(untagged)]
+pub enum Speaker {
+    Npc(String),
+    Image { name: String, image: String },
+}
+
+impl Speaker {
+    fn name(&self) -> &str {
+        match self {
+            Speaker::Npc(name) => name,
+            Speaker::Image { name, .. } => name,
+        }
+    }
+    fn image(&self) -> Cow<str> {
+        match self {
+            Speaker::Npc(name) => Cow::Owned(format!("{}.png", name)),
+            Speaker::Image { image, .. } => image.into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+pub enum CurrentSpeaker {
+    Stranger { stranger: String },
+    Npc(String),
+}
+
+impl CurrentSpeaker {
+    fn name(&self) -> &str {
+        match self {
+            CurrentSpeaker::Stranger { stranger } => stranger,
+            CurrentSpeaker::Npc(name) => name,
+        }
+    }
+    fn display(&self) -> &str {
+        match self {
+            CurrentSpeaker::Stranger { .. } => "Stranger",
+            CurrentSpeaker::Npc(name) => name,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -267,7 +309,7 @@ impl TryFrom<NodeChildren<SerializedLine>> for NodeChildren<DeserializedLine> {
                 }
                 NodeChildren::Choices(children)
             }
-            NodeChildren::Next(node) => NodeChildren::Next(node),
+            NodeChildren::Jump { jump } => NodeChildren::Jump { jump },
             NodeChildren::Condition {
                 condition,
                 then,
@@ -286,6 +328,19 @@ impl TryFrom<NodeChildren<SerializedLine>> for NodeChildren<DeserializedLine> {
             },
             NodeChildren::List(list) => {
                 NodeChildren::List(list.into_iter().map(TryInto::try_into).try_collect()?)
+            }
+            NodeChildren::Next(texts) => {
+                let mut children = Vec::new();
+                for text in texts {
+                    if let SerializedLine::String(text) = text {
+                        if let Line::Text(text) =
+                            parser.parse(text).map_err(|mut e| anyhow!(e.remove(0)))?
+                        {
+                            children.push(text);
+                        }
+                    }
+                }
+                NodeChildren::Next(children)
             }
         })
     }
@@ -333,12 +388,12 @@ pub struct DialogState {
     character: usize,
     left_speaker: Option<Speaker>,
     right_speaker: Option<Speaker>,
-    speaker: Option<String>,
+    speaker: Option<CurrentSpeaker>,
     can_cast: bool,
     flags: HashSet<String>,
 }
 
-const DIALOG_SPEED: usize = 4;
+const DIALOG_SPEED: usize = 3;
 
 impl DialogState {
     pub fn allows_casting(&self) -> bool {
@@ -357,11 +412,11 @@ impl DialogState {
             let focused = self
                 .speaker
                 .as_ref()
-                .map_or(true, |name| name == &speaker.name);
+                .map_or(true, |curr| curr.name() == speaker.name());
             ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
                 image_plot(
                     ui,
-                    &speaker.image,
+                    &speaker.image(),
                     Vec2::splat(PORTRAIT_HEIGHT),
                     ImagePlotKind::Portrait(focused),
                 );
@@ -371,11 +426,11 @@ impl DialogState {
             let focused = self
                 .speaker
                 .as_ref()
-                .map_or(true, |name| name == &speaker.name);
+                .map_or(true, |curr| curr.name() == speaker.name());
             ui.with_layout(Layout::bottom_up(Align::Max), |ui| {
                 image_plot(
                     ui,
-                    &speaker.image,
+                    &speaker.image(),
                     Vec2::splat(PORTRAIT_HEIGHT),
                     ImagePlotKind::Portrait(focused),
                 );
@@ -397,8 +452,9 @@ impl NodeChildren<DeserializedLine> {
                 WaitCondition::EmptyStack => true,
             },
             NodeChildren::Choices(_) => false,
-            NodeChildren::Next(_) => false,
+            NodeChildren::Jump { .. } => false,
             NodeChildren::List(list) => list.iter().any(Self::enables_casting),
+            NodeChildren::Next(_) => false,
         }
     }
 }
@@ -486,7 +542,7 @@ impl Game {
                 ui.horizontal(|ui| {
                     // Show speaker
                     if let Some(speaker) = &dialog.speaker {
-                        ui.heading(format!("{speaker}:"));
+                        ui.heading(format!("{}:", speaker.display()));
                     }
                     // Show line text
                     if !line_text.is_empty() {
@@ -575,7 +631,10 @@ impl Game {
                     for (name, fragments) in choices.iter().rev() {
                         for fragments in fragments.iter().rev() {
                             if ui
-                                .button(self.world.format_dialog_fragments(fragments))
+                                .button(
+                                    RichText::new(self.world.format_dialog_fragments(fragments))
+                                        .heading(),
+                                )
                                 .clicked()
                             {
                                 dialog.node = name.clone();
@@ -586,9 +645,9 @@ impl Game {
                     }
                 });
             }
-            NodeChildren::Next(node) => {
+            NodeChildren::Jump { jump } => {
                 if next() {
-                    dialog.node = node;
+                    dialog.node = jump;
                     dialog.line = 0;
                     dialog.character = 0;
                 }
@@ -618,6 +677,22 @@ impl Game {
             NodeChildren::List(list) => {
                 for children in list {
                     self.node_children_ui(ui, line_text.clone(), children);
+                }
+            }
+            NodeChildren::Next(fragments) => {
+                let clicked = ui
+                    .with_layout(Layout::bottom_up(Align::Min), |ui| {
+                        fragments.iter().any(|fragments| {
+                            ui.button(
+                                RichText::new(self.world.format_dialog_fragments(fragments))
+                                    .heading(),
+                            )
+                            .clicked()
+                        })
+                    })
+                    .inner;
+                if clicked {
+                    self.progress_dialog();
                 }
             }
         }
