@@ -98,14 +98,17 @@ impl World {
             let field_force =
                 self.sample_output_vector_field(VectorOutputFieldKind::Force, pos, true);
             let order = self.sample_output_scalar_field(ScalarOutputFieldKind::Order, pos, true);
-            let obj = &self.objects[&handle];
-            let diff = obj.ordered_pr.pos - obj.pr.pos;
-            let order_force = order
-                * diff.length()
-                * diff.normalized()
-                * (5.0 - 4.0 * diff.normalized().dot(obj.vel.normalized()));
             let temp = self.temperature_at(pos);
+            let obj = &self.objects[&handle];
+            let order_pos_diff = obj.ordered_pr.pos - obj.pr.pos;
             let body = &mut self.physics.bodies[handle];
+            let order_force = if order.abs() > 0.0 {
+                let target_vel = order * order_pos_diff;
+                let vel_diff = target_vel - obj.vel;
+                vel_diff * body.mass()
+            } else {
+                Vec2::ZERO
+            };
             let (total_force, sensor) = if order_force.length() > 0.0 {
                 (order_force, order >= 1.0)
             } else {
