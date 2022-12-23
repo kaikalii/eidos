@@ -78,15 +78,15 @@ dont_know:
     - Finally, Mnemonics is the study of information storage, retrieval, processing. Mnemonists write highly-complex spells to automate casting that a magician would otherwise have to do manually.
     - All types of magic are important, and every magician should know a little bit of everything, but most people choose to specialize in one type or another.
     - So, what do you think? Which one sounds the most interesting to you?
-  children:
-    kinetics: [Kinetics sounds neat. I like the idea of moving things around.]
-    thermics: [Thermics sounds cool (pun intended).]
-    entropics:
-      [
-        Entropics sounds cool. I like the idea of making things more or less ordered.,
-      ]
-    mnemonics:
-      [Mnemonics sounds cool. I like the idea of writing complex spells.]
+  # children:
+  #   kinetics: [Kinetics sounds neat. I like the idea of moving things around.]
+  #   thermics: [Thermics sounds cool \(pun intended\).]
+  #   entropics:
+  #     [
+  #       Entropics sounds cool. I like the idea of making things more or less ordered.,
+  #     ]
+  #   mnemonics:
+  #     [Mnemonics sounds cool. I like the idea of writing complex spells.]
 end:
   lines:
     - background: school1.png

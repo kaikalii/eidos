@@ -356,8 +356,8 @@ fn line_parser() -> impl FragmentParser<Line<DeserializedLine>> {
 
 fn fragments() -> impl FragmentParser<DeserializedLine> {
     choice((
-        variable().map(DialogFragment::Variable),
         string_fragment().map(DialogFragment::String),
+        variable().map(DialogFragment::Variable),
     ))
     .repeated()
 }
@@ -369,7 +369,12 @@ fn bracketed<T>(inner: impl FragmentParser<T>) -> impl FragmentParser<T> {
 }
 
 fn string_fragment() -> impl FragmentParser<String> {
-    none_of("()").repeated().at_least(1).collect()
+    just('\\')
+        .ignore_then(one_of("()"))
+        .or(none_of("()"))
+        .repeated()
+        .at_least(1)
+        .collect()
 }
 
 fn variable() -> impl FragmentParser<DialogVariable> {
