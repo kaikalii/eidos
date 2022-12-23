@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs};
 
 use anyhow::{anyhow, bail};
 use chumsky::{prelude::*, text::whitespace};
-use eframe::egui::*;
+use eframe::{egui::*, epaint::ahash::HashSet};
 use enum_iterator::all;
 use indexmap::IndexMap;
 use itertools::Itertools;
@@ -128,6 +128,10 @@ impl<T> Default for NodeChildren<T> {
 #[serde(rename_all = "snake_case")]
 pub enum Condition {
     FieldKnown(InputFieldKind),
+    Flag(String),
+    Not(Box<Self>),
+    And(Vec<Self>),
+    Or(Vec<Self>),
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -165,6 +169,8 @@ pub enum DialogCommand {
     RevealFree,
     RevealConduit,
     RevealField(InputFieldKind),
+    Set(String),
+    Unset(String),
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -329,6 +335,7 @@ pub struct DialogState {
     right_speaker: Option<Speaker>,
     speaker: Option<String>,
     can_cast: bool,
+    flags: HashSet<String>,
 }
 
 const DIALOG_SPEED: usize = 4;
@@ -396,6 +403,22 @@ impl NodeChildren<DeserializedLine> {
     }
 }
 
+impl DialogState {
+    fn check_condition(&self, world: &World, condition: &Condition) -> bool {
+        match condition {
+            Condition::FieldKnown(kind) => world.player.progression.known_fields.contains(kind),
+            Condition::Flag(flag) => self.flags.contains(flag),
+            Condition::Not(inner) => !self.check_condition(world, inner),
+            Condition::And(conditions) => conditions
+                .iter()
+                .all(|condition| self.check_condition(world, condition)),
+            Condition::Or(conditions) => conditions
+                .iter()
+                .any(|condition| self.check_condition(world, condition)),
+        }
+    }
+}
+
 impl Game {
     pub fn set_dialog(&mut self, scene_name: &str) {
         let scene = &DIALOG_SCENES[scene_name];
@@ -408,6 +431,7 @@ impl Game {
             can_cast: false,
             left_speaker: None,
             right_speaker: None,
+            flags: HashSet::default(),
         };
         self.ui_state.dialog = Some(dialog);
     }
@@ -513,6 +537,12 @@ impl Game {
                     }
                     DialogCommand::RevealFree => progression.free = true,
                     DialogCommand::RevealConduit => progression.conduit = true,
+                    DialogCommand::Set(flag) => {
+                        dialog.flags.insert(flag.clone());
+                    }
+                    DialogCommand::Unset(flag) => {
+                        dialog.flags.remove(flag);
+                    }
                 }
                 self.progress_dialog();
                 self.dialog_ui_impl(ui);
@@ -568,12 +598,7 @@ impl Game {
                 then,
                 els,
             } => {
-                let is_true = match condition {
-                    Condition::FieldKnown(kind) => {
-                        self.world.player.progression.known_fields.contains(&kind)
-                    }
-                };
-                if is_true {
+                if dialog.check_condition(&self.world, &condition) {
                     self.node_children_ui(ui, line_text, *then)
                 } else {
                     self.node_children_ui(ui, line_text, *els)
