@@ -120,7 +120,7 @@ impl ShapeLayer {
     }
 }
 
-struct FoundObject<'a> {
+pub struct FoundObject<'a> {
     obj: &'a Object,
     shape: &'a OffsetShape,
     layer: ShapeLayer,
@@ -185,7 +185,7 @@ impl World {
     ) -> Option<FoundObject> {
         self.find_obj_filtered_at_impl(p, filter, Object::transform_point)
     }
-    fn find_object_at(&self, p: Pos2) -> Option<FoundObject> {
+    pub fn find_object_at(&self, p: Pos2) -> Option<FoundObject> {
         self.find_object_filtered_at(p, |_, _| true)
     }
     pub fn sample_scalar_field(
@@ -514,6 +514,8 @@ impl World {
                 self.add_object_def(po.pos, object);
             }
         }
+        // Add air
+        self.add_liquid(0.1, 0.1, self.min_bound, self.max_bound);
         // Init heat grid
         self.heat_grid = vec![vec![GROUND_TEMP; self.heat_grid_height()]; self.heat_grid_width()];
         for col in self.heat_grid.iter_mut() {

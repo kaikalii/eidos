@@ -1,6 +1,6 @@
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
-use eframe::epaint::{Pos2, Vec2};
+use eframe::epaint::{pos2, Pos2, Vec2};
 use itertools::Itertools;
 use rapier2d::{na::Unit, prelude::*};
 
@@ -97,14 +97,27 @@ impl World {
                 self.sample_output_vector_field(VectorOutputFieldKind::Gravity, pos, true);
             let field_force =
                 self.sample_output_vector_field(VectorOutputFieldKind::Force, pos, true);
-            let order = self.sample_output_scalar_field(ScalarOutputFieldKind::Order, pos, true);
-            let obj = &self.objects[&handle];
-            let diff = obj.ordered_pr.pos - obj.pr.pos;
-            let order_force = order
-                * diff.length()
-                * diff.normalized()
-                * (5.0 - 4.0 * diff.normalized().dot(obj.vel.normalized()));
             let temp = self.temperature_at(pos);
+            // Calculate order forces
+            let (order, order_force) = if let Some(obj) = self.objects.get(&handle) {
+                let order =
+                    self.sample_output_scalar_field(ScalarOutputFieldKind::Order, pos, true);
+                let body = &mut self.physics.bodies[handle];
+                let diff = obj.ordered_pr.pos - obj.pr.pos;
+                body.reset_torques(true);
+                if order.abs() > 0.0 {
+                    let angle = angle_diff(obj.pr.rot, obj.ordered_pr.rot);
+                    let order_torque = order * angle;
+                    body.add_torque(order_torque, true);
+                }
+                let order_force = order
+                    * diff.length()
+                    * diff.normalized()
+                    * (5.0 - 4.0 * diff.normalized().dot(obj.vel.normalized()));
+                (order, order_force)
+            } else {
+                (0.0, Vec2::ZERO)
+            };
             let body = &mut self.physics.bodies[handle];
             let (total_force, sensor) = if order_force.length() > 0.0 {
                 (order_force, order >= 1.0)
@@ -124,12 +137,6 @@ impl World {
             }
             body.reset_forces(true);
             body.add_force(total_force.convert(), true);
-            body.reset_torques(true);
-            if order.abs() > 0.0 {
-                let angle = angle_diff(obj.pr.rot, obj.ordered_pr.rot);
-                let order_torque = order * angle;
-                body.add_torque(order_torque, true);
-            }
         }
         // Step physics
         self.physics.step();
@@ -241,6 +248,30 @@ impl World {
         };
         self.objects.insert(body_handle, object);
         body_handle
+    }
+    pub fn add_liquid(&mut self, spacing: f32, size: f32, min_bound: Pos2, max_bound: Pos2) {
+        let mut x = min_bound.x;
+        let mut y = min_bound.y;
+        while x < max_bound.x {
+            while y < max_bound.y {
+                let pos = pos2(x, y);
+                if self.find_object_at(pos).is_none() {
+                    let body_handle = self
+                        .physics
+                        .bodies
+                        .insert(RigidBodyBuilder::dynamic().translation(pos.convert()));
+                    self.physics.colliders.insert_with_parent(
+                        ColliderBuilder::new(SharedShape::new(Ball::new(size * 0.5)))
+                            .density(AIR_DENSITY_AT_GROUND_TEMP),
+                        body_handle,
+                        &mut self.physics.bodies,
+                    );
+                }
+                y += spacing;
+            }
+            y = 0.0;
+            x += spacing;
+        }
     }
     pub fn get_light_at(&self, pos: Pos2) -> f32 {
         let mut max = 0f32;
