@@ -1,92 +1,92 @@
-# start:
-#   lines:
-#     - background: school2.png
-#     - left: Kalisa
-#     - speaker:
-#         stranger: Kalisa
-#     - Oh, hello!
-#     - Are you a first year too?
-#     - I'm Kalisa.
-#   children: [I'm (name)]
-# said_name:
-#   lines:
-#     - speaker: Kalisa
-#     - I can't believe the day is finally here! I've been waiting the whole summer for this!
-#     - I've wanted to go to Resa Academy for as long as I can remember.
-#     - Do you see that building over there? The main complex? I have a poster of it in my room.
-#   children: [I don't see much]
-# dont_see_much:
-#   lines:
-#     - Wait, what do you mean?
-#   children: [I'm blind]
-# im_blind:
-#   lines:
-#     - Oh, I'm sorry! I didn't notice. You don't have a cane or glasses or anything.
-#     - Wait, how are you finding your way around the campus then?
-#     - ...
-#     - Oh! I know! You use magic, don't you?
-#   children:
-#     [
-#       "Yes, I can sense people and objects around me. I can't really see fine details like faces though.",
-#     ]
-# i_sense:
-#   lines:
-#     - That's so cool! I wish I could do that. You must be really naturally talented.
-#     - right: Sanuo
-#     - speaker:
-#         stranger: Sanuo
-#     - Hey, do you guys know where the auditorium is? I'm trying to get there before the assembly starts.
-#     - speaker: Kalisa
-#     - Another fellow classmate! I'm Kalisa! I can show you the way. You two just follow me.
-#     - speaker:
-#         stranger: Sanuo
-#     - Cool, thanks. I'm Sanuo.
-# walking:
-#   lines:
-#     - background: school_path.png
-#     - speaker: ~
-#     - left: ~
-#     - right: ~
-#     - ...
-#     - left: Kalisa
-#     - speaker: Kalisa
-#     - So, have you guys decided what kind of magic you are going to study?
-#     - right: Sanuo
-#     - speaker: Sanuo
-#     - I'm doing Entropics.
-#     - I like the idea of choosing how things should be and making it happen.
-#     - And of course, you can also blow stuff up.
-#     - speaker: Kalisa
-#     - I'm studying Kinetics.
-#     - I've always had this idea in my head of flying over the landscape and conjuring buildings from the ground up.
-#     - What about you, (name)? Do you know what you want to study?
-#   children:
-#     not_sure:
-#       [I'm not sure yet. I'm still trying to figure out what I'm good at.]
-#     dont_know:
-#       [I don't know much about the different types of magic. What is there?]
-# not_sure:
-#   lines:
-#     - That's fine. We'll be starting out with basic magic classes anyway, so you'll have time to decide.
-# dont_know:
-#   lines:
-#     - Wow! How can you not know?
-#     - "There are four main fields of magical study: Kinetics, Thermics, Entropics, and Mnemonics."
-#     - Kinetics is the study of movement and force. Kinetists manipulate physical and magical forces to move objects around.
-#     - Thermics is the study of temperature and heat. Thermists make things hotter or colder, and they can change the state of matter.
-#     - Entropics is the study of order. Entropists define a proper state for objects, and they can make things more or less ordered acording to that state.
-#     - Finally, Mnemonics is the study of information storage, retrieval, processing. Mnemonists write highly-complex spells to automate casting that a magician would otherwise have to do manually.
-#     - All types of magic are important, and every magician should know a little bit of everything, but most people choose to specialize in one type or another.
-#     - So, what do you think? Which one sounds the most interesting to you?
-#   children:
-#     kinetics: [Kinetics sounds neat. I like the idea of moving things around.]
-#     thermics: [Thermics sounds cool \(pun intended\).]
-#     entropics:
-#       [
-#         Entropics sounds cool. I like the idea of making things more or less ordered.,
-#       ]
-#     mnemonics:
-#       [Mnemonics sounds cool. I like the idea of writing complex spells.]
+start:
+  lines:
+    - background: school2.png
+    - left: Kalisa
+    - speaker:
+        stranger: Kalisa
+    - Oh, hello!
+    - Are you a first year too?
+    - I'm Kalisa.
+  children: [I'm (name)]
+said_name:
+  lines:
+    - speaker: Kalisa
+    - I can't believe the day is finally here! I've been waiting the whole summer for this!
+    - I've wanted to go to Resa Academy for as long as I can remember.
+    - Do you see that building over there? The main complex? I have a poster of it in my room.
+  children: [I don't see much]
+dont_see_much:
+  lines:
+    - Wait, what do you mean?
+  children: [I'm blind]
+im_blind:
+  lines:
+    - Oh, I'm sorry! I didn't notice. You don't have a cane or glasses or anything.
+    - Wait, how are you finding your way around the campus then?
+    - ...
+    - Oh! I know! You use magic, don't you?
+  children:
+    [
+      "Yes, I can sense people and objects around me. I can't really see fine details like faces though.",
+    ]
+i_sense:
+  lines:
+    - That's so cool! I wish I could do that. You must be really naturally talented.
+    - right: Sanuo
+    - speaker:
+        stranger: Sanuo
+    - Hey, do you guys know where the auditorium is? I'm trying to get there before the assembly starts.
+    - speaker: Kalisa
+    - Another fellow classmate! I'm Kalisa! I can show you the way. You two just follow me.
+    - speaker:
+        stranger: Sanuo
+    - Cool, thanks. I'm Sanuo.
+walking:
+  lines:
+    - background: school_path1.png
+    - speaker: ~
+    - left: ~
+    - right: ~
+    - ...
+    - left: Kalisa
+    - speaker: Kalisa
+    - So, have you guys decided what kind of magic you are going to study?
+    - right: Sanuo
+    - speaker: Sanuo
+    - I'm doing Entropics.
+    - I like the idea of choosing how things should be and making it happen.
+    - And of course, you can also blow stuff up.
+    - speaker: Kalisa
+    - I'm studying Kinetics.
+    - I've always had this idea in my head of flying over the landscape and conjuring buildings from the ground up.
+    - What about you, (name)? Do you know what you want to study?
+  children:
+    not_sure:
+      [I'm not sure yet. I'm still trying to figure out what I'm good at.]
+    dont_know:
+      [I don't know much about the different types of magic. What is there?]
+not_sure:
+  lines:
+    - That's fine. We'll be starting out with basic magic classes anyway, so you'll have time to decide.
+dont_know:
+  lines:
+    - Wow! How can you not know?
+    - "There are four main fields of magical study: Kinetics, Thermics, Entropics, and Mnemonics."
+    - Kinetics is the study of movement and force. Kinetists manipulate physical and magical forces to move objects around.
+    - Thermics is the study of temperature and heat. Thermists make things hotter or colder, and they can change the state of matter.
+    - Entropics is the study of order. Entropists define a proper state for objects, and they can make things more or less ordered acording to that state.
+    - Finally, Mnemonics is the study of information storage, retrieval, processing. Mnemonists write highly-complex spells to automate casting that a magician would otherwise have to do manually.
+    - All types of magic are important, and every magician should know a little bit of everything, but most people choose to specialize in one type or another.
+    - So, what do you think? Which one sounds the most interesting to you?
+  # children:
+  #   kinetics: [Kinetics sounds neat. I like the idea of moving things around.]
+  #   thermics: [Thermics sounds cool \(pun intended\).]
+  #   entropics:
+  #     [
+  #       Entropics sounds cool. I like the idea of making things more or less ordered.,
+  #     ]
+  #   mnemonics:
+  #     [Mnemonics sounds cool. I like the idea of writing complex spells.]
 end:
   lines:
     - background: school1.png

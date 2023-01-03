@@ -559,7 +559,7 @@ impl Game {
                 let max_dialog_char = (char_indices.len().saturating_sub(1)) * DIALOG_SPEED;
                 dialog.character = (dialog.character + 1).min(max_dialog_char);
                 let mut next = || {
-                    ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+                    ui.with_layout(Layout::bottom_up(Align::Max), |ui| {
                         ui.button("Next").clicked()
                     })
                     .inner
@@ -618,7 +618,7 @@ impl Game {
     ) {
         let dialog = self.ui_state.dialog.as_mut().unwrap();
         let mut next = || {
-            ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+            ui.with_layout(Layout::bottom_up(Align::Max), |ui| {
                 ui.button("Next").clicked()
             })
             .inner
