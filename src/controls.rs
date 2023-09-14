@@ -142,9 +142,7 @@ impl Widget for SeparatorButton {
         if ui.is_rect_visible(response.rect) {
             let stroke = if hilight
                 && ui
-                    .input()
-                    .pointer
-                    .interact_pos()
+                    .input(|input| input.pointer.interact_pos())
                     .map_or(false, |pos| rect.contains(pos))
             {
                 ui.visuals().selection.stroke

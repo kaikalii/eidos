@@ -40,7 +40,8 @@ fn fatal_error_impl(message: String) -> ! {
             cc.egui_ctx.set_pixels_per_point(2.0);
             Box::new(FatalErrorWindow { message })
         }),
-    );
+    )
+    .unwrap();
     exit(1)
 }
 

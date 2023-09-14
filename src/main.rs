@@ -1,5 +1,3 @@
-#![allow(unstable_name_collisions)]
-
 mod color;
 mod conduit;
 mod controls;
@@ -72,7 +70,8 @@ fn main() {
                 GameState::Game(Game::new(Player::new("Kai".into(), Gender::Male)).into())
             })
         }),
-    );
+    )
+    .unwrap();
 }
 
 pub enum GameState {
@@ -92,7 +91,7 @@ impl eframe::App for GameState {
         puffin::GlobalProfiler::lock().new_frame();
 
         // Resize
-        let screen_size = ctx.input().screen_rect.size();
+        let screen_size = ctx.input(|input| input.screen_rect.size());
         let window_size = screen_size * ctx.pixels_per_point();
         let ppp_scale = match self {
             GameState::NewGame(_) => 2.0,

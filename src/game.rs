@@ -131,7 +131,7 @@ impl Game {
         });
 
         // Show pause menu
-        if ctx.input().key_pressed(Key::Escape) {
+        if ctx.input(|input| input.key_pressed(Key::Escape)) {
             self.ui_state.paused = !self.ui_state.paused;
         }
 
@@ -363,7 +363,7 @@ impl Game {
         }
         if let Some(kind) = hovered.pop() {
             let size = &mut self.ui_state.fields_display.get_mut(&kind).unwrap().size;
-            *size = (*size + ui.input().scroll_delta.y / 1000.0).clamp(0.1, 1.0);
+            *size = (*size + ui.input(|input| input.scroll_delta.y) / 1000.0).clamp(0.1, 1.0);
         }
         if let Some(kind) = drag_released {
             let pos = &mut self.ui_state.fields_display.get_mut(&kind).unwrap().pos;
@@ -374,7 +374,7 @@ impl Game {
     fn spell_words_ui(ui: &mut Ui, words: &[Word], max_height: f32, can_dispel: bool) -> bool {
         puffin::profile_function!();
         let font_id = &ui.style().text_styles[&TextStyle::Body];
-        let row_height = ui.fonts().row_height(font_id);
+        let row_height = ui.fonts(|input| input.row_height(font_id));
         let vert_spacing = ui.spacing().item_spacing.y;
         const MARGIN: f32 = 4.0;
         ui.vertical(|ui| {
@@ -583,7 +583,7 @@ impl Game {
         // Vertical slider
         if used_controls.contains(&ControlKind::YSlider) {
             let value = self.world.controls.y_slider.get_or_insert(0.0);
-            if ui.memory().focus().is_none() {
+            if ui.memory(|mem| mem.focus().is_none()) {
                 if let Some(i) = [
                     Key::Num0,
                     Key::Num1,
@@ -597,7 +597,7 @@ impl Game {
                     Key::Num9,
                 ]
                 .into_iter()
-                .position(|key| ui.input().key_pressed(key))
+                .position(|key| ui.input(|input| input.key_pressed(key)))
                 {
                     *value = i as f32 / 9.0;
                 }
@@ -611,20 +611,20 @@ impl Game {
             self.world.controls.y_slider = None;
         }
         ui.vertical(|ui| {
+            let something_focused = ui.memory(|mem| mem.focus().is_some());
             // Horizontal slider
             if used_controls.contains(&ControlKind::XSlider) {
                 let value = self.world.controls.x_slider.get_or_insert(0.0);
-                let something_focused = ui.memory().focus().is_some();
-                let input = ui.input();
-                if input.key_down(Key::D) || input.key_down(Key::A) {
-                    if !something_focused {
-                        *value = input.key_down(Key::D) as u8 as f32
-                            - input.key_down(Key::A) as u8 as f32;
+                ui.input(|input| {
+                    if input.key_down(Key::D) || input.key_down(Key::A) {
+                        if !something_focused {
+                            *value = input.key_down(Key::D) as u8 as f32
+                                - input.key_down(Key::A) as u8 as f32;
+                        }
+                    } else if input.key_released(Key::D) || input.key_released(Key::A) {
+                        *value = 0.0;
                     }
-                } else if input.key_released(Key::D) || input.key_released(Key::A) {
-                    *value = 0.0;
-                }
-                drop(input);
+                });
                 Slider::new(value, -1.0..=1.0)
                     .fixed_decimals(1)
                     .show_value(false)
@@ -633,7 +633,6 @@ impl Game {
                 self.world.controls.x_slider = None;
             }
             // Activators
-            let something_focused = ui.memory().focus().is_some();
             for (word, kind, value, require_shift) in [
                 (
                     Word::Ve,
@@ -650,14 +649,15 @@ impl Game {
             ] {
                 if used_controls.contains(&kind) {
                     ui.toggle_value(value, word.to_string());
-                    let input = ui.input();
-                    if input.key_down(Key::Space) && require_shift != input.modifiers.shift {
-                        if !something_focused {
-                            *value = true;
+                    ui.input(|input| {
+                        if input.key_down(Key::Space) && require_shift != input.modifiers.shift {
+                            if !something_focused {
+                                *value = true;
+                            }
+                        } else if input.key_released(Key::Space) {
+                            *value = false;
                         }
-                    } else if input.key_released(Key::Space) {
-                        *value = false;
-                    }
+                    });
                 } else {
                     *value = false;
                 }
@@ -677,8 +677,8 @@ impl Game {
             ui_state.next_player_target = plot_resp.hovered_pos;
         }
         if plot_resp.response.hovered() {
-            controls.activation1 = ui.input().pointer.primary_down();
-            controls.activation2 = ui.input().pointer.secondary_down();
+            controls.activation1 = ui.input(|input| input.pointer.primary_down());
+            controls.activation2 = ui.input(|input| input.pointer.secondary_down());
         }
     }
     fn init_plot(&self, size: f32, global_alpha: f32) -> FieldPlot {
