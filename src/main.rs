@@ -50,6 +50,7 @@ fn main() {
         },
         Box::new(|cc| {
             let ctx = &cc.egui_ctx;
+            ctx.set_visuals(Visuals::dark());
             ctx.set_pixels_per_point(1.5);
             load_textures(ctx);
             let mut fonts = FontDefinitions::default();
